@@ -1,0 +1,44 @@
+#Value-conditional attr settings; ORDER MATTERS: 1st ck passed WITHIN a (string,
+#dtype, inode) dimension decides KIND WITHIN that dimension.  Optional :KEY is a
+#0..255 overall order for that kind.  3rd :-separated field is DIMENSION NUMBER.
+#Attributes add across dimensions.
+
+#      nm:ord:dim        attrs           #overall test number for reference
+color = "kern:0x0:0      underline"      #0x00
+color = "sleep:0x2:0     none"           #0x01
+color = "zomb:0x3:0      struck"         #0x02
+color = "stop:0x4:0      blink"          #0x03
+color = "run:0x5:0       bold"           #0x04
+
+color = "MT:0x6:1        italic"         #0x05
+
+#color = "niced:0x7:2     inverse"        #0x06
+
+color = "kworker:0x0:3   WHITE on_blue" #0x07
+color = "cpuhp:0x0:3     WHITE on_blue" #0x08
+color = "irq:0x0:3       WHITE on_blue" #0x09
+color = "ksoftirqd:0x0:3 WHITE on_blue" #0x0A
+color = "migration:0x0:3 WHITE on_blue" #0x0B
+color = "xfs:0x0:3       WHITE on_blue" #0x0C
+color = "kcryptd:0x0:3   WHITE on_blue" #0x0D
+color = "dmcrypt:0x0:3   WHITE on_blue" #0x0E
+color = "scsi_eh:0x0:3   WHITE on_blue" #0x0F
+color = "scsi_tmf:0x0:3  WHITE on_blue" #0x10
+color = "wq:0x0:3        WHITE on_blue" #0x11
+color = "rcu_*:0x0:3     WHITE on_blue" #0x12
+color = "*iod:0x0:3      WHITE on_blue" #0x13
+color = "kdmflush:0x0:3  WHITE on_blue" #0x14
+color = "firefox:0x0:3         BHOT3"   #0x15
+color = "chrome:0x0:3          BHOT3"   #0x16
+
+color = "root:0x1:3      fhot5"         #0x17
+
+color = "unknown:0x18:0  NONE"          #0x18 #Added if missing;Here to set ord
+
+color = "sizeB   NONE"                  #Value-conditional fields besides paths
+color = "sizeK   fhot2"
+color = "sizeM   fhot3"
+color = "sizeG   fhot4"
+color = "sizeT   fhot5 inverse"         #Tera-scl things are likely a problem
+
+color = "delta   underline"

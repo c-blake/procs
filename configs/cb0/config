@@ -1,0 +1,18 @@
+#cligen/cfUt.cfToCL include syntax is [include__NotAllUpper] => include file
+#while [include__ALL_UP] instead includes the file pointed to by "$ALL_UP".
+
+[display]
+[include__kind]     #Define our process typology
+
+[include__lightBG]  #Default to lightBG [fg][hot|HOT] defs but clobber if..
+[include__LC_THEME] #..LC_THEME set.  Defs used by color, ageFmt, maybe style.
+
+[include__color]    #Decide test order,colors,sort order,dimension of kind tests
+[include__ageFmt]   #Define various proc age/timestamp formats & colors
+[include__style]    #Define a bunch of styles/aliases for use with `-s`
+
+#Just some global default overrides.  All easily overridden on cmd line.
+#order  = toPpu     #Default: uid,tty,sess,ppid,pid
+format = "%p %t %J %c"  #Default; easily overridden on cmd-line or by style
+
+#format = "%p %t %o %u %J %D%c"
