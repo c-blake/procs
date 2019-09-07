@@ -1,13 +1,18 @@
-For the impatient, here is a screenshot:
+For the impatient, here are some screenshots with many related kernel threads
+merged:
 
-![screenshot](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/main.png)
+![screenshot1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/main.png)
+
+and with all kernel threads merged
+
+![screenshot2](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/basic.png)
 
 Getting a `procs` config going *should* be as easy as (on Debian):
 ```
 apt install nim  #(https://nim-lang.org/ has other options)
 nimble install procs
 git clone https://github.com/c-blake/procs
-cp -r lc/configs/cb0 $HOME/.config/procs
+cp -r procs/configs/cb0 $HOME/.config/procs
 $HOME/.nimble/bin/procs   #gives a help message
 ```
 The Nim experience can sometimes have fairly rough-hewn edges, though.  So far,
