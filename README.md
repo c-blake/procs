@@ -1,23 +1,25 @@
-For the impatient, here are some screenshots with many related kernel threads
-merged:
+Getting a `procs` config going *should* be as easy as (on Debian):
+```
+apt install nim  #(https://nim-lang.org/ has other options)
+nimble install procs
+$HOME/.nimble/bin/procs   #gives a help message
+(cd $HOME/.nimble/bin; ln -s procs pd)
+# Here is one way to get a fancier config going:
+git clone https://github.com/c-blake/procs
+cp -r procs/configs/cb0 $HOME/.config/procs
+```
+The Nim experience can sometimes have fairly rough-hewn edges, though.  So far,
+though, something like the above has worked for me on Gentoo Linux, Debian, and
+Android Termux.  `procs` only supports Linux /proc queries at the moment.
+
+Here are some screenshots with many related kernel threads merged (command used
+is shown in the output):
 
 ![screenshot1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/main.png)
 
 and with all kernel threads merged
 
 ![screenshot2](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/basic.png)
-
-Getting a `procs` config going *should* be as easy as (on Debian):
-```
-apt install nim  #(https://nim-lang.org/ has other options)
-nimble install procs
-git clone https://github.com/c-blake/procs
-cp -r procs/configs/cb0 $HOME/.config/procs
-$HOME/.nimble/bin/procs   #gives a help message
-```
-The Nim experience can sometimes have fairly rough-hewn edges, though.  So far,
-though, something like the above has worked for me on Gentoo Linux, Debian, and
-Android Termux.  `procs` only supports Linux /proc queries at the moment.
 
 This program is a melange of various procps/top/pidof/pgrep/pkill functionality
 with plans for whole system statistics.  It supports environment-variable-driven
@@ -55,14 +57,15 @@ a near halt.  The `pgrep`/`pkill` in `procps` (at least as of version 3.3.15)
 reads and selects all processes before acting upon them.  While hopefully rare,
 when ASAP action matters it can be very helpful.
 
-`procs display --delay 1` provides a similar use case but different theory of
-operation to `top`.  It allows non-zero deltas in a user-defined set of sort
-keys to decide if a process row displays after each delay.  In a steady state
-after your terminal is full, both filtering and sorting by changes in consumed
-CPU (j/J) gives you a scrolling readout that is much like an upside down top,
-but with no curses/ncurses dependency and in naturally logging-friendly way.
-Any other activity traits like data read/written and so on can also be used as
-triggers.
+`procs display --delay 1` provides a similar use case but somewhat different
+theory of operation to `top -ib`.  `procs` is not an interactive program and has
+no compile/run-time curses/ncurses/terminal dependency.  All coloring/merging
+ideas generally available in `procs display` are also retained.  You can log to
+a file and look at a nicely embellished report later.  It allows user-defined
+sense of "idle".  You can use traits besides CPU activity like RAM/IO activity,
+and even things independent of having been scheduled such as signal masks, nice
+value, etc.  It does not print system-wide statistics every iteration, although
+may grow an option for that.
 
 If you create hard-links or sym-links from the `procs` executable to any of
 { "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
