@@ -1,3 +1,5 @@
+BASICS
+======
 Getting a `procs` config going *should* be as easy as (on Debian):
 ```
 apt install nim  #(https://nim-lang.org/ has other options)
@@ -17,10 +19,14 @@ is shown in the output):
 
 ![screenshot1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/main.png)
 
-and with all kernel threads merged
+and with all kernel threads merged into one row:
 
 ![screenshot2](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/basic.png)
 
+Merging/coloring categories/kinds are all very user-defined.
+
+MORE GENERAL COMMENTS
+=====================
 This program is a melange of various procps/top/pidof/pgrep/pkill functionality
 with plans for whole system statistics.  It supports environment-variable-driven
 themed colorized process display based upon builtin process traits and also
@@ -37,9 +43,9 @@ intended to also be a user-friendly API/library interface to process
 statistics/data.  So, it can perhaps facilitate other new utility programs.
 Its only non-stdlib dependency is `cligen`.
 
-Though written in Nim, not C, this API/multicommand is generally as efficient
-or better.  `procs` tries very hard not to make unnecessary system calls.  For
-example, with a format of just '%p %c' it will only open & read `/proc/\*/stat`
+Though written in Nim, not C, this API/multicommand is generally about as
+efficient or better.  `procs` tries hard not to make unnecessary system calls.
+E.g., with a format of just '%p %c' it will only open & read `/proc/\*/stat`
 files.  Like `lc`, `procs display` is more of a "ps construction toolkit" than
 a pool of pre-packaged formats.  Fancy configs can create more work/slow things
 down.  Such is true with almost any featureful program.  I have timed a basic
