@@ -1364,7 +1364,7 @@ proc act(actions: seq[PdAct], pid: Pid, delim: string, sigs: seq[cint],
   for a in actions:
     case a
     of acEcho : stdout.write pid, delim
-    of acKill : nErr += (kill(pid, sigs[0]) != -1).int;stderr.write "asap sig\n"
+    of acKill : nErr += (kill(pid, sigs[0]) != -1).int
     of acNice : nErr += (nice(pid, nice.cint) != -1).int
     of acWait1: discard
     of acWaitA: discard
