@@ -1498,7 +1498,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
         cfPath = os.getConfigDir() & cmdNames[0] & "/config"
         if not existsFile(cfPath): cfPath = cfPath[0..^8]
       if existsFile(cfPath):
-        result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "")
+        result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
+                          quiet=true, noRaise=true)
       result.add envToCL(strutils.toUpperAscii(strutils.join(cmdNames, "_")))
     result = result & cmdLine
 
