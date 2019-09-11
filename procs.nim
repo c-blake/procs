@@ -437,6 +437,9 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## ``foo``.  When there is no natural aggregation the merged value is really
   ## set-valued (eg, ``tty``).  In such cases, by default, the first Proc wins
   ## the field unless ``overwriteSetValued`` is ``true``.
+  if p.pidPath.len > q.pidPath.len: p.pidPath = q.pidPath
+  p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0
+  if p.pidPath.len > q.pidPath.len: p.pidPath = q.pidPath
   if pf_minflt              in fill: p.minflt               += q.minflt
   if pf_cminflt             in fill: p.cminflt              += q.cminflt
   if pf_majflt              in fill: p.majflt               += q.majflt
