@@ -23,7 +23,9 @@ and with all kernel threads merged into one row:
 
 ![screenshot2](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/basic.png)
 
-Merging/coloring categories/kinds are all very user-defined.
+Merging/coloring categories/kinds are all very user-defined.  In the above,
+kernel threads are underlined and processes marked as runnable are bolded,
+and my terminal makes bold default foreground color render as orange.
 
 MORE GENERAL COMMENTS
 =====================
