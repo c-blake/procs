@@ -13,7 +13,7 @@ type
     spid*, cmd*, usr*, grp*: string
     pid*, pid0*, ppid0*, pgrp*, sess*, pgid*, nThr*: Pid
     flags*, minflt*, cminflt*, majflt*, cmajflt*: culong
-    t0*, utime*, stime*, cutime*, cstime*: culong
+    t0*, ageD*, utime*, stime*, cutime*, cstime*: culong
     prio*, nice*: clong
     vsize*, rss*, rss_rlim*, rtprio*, sched*, blkioTks*, gtime*, cgtime*,
       data0*, data1*, brk0*, arg0*, arg1*, env0*, env1*: culong
@@ -1038,9 +1038,9 @@ fAdd('T', {pf_t0}              ,1,6, "START"  ):
 fAdd('j', {pf_utime,pf_stime}  ,0,4, "TIME"   ): fmtJif(p.utime + p.stime)
 fAdd('J', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "CTIM"):
   fmtJif(p.utime + p.stime + p.cutime + p.cstime)
-fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.utime+p.stime,cg.uptm)
+fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.utime+p.stime,p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
-  fmtPct(p.utime + p.stime + p.cutime + p.cstime, cg.uptm)
+  fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "F"      ): "x"&toHex(p.flags.BiggestInt,6)
 fAdd('v', {pf_vsize}           ,0,4, "VSZ"    ): fmtSz(p.vsize)
@@ -1143,7 +1143,8 @@ proc hdrWrite(cf: var DpCf, diff=false) =
       stdout.write cf.a0
   stdout.write '\n'
 
-proc fmtWrite(cf: var DpCf, p: var Proc) =
+proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
+  p.ageD = if delta == 0: cf.uptm - p.t0 else: delta.culong
   var used = 0
   let ats = p.kattr
   for i, f in cf.fields:
@@ -1214,11 +1215,12 @@ proc displayASAP*(cf: var DpCf, pids: seq[string]) =
   let it = pidsIt(pids)
   for pid in it():
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
-      cf.fmtWrite p       #Flush lowers user-perceived latency by up to 100x at
+      cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
       stdout.flushFile    #..a cost < O(5%): well worth it whenever it matters.
       if cf.delay >= ts0: last[p.pid] = p
 #XXX Sort NEEDS all procs@once; COULD print non-merged/min depth ASAP; rest@end.
   if cf.delay < ts0: return
+  let dJiffies = cf.delay.tv_sec.int * 100 + (cf.delay.tv_nsec.int div 100)
   cmpsG = cf.diffCmps.addr
   var zero: Proc
   var next = initTable[Pid, Proc](4)
@@ -1233,7 +1235,7 @@ proc displayASAP*(cf: var DpCf, pids: seq[string]) =
         next[p.pid] = p
         p.minusEq(last.getOrDefault(p.pid), cf.diff)
         if multiLevelCmp(p.addr, zero.addr) != 0:
-          cf.fmtWrite p
+          cf.fmtWrite p, dJiffies
           stdout.flushFile
     last = next
 
@@ -1298,10 +1300,11 @@ proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
     var ptrs = newSeq[ptr Proc](procs.len)
     for i in 0 ..< procs.len: ptrs[i] = procs[i].addr
     ptrs.sort(multiLevelCmp)
-    for pp in ptrs: cf.fmtWrite pp[]
+    for pp in ptrs: cf.fmtWrite pp[], 0
   else:
-    for p in procs: cf.fmtWrite p.unsafeAddr[]
+    for p in procs: cf.fmtWrite p.unsafeAddr[], 0
   if cf.delay < ts0: return
+  let dJiffies = cf.delay.tv_sec.int * 100 + (cf.delay.tv_nsec.int div 100)
   var zero: Proc
   var next = initTable[Pid, Proc](4)
   while true:
@@ -1336,9 +1339,9 @@ proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
       for i in 0 ..< procs.len: ptrs[i] = procs[i].addr
       cmpsG = cf.cmps.addr
       ptrs.sort(multiLevelCmp)
-      for pp in ptrs: cf.fmtWrite pp[]
+      for pp in ptrs: cf.fmtWrite pp[], dJiffies
     else:
-      for p in procs: cf.fmtWrite p.unsafeAddr[]
+      for p in procs: cf.fmtWrite p.unsafeAddr[], dJiffies
     last = next
 
 # # # # # # # COMMAND-LINE INTERFACE: find # # # # # # #
