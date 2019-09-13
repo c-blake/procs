@@ -881,14 +881,15 @@ cAdd('j', {pf_utime,pf_stime}  , cmp, culong  ): p.utime  + p.stime
 cAdd('J', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
 cAdd('e', {pf_utime,pf_stime}  , cmp, culong  ): p.utime + p.stime
-cAdd('E', {pf_rss}             , cmp, culong  ): p.rss #p.vmRSS?
+cAdd('E', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
+                                 p.utime + p.cutime + p.stime + p.cstime
 cAdd('L', {pf_flags}           , cmp, culong  ): p.flags
 cAdd('v', {pf_vsize}           , cmp, culong  ): p.vsize
 cAdd('d', {pf_vsize, pf_startcode, pf_endcode}, cmp, uint64):
                                  p.vsize.uint64 + (p.startcode - p.endcode)
 cAdd('r', {pf_vsize, pf_startcode, pf_endcode}, cmp, uint64):
   if p.vsize != 0: p.vsize.uint64 + p.startcode - p.endcode else: 0
-cAdd('R', {pf_rss}             , cmp, culong  ): p.rss
+cAdd('R', {pf_rss}             , cmp, culong  ): p.rss #p.vmRSS?
 cAdd('f', {pf_minflt}          , cmp, culong  ): p.minflt
 cAdd('F', {pf_majflt}          , cmp, culong  ): p.majflt
 cAdd('h', {pf_minflt,pf_cminflt},cmp, culong  ): p.minflt + p.cminflt
@@ -1173,7 +1174,6 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
   if cf.delay >= ts0 and cf.diffCmp.len==0: cf.diffCmp = "J"  #default to cumCPU
-# if cf.diffCmp.len != 0 and cf.delay == -1: cf.delay = 100   #default to 1sec
   cf.tests = builtin                              #Initially populate w/builtin
   cf.parseKind                                    #.kind to tests additions
   cf.parseColors                                  #.colors => registered aliases
