@@ -1170,7 +1170,6 @@ const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``ls|ls1`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
-  cf.t0 = if entry.tv_sec.clong==0 and entry.tv_nsec==9: getTime() else: entry
   cf.a0 = if cf.plain: "" else: "\x1b[0m"
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
@@ -1191,6 +1190,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.sneed = needs(cf.need)                       #inits usrs&grps if necessary
   cf.uAbb = parseAbbrev(cf.maxUnm); cf.uAbb.realize(usrs)
   cf.gAbb = parseAbbrev(cf.maxGnm); cf.gAbb.realize(grps)
+  cf.t0 = if entry.tv_sec.clong==0 and entry.tv_nsec==9: getTime() else: entry
   if cf.needUptm: cf.uptm = procUptime()          #uptime in seconds
   if cf.needTotRAM: cf.totRAM = procMemInfo().MemTotal
   cg = cf.addr                                    #Init global ptr
@@ -1226,6 +1226,7 @@ proc displayASAP*(cf: var DpCf, pids: seq[string]) =
   var next = initTable[Pid, Proc](4)
   while true:
     nanosleep(cf.delay)
+    if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
     next.clear
     stdout.write '\n'
     if cf.header: cf.hdrWrite true
@@ -1309,6 +1310,7 @@ proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
   var next = initTable[Pid, Proc](4)
   while true:
     nanosleep(cf.delay)
+    if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
     next.clear; procs.setLen 0; parent.clear
     stdout.write '\n'
     if cf.header: cf.hdrWrite true
