@@ -1078,6 +1078,8 @@ fAdd('>', {pfi_wch,pfi_wbl}    ,0,4, "WRIT"   ): fmtSz(p.wch + p.wbl)
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 
 proc parseFormat(cf: var DpCf) =
+  let format = if cf.format.len > 0: cf.format
+               else: "-f%{bold}p %{italic}s %{inverse}R %{underline}J %c"
   type State = enum inPrefix, inField
   var leftMost = true; var algn = '\0'
   var state = inPrefix
@@ -1085,7 +1087,7 @@ proc parseFormat(cf: var DpCf) =
   var fmtE: tuple[pfs: ProcFields; left: bool; wid: int; hdr: string,
                   fmt: proc(p: var Proc, wMax=0): string]
   cf.fields.setLen(0)
-  for c in specifierHighlight(cf.format, fmtCodes, cf.plain):
+  for c in specifierHighlight(format, fmtCodes, cf.plain):
     case state
     of inField:
       if c in {'-', '+'}: algn = c; continue  #Any number of 'em;Last one wins
@@ -1531,6 +1533,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
     except HelpOnly, VersionOnly: quit(0)
     except ParseError: quit(1)
 
+  const ess: seq[string] = @[]
   dispatchMulti(
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
       help = { "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
@@ -1567,9 +1570,8 @@ ATTR=attr specs as above""",
                 "maxUnm":'U', "maxGnm":'G', "version":'v', "colors":'C',
                 "diffcmp":'D' },
       alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[
-  @[ "io" , "-DJ><", "-f%p %t %< %> %J %c" ],       #default/no-config styles
-  @[ "dfl",          "-f%{bold}p %{italic}s %{inverse}R %{underline}J %c"]]),
-                 ("style", 's', "APPLY an output style" , @[ @[ "-sdfl" ]]) ] ],
+                   @[ "io" , "-DJ><", "-f%p %t %< %> %J %c" ] ]),   #built-ins
+                 ("style", 's', "APPLY an output style" , @[ess]) ] ],
     [ procs.find, cmdName="find", doc=docFromProc(procs.find),
       help = { "pids":      "whitespace separated PIDs to subset",
                "full":      "match full command name",
