@@ -984,7 +984,8 @@ proc fmtSz[T](b: T): string =
   proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
     cg.attrSize[(if sz[^1] in {'0'..'9'}: ord('B') else: ord(sz[^1])) - ord('A')
                ] & sz & cg.a0
-  sizeFmt(align(humanReadable4(b.uint, cg.binary), 4))
+  if b.uint64 > 1844674407370955150'u64: "-" else:
+    sizeFmt(align(humanReadable4(b.uint, cg.binary), 4))
 
 proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return "?"
