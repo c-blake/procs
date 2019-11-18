@@ -674,7 +674,8 @@ type
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
     kslotNm: seq[string]                                    #Inverse of above
 
-let dd = DpCf(header: true, indent: 3,     #display defaults
+proc c_getenv(env: cstring): cstring {.importc: "getenv", header: "<stdlib.h>".}
+let dd = DpCf(header: true, indent: 3, plain: (c_getenv("NO_COLOR") != nil),
               delay: Timespec(tv_sec: (-1).Time))
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
