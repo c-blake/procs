@@ -1517,23 +1517,11 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
 
   const nimbleFile = staticRead "procs.nimble"
   clCfg.version = nimbleFile.fromNimble "version"
-  #XXX in cligen automate below param list & iniDpCf call for one point of edit.
-  proc displayCmd(kind=dd.kind, colors=dd.colors, color=dd.color,
-         ageFmt=dd.ageFmt, incl=dd.incl, excl=dd.excl, merge=dd.merge,
-         hdrs=dd.hdrs, order=dd.order, diffCmp=dd.diffCmp, format=dd.format,
-         maxUnm=dd.maxUnm, maxGnm=dd.maxGnm, indent=dd.indent, width=dd.width,
-         delay=dd.delay, wide=dd.wide, binary=dd.binary, plain=dd.plain,
-         header=dd.header, pids: seq[string]) =
-    initGen(dd, DpCf, "pids", @["ALL AFTER pids"], "iniDpCf")
-    try:
-      var cf = iniDpCf(kind, colors, color, ageFmt, incl, excl, merge, hdrs,
-                       order, diffCmp, format, maxUnm, maxGnm, indent, width,
-                       delay, wide, binary, plain, header, pids)
-      cf.fin()
-      cf.display()
-      quit(min(255, cf.nError))
-    except HelpOnly, VersionOnly: quit(0)
-    except ParseError: quit(1)
+
+  initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
+    cf.fin()
+    cf.display()
+    quit(min(255, cf.nError))
 
   const ess: seq[string] = @[]
   dispatchMulti(
