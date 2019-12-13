@@ -1210,13 +1210,13 @@ proc pidPath(parent: Table[Pid, Pid], pid: Pid): seq[Pid] =
 
 #XXX display,displayASAP should grow a threads mode like '/bin/ps H' etc.
 #XXX display,displayASAP should grow --action so caller can use user-defd kinds.
-proc displayASAP*(cf: var DpCf, pids: seq[string]) =
+proc displayASAP*(cf: var DpCf) =
   ## Aggressively output as we go; Incompatible with non-kernel-default sorts.
   ## This yields much faster initial/gradual output on a struggling system.
   if cf.header: cf.hdrWrite
   var last = initTable[Pid, Proc](4)
   var p: Proc
-  let it = pidsIt(pids)
+  let it = pidsIt(cf.pids)
   for pid in it():
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
@@ -1234,7 +1234,7 @@ proc displayASAP*(cf: var DpCf, pids: seq[string]) =
     next.clear
     stdout.write '\n'
     if cf.header: cf.hdrWrite true
-    let it = pidsIt(pids)
+    let it = pidsIt(cf.pids)
     for pid in it():
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
         next[p.pid] = p
@@ -1258,7 +1258,7 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
         procs2[^1].cmdline = @[ procs2[^1].cmd ]
       return true
 
-proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
+proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##Display running processes `pids` (all passing filter if empty) in a tabular,
   ##colorful, maybe sorted way.  Cmd params/cfg files are very similar to `lc`.
   ##
@@ -1279,12 +1279,12 @@ proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
   ##xterm/st true colors are [fb]HHHHHH (common R,G,B hex).  Field AND strftime
   ##formats both accept %{ATTR1 ATTR2..}CODE to set colors for any %CODE field.
   if cf.cmps.len == 0 and cf.merge.len == 0 and not cf.forest:
-    cf.displayASAP(pids); return
+    cf.displayASAP(); return
   if cf.header: cf.hdrWrite
   var last = initTable[Pid, Proc](4)
   var parent = initTable[Pid, Pid]()
-  var procs = newSeqOfCap[Proc](pids.len)
-  let it = pidsIt(pids)
+  var procs = newSeqOfCap[Proc](cf.pids.len)
+  let it = pidsIt(cf.pids)
   for pid in it():
     procs.setLen procs.len + 1
     if not procs[^1].read(pid, cf.need, cf.sneed) or cf.failsFilters(procs[^1]):
@@ -1319,7 +1319,7 @@ proc display*(cf: var DpCf, pids: seq[string]) = # [AMOVWYbkl] free
     stdout.write '\n'
     if cf.header: cf.hdrWrite true
     cmpsG = cf.diffCmps.addr
-    let it = pidsIt(pids)
+    let it = pidsIt(cf.pids)
     for pid in it():
       procs.setLen procs.len + 1
       if not procs[^1].read(pid,cf.need,cf.sneed) or cf.failsFilters(procs[^1]):
@@ -1530,7 +1530,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
                        order, diffCmp, format, maxUnm, maxGnm, indent, width,
                        delay, wide, binary, plain, header, pids)
       cf.fin()
-      cf.display(if cf.pids.len > 0: cf.pids else: @[])
+      cf.display()
       quit(min(255, cf.nError))
     except HelpOnly, VersionOnly: quit(0)
     except ParseError: quit(1)
