@@ -1014,6 +1014,7 @@ fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
   let s = if p.cmdline[0].len > 0: p.cmdline.joinQuoted else: p.cmd
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
+#Unreliable (can be 0 when real id is dropped priv), but alt pfs_* are pricey.
 fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.st.st_uid.uint
 fAdd('U', {pffs_usr}           ,1,4, "USER"   ): cg.uAbb.abbrev p.usr
 fAdd('z', {pffs_gid}           ,0,5, "GID"    ): $p.st.st_gid.uint
