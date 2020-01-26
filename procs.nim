@@ -189,11 +189,11 @@ proc toMem(s: string): uint64{.inline.} = parseInt(s).uint64
 
 var buf = newStringOfCap(4096)          #shared IO buffer for all readFile
 
-proc readStat*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool =
+proc readStat*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Populate ``Proc p`` pf_ fields requested in ``fill`` via /proc/PID/stat.
   ## Returns false upon missing/corrupt file (eg. stale ``pid`` | not Linux).
   result = true
-  (pr & "stat").readFile buf, sp
+  (pr & "stat").readFile buf
   let cmd0 = buf.find(" (")             #Bracket command.  Works even if cmd has
   let cmd1 = buf.rfind(") ")            #..parens or whitespace chars in it.
   if cmd0 == -1 or cmd1 == -1 or p.spid != buf[0 ..< cmd0]:
@@ -255,11 +255,11 @@ proc readStat*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool =
     of pf_exitCode .int:p.exitCode =if pf_exitCode  in fill: toCin(s)     else:0
     else: discard
 
-proc readStatm*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool =
+proc readStatm*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Populate ``Proc p`` pfsm_ fields requested in ``fill`` via /proc/PID/statm.
   ## Returns false upon missing/corrupt file (eg. stale ``pid`` | not Linux).
   result = true
-  (pr & "statm").readFile buf, sp
+  (pr & "statm").readFile buf
   let c = buf.split
   if c.len != 7:
     return false
@@ -271,12 +271,12 @@ proc readStatm*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool =
   if pfsm_dat   in fill: p.dat   = toCul(c[5])
   if pfsm_dty   in fill: p.dty   = toCul(c[6])
 
-proc readStatus*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool=
+proc readStatus*(p: var Proc; pr: string, fill: ProcFields): bool=
   ## Populate ``Proc p`` pfs_ fields requested in ``fill`` via /proc/PID/status.
   ## Returns false upon missing/corrupt file (eg. stale ``pid`` | not Linux).
   proc `<`(f: ProcField, fs: ProcFields): bool {.inline} = f in fs
   result = true
-  (pr & "status").readFile buf, sp
+  (pr & "status").readFile buf
   var c = newSeqOfCap[string](32)
   for line in buf.split('\n'):
     if line.len == 0 or line.splitr(c, seps=wspace) < 2: continue
@@ -348,11 +348,11 @@ proc readStatus*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool=
     elif pfs_volun_ctxt_switch < fill and n=="nonvoluntary_ctxt_switches:":
       p.nonvolun_ctxt_switch = toU64(c[1])
 
-proc readIO*(p: var Proc; pr: string, fill: ProcFields, sp: ptr Stat): bool =
+proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Populate ``Proc p`` pfi_ fields requested in ``fill`` via /proc/PID/io.
   ## Returns false upon missing/corrupt file (eg. stale ``pid`` | not Linux).
   result = true
-  (pr & "io").readFile buf, sp
+  (pr & "io").readFile buf
   if buf.len == 0:
     if pfi_rch     in fill: p.rch     = 0
     if pfi_wch     in fill: p.wch     = 0
@@ -385,21 +385,20 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   let pr = "/proc/" & pid & "/"
   p.spid = pid
   p.pid = toPid(pid)
-  let sp = if psFStat in sneed: p.st.addr else: nil
-  if psStat in sneed and not p.readStat(pr, fill, sp): return false
+  if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
-    (pr & "cmdline").readFile buf, sp;
+    (pr & "cmdline").readFile buf
     p.cmdline = buf.split('\0')
   if pfen_environ in fill:
-    (pr & "environ").readFile buf, sp
+    (pr & "environ").readFile buf
     p.environ = buf.split('\0')
   if pfr_root in fill: p.root = readlink(pr & "root", devNull)
   if pfc_cwd  in fill: p.cwd  = readlink(pr & "cwd" , devNull)
   if pfe_exe  in fill: p.exe  = readlink(pr & "exe" , devNull)
-  if psStatm  in sneed and not p.readStatm( pr, fill, sp): return false
-  if psStatus in sneed and not p.readStatus(pr, fill, sp): return false
-  if pfw_wchan in fill: (pr & "wchan").readFile buf, sp; p.wchan = buf
-  if psIO in sneed and not p.readIO(pr, fill, sp): return false
+  if psStatm  in sneed and not p.readStatm( pr, fill): return false
+  if psStatus in sneed and not p.readStatus(pr, fill): return false
+  if pfw_wchan in fill: (pr & "wchan").readFile buf; p.wchan = buf
+  if psIO in sneed and not p.readIO(pr, fill): return false
   if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid)
   if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid)
   if pfs_usrs in fill:
@@ -423,13 +422,12 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if pfd_5 in fill: p.fd5 = readlink(pr & "fd/5", devNull)
   if pfd_6 in fill: p.fd6 = readlink(pr & "fd/6", devNull)
   template doInt(x, y, z: untyped) {.dirty.} =
-    if x   in fill: (pr & y).readFile buf, sp; z = buf.strip.parseInt.cint
+    if x   in fill: (pr & y).readFile buf; z = buf.strip.parseInt.cint
   doInt(pfo_score    , "oom_score"    , p.oom_score    )
   doInt(pfo_adj      , "oom_adj"      , p.oom_adj      )
   doInt(pfo_score_adj, "oom_score_adj", p.oom_score_adj)
-  if psFStat in sneed and p.st.st_dev == 0: #In case no prior readFile did it
+  if psFStat in sneed:
     if stat(pr, p.st) == -1: return false
-  p.st.st_dev = 0                           #In case var Proc re-used by caller
 
 proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## Merge ``fill`` fields for ``q`` on to those for ``p``.  Summing makes sense
@@ -650,7 +648,7 @@ type
     order*, diffCmp*, format*, maxUnm*, maxGnm*: string     ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
-    wide*, binary*, plain*, header*: bool                   ##flags; see help
+    wide*, binary*, plain*, header*, realIds*: bool         ##flags; see help
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     nError: int
@@ -663,6 +661,7 @@ type
     mergeKDs: HashSet[KindDim]                              #kinds to merge
     need, diff: ProcFields                                  #fieldNeeds(above 6)
     sneed: ProcSrcs                                         #dataNeeds(above)
+    uidNeeds, gidNeeds, usrNeeds, grpNeeds: ProcFields      #allow id src swtch
     forest, needKin, needUptm, needTotRAM: bool             #flags
     uptm: culong
     totRAM: uint64
@@ -700,9 +699,14 @@ proc testPCRegex(rxes: seq[Regex], p: var Proc): bool =
   for r in rxes:
     if p.cmd.contains(r): return true
 
+proc getUid(p: Proc): Uid    = (if cg.realIds: p.uids[0] else: p.st.st_uid)
+proc getGid(p: Proc): Gid    = (if cg.realIds: p.gids[0] else: p.st.st_gid)
+proc getUsr(p: Proc): string = (if cg.realIds: p.usrs[0] else: p.usr      )
+proc getGrp(p: Proc): string = (if cg.realIds: p.grps[0] else: p.grp      )
+
 proc testOwnId[Id](owns: HashSet[Id], p: var Proc): bool =
-  when Id is Uid: p.st.st_uid in owns
-  else          : p.st.st_gid in owns
+  when Id is Uid: p.getUid in owns
+  else          : p.getGid in owns
 proc testUsr(nms: HashSet[string], p: var Proc): bool = p.usr in nms
 proc testGrp(nms: HashSet[string], p: var Proc): bool = p.grp in nms
 
@@ -728,17 +732,15 @@ proc addPCRegex(cf: var DpCf; nm, s: string) =      #Q: add flags/modes?
 proc addOwnId(cf: var DpCf; md: char; nm, s: string) =
   var s: HashSet[Uid] | HashSet[Gid] = if md == 'u': s.splitWhitespace.toUidSet
                                        else: s.splitWhitespace.toGidSet
-  let depends = if md == 'u': {pffs_uid} else: {pffs_gid}
+  let depends = if md == 'u': cf.uidNeeds else: cf.gidNeeds
   cf.tests[nm] = (depends, proc(p: var Proc): bool = s.testOwnId(p))
 
 proc addOwner(cf: var DpCf; md: char; nm, s: string) =
   var s = s.splitWhitespace.toHashSet
   if md == 'u':
-    cf.tests[nm] = ({pffs_usr}, proc(p: var Proc): bool = s.testUsr(p))
-    cf.need.incl pffs_usr
+    cf.tests[nm] = (cf.usrNeeds, proc(p: var Proc): bool = s.testUsr(p))
   else:
-    cf.tests[nm] = ({pffs_grp}, proc(p: var Proc): bool = s.testGrp(p))
-    cf.need.incl pffs_grp
+    cf.tests[nm] = (cf.grpNeeds, proc(p: var Proc): bool = s.testGrp(p))
 
 proc addCombo(cf: var DpCf; tester: auto; nm, s: string) =
   var tsts: seq[Test]
@@ -865,10 +867,10 @@ cAdd('p', {}                   , cmp, Pid     ): p.pid
 cAdd('c', {pf_cmd}             , cmp, string  ): p.cmd
 cAdd('C', {pfcl_cmdline,pf_cmd}, cmp, string  ):
   if p.cmdline[0].len > 0: p.cmdline.join(" ") else: p.cmd
-cAdd('u', {pffs_uid}           , cmp, Uid     ): p.st.st_uid
-cAdd('U', {pffs_usr}           , cmp, string  ): p.usr
-cAdd('z', {pffs_gid}           , cmp, Gid     ): p.st.st_gid
-cAdd('Z', {pffs_grp}           , cmp, string  ): p.grp
+cAdd('u', {pffs_uid}           , cmp, Uid     ): p.getUid
+cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
+cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
+cAdd('Z', {pffs_grp}           , cmp, string  ): p.getGrp
 cAdd('D', {pf_ppid0}           , cmp, seq[Pid]): p.pidPath
 cAdd('P', {pf_ppid0}           , cmp, Pid     ): p.ppid0
 cAdd('n', {pf_nice}            , cmp, clong   ): p.nice
@@ -930,9 +932,7 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
     except: raise newException(ValueError, "unknown sort key code " & c.repr)
     cmps.add((sgn, cmpEntry.cmp))
     need = need + cmpEntry.pfs
-    if   c == 'U': need.incl pffs_usr
-    elif c == 'Z': need.incl pffs_grp
-    elif c == 'a': result = true
+    if c == 'a': result = true
     sgn = +1
 
 proc multiLevelCmp(a, b: ptr Proc): int {.procvar.} =
@@ -1014,11 +1014,10 @@ fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
   let s = if p.cmdline[0].len > 0: p.cmdline.joinQuoted else: p.cmd
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
-#Unreliable (can be 0 when real id is dropped priv), but alt pfs_* are pricey.
-fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.st.st_uid.uint
-fAdd('U', {pffs_usr}           ,1,4, "USER"   ): cg.uAbb.abbrev p.usr
-fAdd('z', {pffs_gid}           ,0,5, "GID"    ): $p.st.st_gid.uint
-fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.grp
+fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.getUid.uint
+fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
+fAdd('z', {pffs_usr}           ,0,5, "GID"    ): $p.getGid.uint
+fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
@@ -1171,10 +1170,24 @@ proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
       used += printedLen(fld)
   stdout.write cf.a0, '\n'
 
+proc setRealIDs*(cf: var DpCf; realIds=false) =
+  ##Change DpCf&global data (cmpOf,fmtOf) to use /proc/PID/status real uid/gid.
+  if realIds:       #/proc/PID/status is very slow; Any other reliable source?
+    cf.uidNeeds = {pfs_uids}; cf.gidNeeds = {pfs_gids}
+    cf.usrNeeds = {pfs_usrs}; cf.grpNeeds = {pfs_grps}
+  else:
+    cf.uidNeeds = {pffs_uid}; cf.gidNeeds = {pffs_gid}
+    cf.usrNeeds = {pffs_usr}; cf.grpNeeds = {pffs_grp}
+  cmpOf['u'].pfs = cf.uidNeeds; cmpOf['z'].pfs = cf.gidNeeds
+  cmpOf['U'].pfs = cf.usrNeeds; cmpOf['Z'].pfs = cf.grpNeeds
+  fmtOf['u'].pfs = cf.uidNeeds; fmtOf['z'].pfs = cf.gidNeeds
+  fmtOf['U'].pfs = cf.usrNeeds; fmtOf['Z'].pfs = cf.grpNeeds
+
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``ls|ls1`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
+  cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
   cf.a0 = if cf.plain: "" else: "\x1b[0m"
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
@@ -1556,7 +1569,8 @@ ATTR=attr specs as above""",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
                "merge"  : "merge rows within these kind:dim",
-               "hdrs"   : "<1-ch-code>:<headerOverride> pairs" },
+               "hdrs"   : "<1-ch-code>:<headerOverride> pairs",
+               "realIds": "use real uid/gid from /proc/PID/status" },
       short = { "width":'W', "indent":'I', "incl":'i', "excl":'x', "header":'H',
                 "maxUnm":'U', "maxGnm":'G', "version":'v', "colors":'C',
                 "diffcmp":'D' },
