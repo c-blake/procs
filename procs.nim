@@ -383,6 +383,8 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   ## stale ``pid`` | not Linux).
   result = true                         #Ok unless early exit says elsewise
   let pr = "/proc/" & pid & "/"
+  if psFStat in sneed:                  #Must happen before p.st gets used below
+    if stat(pr, p.st) == -1: return false
   p.spid = pid
   p.pid = toPid(pid)
   if psStat in sneed and not p.readStat(pr, fill): return false
@@ -426,8 +428,6 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   doInt(pfo_score    , "oom_score"    , p.oom_score    )
   doInt(pfo_adj      , "oom_adj"      , p.oom_adj      )
   doInt(pfo_score_adj, "oom_score_adj", p.oom_score_adj)
-  if psFStat in sneed:
-    if stat(pr, p.st) == -1: return false
 
 proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## Merge ``fill`` fields for ``q`` on to those for ``p``.  Summing makes sense
