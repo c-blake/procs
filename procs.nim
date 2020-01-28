@@ -21,8 +21,8 @@ type
     tty*: Dev
     exit_sig*, processor*, exitCode*: cint
     size*, res*, share*, txt*, lib*, dat*, dty*: culong
-    cmdline*, environ*, usrs*, grps*: seq[string]
-    root*, cwd*, exe*: string
+    environ*, usrs*, grps*: seq[string]
+    cmdline*, root*, cwd*, exe*: string
     name*, umask*, stateS*: string
     tgid*, ngid*, pid1*, ppid*, tracerPid*, nStgid*, nSpid*, nSpgid*, nSsid*:Pid
     uids*: array[4, Uid]  #id_real, id_eff, id_set, id_fs
@@ -390,7 +390,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
     (pr & "cmdline").readFile buf
-    p.cmdline = buf.split('\0')
+    p.cmdline = buf
   if pfen_environ in fill:
     (pr & "environ").readFile buf
     p.environ = buf.split('\0')
@@ -693,6 +693,13 @@ tAdd("MT"   , {pf_nThr}  ): p.nThr > 1
 tAdd("L"    , {pfs_vmLck}): p.vmLck > 0'u64
 tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
 
+proc cmdClean(cmd: string): string =
+  result.setLen cmd.len
+  for i, c in cmd:
+    result[i] = if ord(c) < 32: ' ' else: c
+  while result[^1] == ' ':
+    result.setLen result.len - 1
+
 ###### USER-DEFINED CLASSIFICATION TESTS
 proc testPCRegex(rxes: seq[Regex], p: var Proc): bool =
   result = false
@@ -866,7 +873,7 @@ template cAdd(code, pfs, cmpr, T, data: untyped) {.dirty.} =
 cAdd('p', {}                   , cmp, Pid     ): p.pid
 cAdd('c', {pf_cmd}             , cmp, string  ): p.cmd
 cAdd('C', {pfcl_cmdline,pf_cmd}, cmp, string  ):
-  if p.cmdline[0].len > 0: p.cmdline.join(" ") else: p.cmd
+  if p.cmdline.len > 0: p.cmdline.cmdCLean else: p.cmd
 cAdd('u', {pffs_uid}           , cmp, Uid     ): p.getUid
 cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
 cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
@@ -993,14 +1000,6 @@ proc fmtPct[A,B](n: A, d: B): string =
   let mills = (1000.uint64 * n.uint64 + 5) div d.uint64
   $(mills div 10) & '.' & $(mills mod 10)
 
-proc joinQuoted(strs: seq[string]): string =
-  for i, s in strs:
-    for c in s:
-      if   c == '\n': result.add "\\n "
-      elif c == '\t': result.add "\\t"
-      else: result.add c
-    if i != strs.len - 1: result.add " "
-
 var fmtCodes: set[char]   #left below is just dflt alignment. User can override.
 var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
                  fmt: proc(x: var Proc, wMax=0): string]]
@@ -1012,7 +1011,7 @@ fAdd('p', {}                   ,0,5, "PID"    ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
-  let s = if p.cmdline[0].len > 0: p.cmdline.joinQuoted else: p.cmd
+  let s = if p.cmdline.len > 0: p.cmdline.cmdClean else: p.cmd
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
 fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.getUid.uint
 fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
@@ -1269,7 +1268,7 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
         lastSlot[kd] = procs2.len
         procs2.add p
         procs2[^1].cmd = cf.kslotNm[k] & "/"
-        procs2[^1].cmdline = @[ procs2[^1].cmd ]
+        procs2[^1].cmdline = procs2[^1].cmd
       return true
 
 proc display*(cf: var DpCf) = # [AMOVWYbkl] free
@@ -1368,7 +1367,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
 #Redundant upon `display` with some non-display action, but its simpler filter
 #language (syntax&impl) can be much more efficient (for user&system) sometimes.
 proc contains(rxes: seq[Regex], p: Proc, full=false): bool =
-  let c = if full and p.cmdline[0].len > 0: p.cmdline.join(" ") else: p.cmd
+  let c = if full and p.cmdline.len > 0: p.cmdline.cmdClean else: p.cmd
   for r in rxes:  #Needs to be
     if c.contains(r): return true
 
