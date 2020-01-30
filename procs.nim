@@ -771,22 +771,6 @@ proc parseKind(cf: var DpCf) =
     elif col[1] == "none": cf.addCombo(testNone, col[0], col[2])
     else: raise newException(ValueError, "bad kind: \"" & kin & "\"")
 
-template get1(results, cb, nm, msg, allow) {.dirty.} =
-  let results = cb.getAll(nm)
-  if results.len > 1:
-    if not (allow):
-      stderr.write("Ambiguous " & msg & " prefix \"" & nm & "\".  Matches:\n  ",
-                   results.keys.join("\n  "), "\n")
-    raise newException(ValueError, "")
-  elif results.len == 0:
-    if not (allow):
-      stderr.write("Unknown " & msg & " \"" & nm & "\".")
-      let sugg = suggestions(nm, cb.keys, cb.keys)
-      if sugg.len >= 1:
-        stderr.write "  Maybe you meant one of:\n  ", sugg.join("\n  "), "\n"
-      else: stderr.write "\n"
-    raise newException(ValueError, "")
-
 proc parseColors(cf: var DpCf) =
   for spec in cf.colors:
     let cols = spec.split('=')
@@ -803,18 +787,17 @@ proc parseColor(cf: var DpCf) =
     let dim   = if nmKoD.len>2: parseInt(nmKoD[2].strip()) else: 0
     let attrs = textAttrOn(cols[1..^1], cf.plain)
     try:
-      let allow = nm.len==5 and (nm.startsWith("size") or nm == "delta")
-      get1(ts, cf.tests, nm, "kind", allow)
-      let test = ts[0].val
-      let kno = cf.kinds.len.uint8                #Found test; add to used kinds
-      cf.kslot[ts[0].key] = (kno, test.pfs, dim)  #Record kind num, ProcFields
+      let ok = nm.len == 5 and (nm.startsWith("size") or nm == "delta")
+      let (k, test) = cf.tests.match(nm, "kind", if ok: nil else: stderr)
+      let kno  = cf.kinds.len.uint8               #Found test; add to used kinds
+      cf.kslot[k] = (kno, test.pfs, dim)          #Record kind num, ProcFields
       add(cf.kinds, (attr: attrs, kord: ko, test: test.test))
       if dim + 1 > cf.ukind.len: cf.ukind.setLen(dim + 1)
       cf.ukind[dim].add kno
       cf.need = cf.need + test.pfs
       if nm == "unknown": unknown = kno
-    except:
-      if nm.len==5:
+    except KeyError:
+      if nm.len == 5:
         if nm[0..3]=="size" and nm[4] in {'B','K','M','G','T'}:
           cf.attrSize[ord(nm[4]) - ord('A')] = attrs
         elif nm == "delta":
@@ -831,8 +814,7 @@ proc parseColor(cf: var DpCf) =
 proc compileFilter(cf: var DpCf, spec: seq[string], msg: string): set[uint8] =
   for nm in spec:
     try:
-      get1(ks, cf.kslot, nm, "colored kind", false)
-      let k = ks[0].val
+      let k = cf.kslot.match(nm, "colored kind").val
       result.incl(k.slot)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #must fully classify if any kind is used as a filter
@@ -1116,8 +1098,7 @@ proc parseFormat(cf: var DpCf) =
 proc parseMerge(cf: var DpCf) =
   for nm in cf.merge:
     try:
-      get1(ks, cf.kslot, nm, "color/merge kind", false)
-      let k = ks[0].val
+      let k = cf.kslot.match(nm, "color/merge kind").val
       cf.mergeKDs.incl (k.slot, k.dim.uint8)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #classify all if any kind is used as a merge
@@ -1395,6 +1376,14 @@ proc act(actions: seq[PdAct], pid: Pid, delim: string, sigs: seq[cint],
     of acWaitA: discard
     of acCount: cnt.inc
 
+let signum* = { #suppress archaic STKFLT so "ST" can imply STOP; alias CLD,SYS
+  "HUP" :  1, "INT" :  2, "QUIT"  :  3, "ILL"   :  4, "TRAP" :  5, "ABRT":  6,
+  "BUS" :  7, "FPE" :  8, "KILL"  :  9, "USR1"  : 10, "SEGV" : 11, "USR2": 12,
+  "PIPE": 13, "ALRM": 14, "TERM"  : 15, "stkflt": 16, "CHLD" : 17, "CLD" : 17,
+  "CONT": 18, "STOP": 19, "TSTP"  : 20, "TTIN"  : 21, "TTOU" : 22, "URG" : 23,
+  "XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF"  : 27, "WINCH": 28, "POLL": 29,
+  "PWR" : 30, "SYS" : 31, "UNUSED": 31 }.toCritBitTree
+
 proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
     session: seq[Pid] = @[], tty: seq[string] = @[], group: seq[string] = @[],
     euid: seq[string] = @[], uid: seq[string] = @[], root=0.Pid, ns=0.Pid,
@@ -1404,7 +1393,7 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, count,
   ## kill, nice, wait for any|all).  Unifies pidof, pgrep, pkill, snice, waita
-  ## features in one command with options similar to pgrep.
+  ## features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var actions = (if actions.len == 0: @[acEcho] else: actions)
   var exclPIDs = initHashSet[string](sets.rightSize(min(1, exclude.len)))
@@ -1415,7 +1404,9 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
   var rxes: seq[Regex]
   var sigs: seq[cint]
   var p, q: Proc
-  for sig in signals: sigs.add toCin(sig)
+  for sig in signals:
+    if sig.len > 0 and sig[0] in { '0' .. '9' }: sigs.add toCin(sig)
+    else: sigs.add signum.match(sig.toUpper, "signal name").val.cint
   if nice != 0 and acNice notin actions: actions.add acNice
   if sigs.len > 0 and acKill notin actions: actions.add acKill
   if sigs.len == 0 and acKill in actions: sigs.add 15 #default to SIGTERM=15
@@ -1601,6 +1592,6 @@ ATTR=attr specs as above""",
                "actions":   "echo/count/kill/nice/wait/Wait" },
       short = { "parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
                 "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',
-                "invert":'v', "delay":'D', "signals":'S', "nice":'N' } ],
+                "invert":'v', "delay":'D', "session":'S', "nice":'N' } ],
     [ procs.memory, cmdName="memory", help = {}, short = {} ],
     [ procs.stats, cmdName="stats" , help = {}, short = {} ])
