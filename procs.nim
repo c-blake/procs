@@ -651,7 +651,6 @@ type
     wide*, binary*, plain*, header*, realIds*: bool         ##flags; see help
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
-    nError: int
     kinds: seq[Kind]                                        #kinds user colors
     ukind: seq[seq[uint8]]                                  #USED kind dim seqs
     sin, sex: set[uint8]                                    #compiled filters
@@ -770,11 +769,6 @@ proc parseKind(cf: var DpCf) =
     elif col[1] == "all": cf.addCombo(testAll, col[0], col[2])
     elif col[1] == "none": cf.addCombo(testNone, col[0], col[2])
     else: raise newException(ValueError, "bad kind: \"" & kin & "\"")
-
-proc parseColors(cf: var DpCf) =
-  for spec in cf.colors:
-    let cols = spec.split('=')
-    textAttrAlias(cols[0].strip, cols[1].strip)
 
 proc parseColor(cf: var DpCf) =
   var unknown = 255.uint8
@@ -1174,7 +1168,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   if cf.delay >= ts0 and cf.diffCmp.len==0: cf.diffCmp = "J"  #default to cumCPU
   cf.tests = builtin                              #Initially populate w/builtin
   cf.parseKind                                    #.kind to tests additions
-  cf.parseColors                                  #.colors => registered aliases
+  cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   cf.parseColor                                   #.color => .attr
   cf.parseFilters                                 #(in|ex)cl => sets s(in|ex)
   cf.needUptm = cf.order.parseOrder(cf.cmps, cf.need)   #.order => .cmps
@@ -1525,7 +1519,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin()
     cf.display()
-    quit(min(255, cf.nError))
+    quit(0)
 
   const ess: seq[string] = @[]
   dispatchMulti(
