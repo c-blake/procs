@@ -83,6 +83,14 @@ type
   ProcSrc = enum psFStat, psStat, psStatm, psStatus, psWChan, psIO
   ProcSrcs* = set[ProcSrc]
 
+  NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
+                nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
+                nsPid4Kids = "pid4kids"
+
+  PdAct* = enum acEcho  = "echo", acKill  = "kill", acNice = "nice",
+                acWait1 = "wait", acWaitA = "Wait", acCount = "count" #,acList?
+
+  # # # # Types for System-wide data # # # #
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
     SwapCached, Active, Inactive, ActiveAnon, InactiveAnon, ActiveFile,
     InactiveFile, Unevictable, Mlocked, SwapTotal, SwapFree, Dirty, Writeback,
@@ -93,12 +101,23 @@ type
     HugePages_Total, HugePages_Free, HugePages_Rsvd, HugePages_Surp,
     Hugepagesize, Hugetlb, DirectMap4k, DirectMap2M, DirectMap1G: uint64]
 
-  NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
-                nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
-                nsPid4Kids = "pid4kids"
+  CPUInfo* = tuple[user, nice, system, idle, iowait, irq,
+                   softirq, steal, guest, guest_nice: int]
+  SoftIRQs* = tuple[all, hi, timer, net_tx, net_rx, blk,
+                    irq_poll, tasklet, sched, hrtimer, rcu: int]
+  SysStat* = tuple[cpu: seq[CPUInfo],                   ##Index 0=combined
+                   interrupts, contextSwitches, bootTime,
+                   procs, procsRunnable, procsBlocked: int,
+                   softIRQ: SoftIRQs]
 
-  PdAct* = enum acEcho  = "echo", acKill  = "kill", acNice = "nice",
-                acWait1 = "wait", acWaitA = "Wait", acCount = "count" #,acList?
+  NetStat* = tuple[bytes, packets, errors, drops, fifo, frame,
+                   compressed, multicast: int]
+  NetDevStat* = tuple[name: string; rcvd, sent: NetStat]
+
+  DiskIOStat* = tuple[nIO, nMerge, nSector, msecs: int]
+  DiskStat* = tuple[major, minor: int, name: string,
+                    reads, writes, cancels: DiskIOStat,
+                    inFlight, ioTicks, timeInQ: int]
 
 proc toPfn(ns: NmSpc): ProcField =
   case ns
@@ -574,6 +593,100 @@ proc procMeminfo*(): MemInfo =
         elif nm=="DirectMap1G:"    : result.DirectMap1G     = toU64(col, 1024)
         break
       i.inc
+
+proc parseCPUInfo*(rest: string): CPUInfo =
+  let col = rest.splitWhitespace
+  result.user       = parseInt(col[0])
+  result.nice       = parseInt(col[1])
+  result.system     = parseInt(col[2])
+  result.idle       = parseInt(col[3])
+  result.iowait     = parseInt(col[4])
+  result.irq        = parseInt(col[5])
+  result.softirq    = parseInt(col[6])
+  result.steal      = parseInt(col[7])
+  result.guest      = parseInt(col[8])
+  result.guest_nice = parseInt(col[9])
+
+proc parseSoftIRQs*(rest: string): SoftIRQs =
+  let col = rest.splitWhitespace        #"softirq" == [0]
+  result.all      = parseInt(col[0])
+  result.hi       = parseInt(col[1])
+  result.timer    = parseInt(col[2])
+  result.net_tx   = parseInt(col[3])
+  result.net_rx   = parseInt(col[4])
+  result.blk      = parseInt(col[5])
+  result.irq_poll = parseInt(col[6])
+  result.tasklet  = parseInt(col[7])
+  result.sched    = parseInt(col[8])
+  result.hrtimer  = parseInt(col[9])
+  result.rcu      = parseInt(col[10])
+
+proc procSysStat*(): SysStat =
+  for line in lines("/proc/stat"):
+    let cols = line.splitWhitespace(maxSplit=1)
+    if cols.len != 2: continue
+    let nm = cols[0]
+    let rest = cols[1]
+    if nm.startsWith("cpu"):    result.cpu.add rest.parseCPUInfo
+    elif nm == "intr":          result.interrupts      =
+      parseInt(cols[1].splitWhitespace(maxSplit=1)[0])
+    elif nm == "ctxt":          result.contextSwitches = parseInt(cols[1])
+    elif nm == "btime":         result.bootTime        = parseInt(cols[1])
+    elif nm == "processes":     result.procs           = parseInt(cols[1])
+    elif nm == "procs_running": result.procsRunnable   = parseInt(cols[1])
+    elif nm == "procs_blocked": result.procsBlocked    = parseInt(cols[1])
+    elif nm == "softirq":       result.softIRQ         = rest.parseSoftIRQs()
+
+proc parseNetStat*(cols: seq[string]): NetStat =
+  result.bytes      = parseInt(cols[0])
+  result.packets    = parseInt(cols[1])
+  result.errors     = parseInt(cols[2])
+  result.drops      = parseInt(cols[3])
+  result.fifo       = parseInt(cols[4])
+  result.frame      = parseInt(cols[5])
+  result.compressed = parseInt(cols[6])
+  result.multicast  = parseInt(cols[7])
+
+proc procNetDevStats*(): seq[NetDevStat] =
+  var i = 0
+  var row: NetDevStat
+  for line in lines("/proc/net/dev"):
+    i.inc
+    if i < 3: continue
+    let cols = line.splitWhitespace
+    if cols.len < 17:
+      stderr.write "unexpected format in /proc/net/dev\n"
+      return
+    row.name = cols[0]
+    if row.name.len > 0 and row.name[^1] == ':':
+      row.name.setLen row.name.len - 1
+    row.rcvd = parseNetStat(cols[1..8])
+    row.sent = parseNetStat(cols[9..16])
+    result.add row
+
+proc parseIOStat*(cols: seq[string]): DiskIOStat =
+  result.nIO     = parseInt(cols[0])
+  result.nMerge  = parseInt(cols[1])
+  result.nSector = parseInt(cols[2])
+  result.msecs   = parseInt(cols[3])
+
+proc procDiskStats*(): seq[DiskStat] =
+  var row: DiskStat
+  for line in lines("/proc/diskstats"):
+    let cols = line.splitWhitespace
+    if cols.len != 18:
+      stderr.write "unexpected format in /proc/diskstats\n"
+      return
+    row.major    = parseInt(cols[0])
+    row.minor    = parseInt(cols[1])
+    row.name     = cols[2]
+    row.reads    = cols[3..6].parseIOStat()
+    row.writes   = cols[7..10].parseIOStat()
+    row.inFlight = parseInt(cols[11])
+    row.ioTicks  = parseInt(cols[12])
+    row.timeInQ  = parseInt(cols[13])
+    row.cancels  = cols[14..17].parseIOStat()
+    result.add row
 
 # # # # # # # RELATED PROCESS MGMT APIs # # # # # # #
 proc usrToUid*(usr: string): Uid =
