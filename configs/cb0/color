@@ -35,10 +35,10 @@ color = "root:0x1:3      fhot5"         #0x17
 
 color = "unknown:0x18:0  NONE"          #0x18 #Added if missing;Here to set ord
 
-color = "sizeB   NONE"                  #Value-conditional fields besides paths
+color = "sizeB   fhot1"                 #Value-conditional fields besides paths
 color = "sizeK   fhot2"
 color = "sizeM   fhot3"
 color = "sizeG   fhot4"
-color = "sizeT   fhot5 inverse"         #Tera-scl things are likely a problem
+color = "sizeT   fhot5"
 
 color = "delta   underline"
