@@ -939,7 +939,7 @@ proc classify(cf: DpCf, p: var Proc, d: int): uint8 = #assign format kind [d]
 
 proc failsFilters(cf: DpCf; p: var Proc): bool =
   if cf.needKin:
-    p.kind.setLen(cf.ukind.len)
+    p.kind = newSeq[uint8](cf.ukind.len)
     for d in 0 ..< cf.ukind.len:
       p.kind[d] = cf.classify(p, d)
   (cf.nex > 0 and p.kind in cf.sex) or (cf.nin > 0 and p.kind notin cf.sin)
