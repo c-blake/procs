@@ -1428,9 +1428,6 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
       if multiLevelCmp(procs[^1].addr, zero.addr) == 0:
         zeroMem procs[^1].addr, Proc.sizeof; procs.setLen procs.len - 1
         continue
-#     if cf.forest: parent[procs[^1].pid0] = procs[^1].ppid0
-#   if cf.forest:
-#     for i in 0 ..< procs.len: procs[i].pidPath = parent.pidPath(procs[i].pid0)
     if cf.merge.len > 0:
       var procs2: seq[Proc]
       var lastSlot=initTable[tuple[k,d:uint8], int](tables.rightSize(procs.len))
