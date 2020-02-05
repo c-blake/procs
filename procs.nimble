@@ -1,5 +1,5 @@
 # Package
-version     = "0.1"
+version     = "0.2"
 author      = "Charles Blake"
 description = "Unix process&system query&formatting library&multi-command CLI in Nim"
 license     = "MIT/ISC"
