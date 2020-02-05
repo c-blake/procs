@@ -1526,14 +1526,14 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
   for pattern in PCREpatterns: rxes.add pattern.re        #compile patterns
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
-  if parent.len   > 0: fill.incl pf_ppid0
-  if pgroup.len   > 0: fill.incl pf_pgrp
-  if session.len  > 0: fill.incl pf_sess
-  if tty.len      > 0: fill.incl pf_tty
-  if group.len    > 0: fill.incl pffs_gid
-  if euid.len     > 0: fill.incl pffs_uid
-  if uid.len      > 0: fill.incl pfs_uids
-  if root != 0       : fill.incl pfr_root
+  if parent.len  > 0: fill.incl pf_ppid0
+  if pgroup.len  > 0: fill.incl pf_pgrp
+  if session.len > 0: fill.incl pf_sess
+  if tty.len     > 0: fill.incl pf_tty
+  if group.len   > 0: fill.incl pffs_gid
+  if euid.len    > 0: fill.incl pffs_uid
+  if uid.len     > 0: fill.incl pfs_uids
+  if root != 0      : fill.incl pfr_root
   if ns != 0:
     for ns in nsList: fill.incl toPfn(ns)
   if newest or oldest: fill.incl pf_t0
