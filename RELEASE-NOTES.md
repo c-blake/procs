@@ -18,6 +18,15 @@ Version: 0.2
   carefully with several times over reset alarm(2) calls.  Regardless, it's
   probably fair to say performance parity with C is basically achieved now.
 
+  `gc:arc` remains rough, though.  Besides
+    https://github.com/nim-lang/Nim/issues/13269 and
+    https://github.com/nim-lang/Nim/issues/13322, I also had to make these
+  commits to workaround what I think are independent other `gc:arc` bugs:
+    https://github.com/c-blake/procs/commit/7a0318f62143ef9334fd676cf6523b46587a2ebf
+    https://github.com/c-blake/procs/commit/dfcbf74939a3210c6a42a8b79a2f68df7b59a735
+  I tried to reduce those latter two bugs to small reproducibles but it was not
+  easy enough.  So, I just worked around them instead.
+
 Version: 0.1
 ------------
   Initial public release
