@@ -406,6 +406,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
     if stat(pr, p.st) == -1: return false
   p.spid = pid
   p.pid = toPid(pid)
+  p.pidPath.setLen 0
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
     (pr & "cmdline").readFile buf
