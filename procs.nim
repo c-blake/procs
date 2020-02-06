@@ -1269,7 +1269,7 @@ proc setRealIDs*(cf: var DpCf; realIds=false) =
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
-  ##Finalize cf ob post-user sets/updates, pre-``ls|ls1`` calls.  Proc ages are
+  ##Finalize cf ob post-user sets/updates, pre-``display`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
   cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
   cf.a0 = if cf.plain: "" else: "\x1b[0m"
