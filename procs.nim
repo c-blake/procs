@@ -1166,7 +1166,7 @@ fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
-               else: "-f%{bold}p %{italic}s %{inverse}R %{underline}J %c"
+               else: "%{bold}p %{italic}s %{inverse}R %{underline}J %c"
   type State = enum inPrefix, inField
   var leftMost = true; var algn = '\0'
   var state = inPrefix
