@@ -1610,23 +1610,26 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
         elif bn == "pf": result.add "find"
         elif bn == "pk": result.add "find"; result.add "-akill"
         elif bn == "pw": result.add "find"; result.add "-await"
-      var cfPath = os.getEnv(strutils.toUpperAscii(cmdNames[0]) & "_CONFIG")
-      if cfPath.len == 0:
-        cfPath = os.getConfigDir() & cmdNames[0] & "/config"
-        if not existsFile(cfPath): cfPath = cfPath[0..^8]
-      if existsFile(cfPath):
-        result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
-                          quiet=true, noRaise=true)
-      result.add envToCL(strutils.toUpperAscii(strutils.join(cmdNames, "_")))
-    result = result & cmdLine
+        return result & cmdline
+      let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
+      var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
+      if cfPath.len == 0:                             #..else use getConfigDir
+        cfPath = os.getConfigDir() & cmdNames[0] & "/config"  #See if dir w/cfg
+        if not existsFile(cfPath): cfPath = cfPath[0..^8]     #..else use file
+      result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
+                        quiet=true, noRaise=true)
+      result.add envToCL(underJoin) #Finally add $PROCS_DISPLAY $PROCS_FIND..
+    result = result & cmdLine       #and then whatever user entered
 
   const nimbleFile = staticRead "procs.nimble"
   clCfg.version = nimbleFile.fromNimble "version"
 
   proc c_getenv(env: cstring): cstring {.importc:"getenv", header:"<stdlib.h>".}
-  let dd = DpCf(header: true, indent: 3, plain: (c_getenv("NO_COLOR") != nil),
-                delay: Timespec(tv_sec: (-1).Time))
+  let noColor = c_getenv("NO_COLOR") != nil
+  let tsM1 = Timespec(tv_sec: (-1).Time)
+  let tsP1 = Timespec(tv_sec: (+1).Time)
 
+  let dd = DpCf(header: true, indent: 3, plain: noColor, delay: tsM1)
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin()
     cf.display()
