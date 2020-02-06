@@ -113,11 +113,20 @@ type
   NetStat* = tuple[bytes, packets, errors, drops, fifo, frame,
                    compressed, multicast: int]
   NetDevStat* = tuple[name: string; rcvd, sent: NetStat]
+  NetDevStats* = seq[NetDevStat]
 
   DiskIOStat* = tuple[nIO, nMerge, nSector, msecs: int]
   DiskStat* = tuple[major, minor: int, name: string,
                     reads, writes, cancels: DiskIOStat,
                     inFlight, ioTicks, timeInQ: int]
+  DiskStats* = seq[DiskStat]
+
+  LoadAvg* = tuple[m1, m5, m15: string; runnable, total: int; mostRecent: Pid]
+
+  Sys* = tuple[m: MemInfo; s: SysStat; l: LoadAvg; d: DiskStats; n: NetDevStats]
+
+  SysSrc = enum ssMemInfo, ssStat, ssLoadAvg, ssDiskStat, ssNetDev
+  SysSrcs* = set[SysSrc]
 
 proc toPfn(ns: NmSpc): ProcField =
   case ns
@@ -687,6 +696,18 @@ proc procDiskStats*(): seq[DiskStat] =
     row.timeInQ  = parseInt(cols[13])
     row.cancels  = cols[14..17].parseIOStat()
     result.add row
+
+proc procLoadAvg*(): LoadAvg =
+  let cols = readFile("/proc/loadavg").splitWhitespace()
+  if cols.len != 5: return
+  result.m1         = cols[0]
+  result.m5         = cols[1]
+  result.m15        = cols[2]
+  result.mostRecent = parseInt(cols[4]).Pid
+  let runTotal = cols[3].split('/')
+  if runTotal.len != 2: return
+  result.runnable   = parseInt(runTotal[0])
+  result.total      = parseInt(runTotal[1])
 
 # # # # # # # RELATED PROCESS MGMT APIs # # # # # # #
 proc usrToUid*(usr: string): Uid =
