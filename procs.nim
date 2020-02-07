@@ -541,7 +541,7 @@ proc procUptime*(): culong =
   let secJif = uptm.split('.')
   parseInt(secJif[0] & secJif[1]).culong
 
-proc procMeminfo*(): MemInfo =
+proc procMemInfo*(): MemInfo =
   ## /proc/meminfo fields (in bytes or pages if specified).
   "/proc/meminfo".readFile buf
   var nm = ""
@@ -634,16 +634,15 @@ proc procSysStat*(): SysStat =
   for line in lines("/proc/stat"):
     let cols = line.splitWhitespace(maxSplit=1)
     if cols.len != 2: continue
-    let nm = cols[0]
-    let rest = cols[1]
+    let (nm, rest) = (cols[0], cols[1])
     if nm.startsWith("cpu"):    result.cpu.add rest.parseCPUInfo
     elif nm == "intr":          result.interrupts      =
-      parseInt(cols[1].splitWhitespace(maxSplit=1)[0])
-    elif nm == "ctxt":          result.contextSwitches = parseInt(cols[1])
-    elif nm == "btime":         result.bootTime        = parseInt(cols[1])
-    elif nm == "processes":     result.procs           = parseInt(cols[1])
-    elif nm == "procs_running": result.procsRunnable   = parseInt(cols[1])
-    elif nm == "procs_blocked": result.procsBlocked    = parseInt(cols[1])
+      parseInt(rest.splitWhitespace(maxSplit=1)[0])
+    elif nm == "ctxt":          result.contextSwitches = parseInt(rest)
+    elif nm == "btime":         result.bootTime        = parseInt(rest)
+    elif nm == "processes":     result.procs           = parseInt(rest)
+    elif nm == "procs_running": result.procsRunnable   = parseInt(rest)
+    elif nm == "procs_blocked": result.procsBlocked    = parseInt(rest)
     elif nm == "softirq":       result.softIRQ         = rest.parseSoftIRQs()
 
 proc parseNetStat*(cols: seq[string]): NetStat =
@@ -683,7 +682,7 @@ proc procDiskStats*(): seq[DiskStat] =
   var row: DiskStat
   for line in lines("/proc/diskstats"):
     let cols = line.splitWhitespace
-    if cols.len != 18:
+    if cols.len < 18:
       stderr.write "unexpected format in /proc/diskstats\n"
       return
     row.major    = parseInt(cols[0])
