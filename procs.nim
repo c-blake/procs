@@ -2,8 +2,9 @@
 #XXX Could port to BSD using libkvm/kvm_getprocs/_getargv/_getenvv/kinfo_proc;
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
-import os, posix, strutils, sets, tables, terminal, algorithm, nre, critbits,
-       cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev]
+import os, posix, strutils, sets, tables, terminal, algorithm, nre, critbits, 
+       parseutils, std/monotimes,
+       cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt]
 type
   Proc* = object                ##Abstract proc data (including a kind vector)
     kind*: seq[uint8]             ##kind nums for independent format dimensions
@@ -1608,15 +1609,250 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
     if   acWait1 in actions: discard waitAny(pList, delay)
     elif acWaitA in actions: waitAll(pList, delay)
 
-# # # # # # # COMMAND-LINE INTERFACE: memory # # # # # # #
-proc memory*() =
-  ##Like free, but colorize /proc/meminfo; Maybe analyze more thoroughly
-  discard #XXX write me
+# # # # COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats # # # #
+type
+  ScField = tuple[ss: SysSrcs; wid: int; hdr: string;
+                  fmt: proc(dtI: float; w: int; last,curr: Sys): string]
+  ScCf* = object
+    colors*, color*: seq[string]                            ##usrDefd colors
+    hdrs*: seq[string]                                      ##usrDefd headers
+    frqHdr*, numIt*: int                                    ##header frq, itrs
+    delay*: Timespec                                        ##delay between itrs
+    binary*, plain*: bool                                   ##flags; see help
+    disks*, ifaces*, format*: seq[string]                   ##fmts to display
+    fields: seq[ScField]                                    #fields to format
+    dks, ifs: HashSet[string]                               #devs to total
+    headers: string                                         #selected headers
+    loadFmts: seq[tuple[level: int; attr: string]]
+    need: SysSrcs
+    a0: string                                              #if plain: ""
+    attrSize: array[0..25, string]  #CAP letter-indexed with ord(x) - ord('A')
 
-# # # # # # # COMMAND-LINE INTERFACE: stats # # # # # # #
-proc stats*() =
-  ##Like vmstat/iostat/pidstat/dstat/etc.
-  discard #XXX write me
+var cs: ptr ScCf            #Lazy way out of making many little procs take ScCf
+
+proc fmtLoad(n: int): string =
+  result = cs.loadFmts[^1].attr
+  for (lvl, fmt) in cs.loadFmts:
+    if lvl >= n: return fmt
+
+proc fmtJ(n, wid: int): string = fmtLoad(n) & align($n, wid) & cs.a0
+
+proc fmtLoadAvg(s: string; wid: int): string =
+  let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
+  let jiffieEquivalent = parseInt(join(s.split('.')).strip())
+  if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
+
+proc fmtZ[T](b: T, wid: int): string =
+  proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
+    cs.attrSize[(if sz[^1] in {'0'..'9'}: ord('B') else: ord(sz[^1])) - ord('A')
+               ] & sz & cs.a0
+  if b.uint64 > 18446744073709551606'u64: "-" else:
+    sizeFmt(align(humanReadable4(b.uint, cs.binary), wid))
+
+var sysFmt: Table[string, ScField]
+template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
+  sysFmt[code] = (sfs, wid, hdr,
+                  proc(dtI: float; w: int; last,curr: Sys): string {.closure.} =
+                    toStr)
+sAdd("btm", {ssStat},     10, "bootTmSec"): align($curr.s.bootTime, w)
+sAdd("prn", {ssStat},      3, "prn"      ): align($curr.s.procsRunnable, w)
+sAdd("pbl", {ssStat},      3, "pbl"      ): align($curr.s.procsBlocked, w)
+sAdd("la1", {ssLoadAvg},   5, "LdAv1"    ): fmtLoadAvg(curr.l.m1, w)
+sAdd("la5", {ssLoadAvg},   5, "LdAv5"    ): fmtLoadAvg(curr.l.m5, w)
+sAdd("la15",{ssLoadAvg},   5, "LdAv15"   ): fmtLoadAvg(curr.l.m15, w)
+sAdd("mtot",{ssMemInfo},   4, "mTot"     ): fmtZ(curr.m.MemTotal      , w)
+sAdd("mfre",{ssMemInfo},   4, "mFre"     ): fmtZ(curr.m.MemFree       , w)
+sAdd("mavl",{ssMemInfo},   4, "mAvl"     ): fmtZ(curr.m.MemAvailable  , w)
+sAdd("mbuf",{ssMemInfo},   4, "mBuf"     ): fmtZ(curr.m.Buffers       , w)
+sAdd("mchd",{ssMemInfo},   4, "mChd"     ): fmtZ(curr.m.Cached        , w)
+sAdd("mswc",{ssMemInfo},   4, "mSwC"     ): fmtZ(curr.m.SwapCached    , w)
+sAdd("mact",{ssMemInfo},   4, "mAct"     ): fmtZ(curr.m.Active        , w)
+sAdd("miac",{ssMemInfo},   4, "mIAc"     ): fmtZ(curr.m.Inactive      , w)
+sAdd("maca",{ssMemInfo},   4, "mAcA"     ): fmtZ(curr.m.ActiveAnon    , w)
+sAdd("miaa",{ssMemInfo},   4, "mIAA"     ): fmtZ(curr.m.InactiveAnon  , w)
+sAdd("maf" ,{ssMemInfo},   4, "mAF"      ): fmtZ(curr.m.ActiveFile    , w)
+sAdd("miaf",{ssMemInfo},   4, "mIAF"     ): fmtZ(curr.m.InactiveFile  , w)
+sAdd("mune",{ssMemInfo},   4, "mUne"     ): fmtZ(curr.m.Unevictable   , w)
+sAdd("mlck",{ssMemInfo},   4, "mLck"     ): fmtZ(curr.m.Mlocked       , w)
+sAdd("mswt",{ssMemInfo},   4, "mSwT"     ): fmtZ(curr.m.SwapTotal     , w)
+sAdd("mswf",{ssMemInfo},   4, "mSwF"     ): fmtZ(curr.m.SwapFree      , w)
+sAdd("mdty",{ssMemInfo},   4, "mDty"     ): fmtZ(curr.m.Dirty         , w)
+sAdd("mwb" ,{ssMemInfo},   4, "mWB"      ): fmtZ(curr.m.Writeback     , w)
+sAdd("manp",{ssMemInfo},   4, "mAnP"     ): fmtZ(curr.m.AnonPages     , w)
+sAdd("mmap",{ssMemInfo},   4, "mMap"     ): fmtZ(curr.m.Mapped        , w)
+sAdd("mshm",{ssMemInfo},   4, "mShm"     ): fmtZ(curr.m.Shmem         , w)
+sAdd("mkrc",{ssMemInfo},   4, "mKRc"     ): fmtZ(curr.m.KReclaimable  , w)
+sAdd("mslb",{ssMemInfo},   4, "mSlb"     ): fmtZ(curr.m.Slab          , w)
+sAdd("msrc",{ssMemInfo},   4, "mSRc"     ): fmtZ(curr.m.SReclaimable  , w)
+sAdd("murc",{ssMemInfo},   4, "mURc"     ): fmtZ(curr.m.SUnreclaim    , w)
+sAdd("mkst",{ssMemInfo},   4, "mKSt"     ): fmtZ(curr.m.KernelStack   , w)
+sAdd("mptb",{ssMemInfo},   4, "mPTb"     ): fmtZ(curr.m.PageTables    , w)
+sAdd("mnfs",{ssMemInfo},   4, "mNFS"     ): fmtZ(curr.m.NFS_Unstable  , w)
+sAdd("mbnc",{ssMemInfo},   4, "mBnc"     ): fmtZ(curr.m.Bounce        , w)
+sAdd("mwbt",{ssMemInfo},   4, "mWBT"     ): fmtZ(curr.m.WritebackTmp  , w)
+sAdd("mclm",{ssMemInfo},   4, "mCLm"     ): fmtZ(curr.m.CommitLimit   , w)
+sAdd("mcas",{ssMemInfo},   4, "mCAS"     ): fmtZ(curr.m.Committed_AS  , w)
+sAdd("mvmt",{ssMemInfo},   4, "mVMt"     ): fmtZ(curr.m.VmallocTotal  , w)
+sAdd("mvmu",{ssMemInfo},   4, "mVMu"     ): fmtZ(curr.m.VmallocUsed   , w)
+sAdd("mvmc",{ssMemInfo},   4, "mVMc"     ): fmtZ(curr.m.VmallocChunk  , w)
+sAdd("mpcp",{ssMemInfo},   4, "mpcp"     ): fmtZ(curr.m.Percpu        , w)
+sAdd("mahp",{ssMemInfo},   4, "mAHP"     ): fmtZ(curr.m.AnonHugePages , w)
+sAdd("mshp",{ssMemInfo},   4, "mSHP"     ): fmtZ(curr.m.ShmemHugePages, w)
+sAdd("mspm",{ssMemInfo},   4, "mSPM"     ): fmtZ(curr.m.ShmemPmdMapped, w)
+sAdd("mcmt",{ssMemInfo},   4, "mcmt"     ): fmtZ(curr.m.CmaTotal      , w)
+sAdd("mcmf",{ssMemInfo},   4, "mcmf"     ): fmtZ(curr.m.CmaFree       , w)
+sAdd("mhpt",{ssMemInfo},   4, "mHPt"     ): fmtZ(curr.m.HugePagesTotal, w)
+sAdd("mhpf",{ssMemInfo},   4, "mHPf"     ): fmtZ(curr.m.HugePagesFree , w)
+sAdd("mhpr",{ssMemInfo},   4, "mHPr"     ): fmtZ(curr.m.HugePagesRsvd , w)
+sAdd("mhps",{ssMemInfo},   4, "mHPs"     ): fmtZ(curr.m.HugePagesSurp , w)
+sAdd("mhpz",{ssMemInfo},   4, "mHPz"     ): fmtZ(curr.m.Hugepagesize  , w)
+sAdd("mhpb",{ssMemInfo},   4, "mHPb"     ): fmtZ(curr.m.Hugetlb       , w)
+sAdd("mdmk",{ssMemInfo},   4, "mdmK"     ): fmtZ(curr.m.DirectMap4k   , w)
+sAdd("mdmm",{ssMemInfo},   4, "mdmM"     ): fmtZ(curr.m.DirectMap2M   , w)
+sAdd("mdmg",{ssMemInfo},   4, "mdmG"     ): fmtZ(curr.m.DirectMap1G   , w)
+
+template dAdd(code, sfs, wid, hdr, toStr, getNum: untyped) {.dirty.} =
+  sysFmt[code] = (sfs, wid, hdr,
+                  proc(dtI: float; w: int; last,curr: Sys):string {.closure.}=
+                    proc get(sys: Sys): int = with(sys, [ m, s, d, n ], getNum)
+                    toStr(((curr.get - last.get).float * dtI + 0.5).int, w))
+
+template cpuOrZero(c: seq[CPUInfo], i: int, fld): int =
+  if c.len == 0: 0 else: c[i].fld       #First sample has s.cpu.len == 0
+dAdd("usr", {ssStat},     3, "Usr", fmtJ): cpuOrZero(s.cpu, 0, user)
+dAdd("nic", {ssStat},     3, "Nic", fmtJ): cpuOrZero(s.cpu, 0, nice)
+dAdd("sys", {ssStat},     3, "Sys", fmtJ): cpuOrZero(s.cpu, 0, system)
+dAdd("idl", {ssStat},     3, "Idl", fmtJ): cpuOrZero(s.cpu, 0, idle)
+dAdd("iow", {ssStat},     3, "IOW", fmtJ): cpuOrZero(s.cpu, 0, iowait)
+dAdd("hir", {ssStat},     3, "HIr", fmtJ): cpuOrZero(s.cpu, 0, irq)
+dAdd("sir", {ssStat},     3, "SIr", fmtJ): cpuOrZero(s.cpu, 0, softirq)
+dAdd("stl", {ssStat},     3, "Stl", fmtJ): cpuOrZero(s.cpu, 0, steal)
+dAdd("gst", {ssStat},     3, "Gst", fmtJ): cpuOrZero(s.cpu, 0, guest)
+dAdd("gnc", {ssStat},     3, "GNc", fmtJ): cpuOrZero(s.cpu, 0, guest_nice)
+#XXX Some uses (iostat) want local rather than global name sets; Eg "drb:sda".
+#XXX Also, above specified CPUs e.g. usr:<N>.  With params, we need >= 1 more
+#XXX hdr rows containing used parameter.  May also want filter by maj/min devNo.
+#XXX softIRQ; probably rest of interrupts as well. (Also needs params...)
+
+dAdd("int", {ssStat},     4, "Intr", fmtZ): s.interrupts
+dAdd("csw", {ssStat},     4, "CtSw", fmtZ): s.contextSwitches
+dAdd("pcr", {ssStat},     4, "PMad", fmtZ): s.procs
+
+template filteredSum(sts: DiskStats|NetDevStats, nms: HashSet[string]): int =
+  var sum = 0                   #XXX May be worth saving `filteredSum` in ScCf
+  for st in sts:
+    if nms.len == 0 or st.name in nms: sum += st.get
+  sum
+
+template tot(d: DiskStats, dks: HashSet[string], getNum: untyped): int =
+  proc get(ds: DiskStat): int = with(ds, [reads, writes, cancels,
+                                          inFlight, ioTicks, timeInQ], getNum)
+  filteredSum(d, dks)
+dAdd("dbr", {ssDiskStat}, 4, "DBR", fmtZ): d.tot(cs.dks, reads.nSector)*512
+dAdd("dbw", {ssDiskStat}, 4, "DBW", fmtZ): d.tot(cs.dks, writes.nSector)*512
+dAdd("dbc", {ssDiskStat}, 4, "DBC", fmtZ): d.tot(cs.dks, cancels.nSector)*512
+dAdd("dnr", {ssDiskStat}, 4, "D#R", fmtZ): d.tot(cs.dks, reads.nIO)
+dAdd("dnw", {ssDiskStat}, 4, "D#W", fmtZ): d.tot(cs.dks, writes.nIO)
+dAdd("dnc", {ssDiskStat}, 4, "D#C", fmtZ): d.tot(cs.dks, cancels.nIO)
+dAdd("dif", {ssDiskStat}, 4, "DiF", fmtZ): d.tot(cs.dks, inFlight)
+dAdd("dit", {ssDiskStat}, 4, "DIT", fmtZ): d.tot(cs.dks, ioTicks )
+dAdd("dtq", {ssDiskStat}, 4, "DTQ", fmtZ): d.tot(cs.dks, timeInQ )
+
+template tot(n: NetDevStats, ifs: HashSet[string], getNum: untyped): int =
+  proc get(nd: NetDevStat): int = with(nd, [rcvd, sent], getNum)
+  filteredSum(n, ifs)
+dAdd("nbr", {ssNetDev},   4, "NBR", fmtZ): n.tot(cs.ifs, rcvd.bytes)
+dAdd("nbs", {ssNetDev},   4, "NBS", fmtZ): n.tot(cs.ifs, sent.bytes)
+dAdd("npr", {ssNetDev},   4, "N#R", fmtZ): n.tot(cs.ifs, rcvd.packets)
+dAdd("nps", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
+
+proc parseFormat(cf: var ScCf) =
+  let format = if cf.format.len > 0: cf.format else:
+                 @[ "usr","sys","iow","hir","sir", "pcr","la1", "mavl","mswf",
+                    "int","csw", "dnr","dnw", "dbr","dbw", "nbr","nbs" ]
+  var hdrMap: Table[string, string]
+  var hdr: string
+  for h in cf.hdrs:
+    let cols = h.split(':')
+    if cols.len != 2: raise newException(ValueError, "Bad hdrs: \"" & h & "\"")
+    hdrMap[cols[0]] = cols[1]
+  cf.fields.setLen(0)
+  for i, f in format:
+    try   : cf.fields.add sysFmt[f]
+    except: raise newException(ValueError, "unknown format code \"" & f & "\"")
+    try   : hdr = hdrMap[cf.fields[^1].hdr]
+    except KeyError: hdr = cf.fields[^1].hdr
+    cf.fields[^1].wid = max(cf.fields[^1].wid, hdr.len)
+    if i != 0: cf.headers.add ' '
+    cf.headers.add align(hdr, cf.fields[^1].wid)
+    cf.need = cf.need + cf.fields[^1].ss
+  cf.headers.add '\n'
+
+proc parseColor(cf: var ScCf) =
+  for spec in cf.color:
+    let cols = spec.splitWhitespace()
+    if cols.len < 2:
+      raise newException(ValueError, "bad color format: \"" & spec & "\"")
+    let nm = cols[0]
+    if nm.startsWith("size") and nm.len == 5:
+      if nm[4] in { 'B', 'K', 'M', 'G', 'T' }:
+        cf.attrSize[ord(nm[4]) - ord('A')] = textAttrOn(cols[1..^1], cf.plain)
+      else: raise newException(ValueError, "bad color metric: \"" & spec & "\"")
+    elif nm.startsWith("load") and nm.len > 4:
+      var level: int
+      if parseInt(nm, level, 4) > 0:
+        cf.loadFmts.add (level, textAttrOn(cols[1..^1], cf.plain))
+      else: raise newException(ValueError, "bad color metric: \"" & spec & "\"")
+    else: raise newException(ValueError, "bad color name: \"" & spec & "\"")
+
+proc fin*(cf: var ScCf) =
+  ##Finalize cf ob post-user sets/updates, pre-``scrollSys`` calls.
+  cf.a0 = if cf.plain: "" else: "\x1b[0m"
+  if cf.numIt == -1: cf.numIt = cf.numIt.high
+  cf.colors.textAttrRegisterAliases               #.colors => registered aliases
+  for d in cf.disks: cf.dks.incl d
+  for i in cf.ifaces: cf.ifs.incl i
+  cf.parseColor                                   #.color => .attr
+  cf.parseFormat                                  #.format => .fields
+  cs = cf.addr                                    #Init global ptr
+
+proc read*(p: var Sys, need: SysSrcs): bool =
+  if ssMemInfo  in need: p.m = procMemInfo()
+  if ssStat     in need: p.s = procSysStat()
+  if ssLoadAvg  in need: p.l = procLoadAvg()
+  if ssDiskStat in need: p.d = procDiskStats()
+  if ssNetDev   in need: p.n = procNetDevStats()
+  return true
+
+proc scrollSys*(cf: var ScCf) =
+  ## Scrolling system-wide statistics like dstat/vmstat/iostat/etc.  Default
+  ## format is scheduled jiffies, load, memory, CtxSwch, disk&net-IO, but user
+  ## can define many of their own styles/bundles.
+  var last, curr: Sys
+  var t, t0: MonoTime
+  var dtI: float
+  for it in 0 ..< cf.numIt:
+    if cf.frqHdr > 0 and it mod cf.frqHdr == 0:
+      stdout.write cf.headers
+    if not curr.read(cf.need):
+      stdout.write "COULD NOT UPDATE; NEXT ITERATION COVERS >1 INTERVAL\n"
+      nanosleep(cf.delay)
+      continue
+    t   = getMonoTime()                 #update time & dtI
+    dtI = 1e9 / (t.ticks - t0.ticks).float
+    t0  = t
+    for i, f in cf.fields:
+      if i != 0: stdout.write ' '
+      stdout.write f.fmt(dtI, f.wid, last, curr)
+    stdout.write '\n'
+    stdout.flushFile
+    if it + 1 < cf.numIt:
+      last = curr
+      nanosleep(cf.delay)
+
+# # # # COMMAND-LINE INTERFACE: snapSys - system-wide snapshot stats # # # #
+# There are only so many terminal columns and much data.  User may prefer a
+# whole-terminal dashboard with 'watch'-style update-to-update diffs/highlights.
 
 when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   import cligen, cligen/cfUt
@@ -1627,6 +1863,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       if cmdNames[0] == "multi":
         let bn = paramStr(0).lastPathPart
         if   bn == "pd": result.add "display"
+        elif bn == "sc" or bn == "scroll" or bn == "scrollsy":
+          result.add "scrollsy"
         elif bn == "pf": result.add "find"
         elif bn == "pk": result.add "find"; result.add "-akill"
         elif bn == "pw": result.add "find"; result.add "-await"
@@ -1653,6 +1891,12 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin()
     cf.display()
+    quit(0)
+
+  let sd = ScCf(frqHdr: 15, numIt: -1, plain: noColor, delay: tsP1)
+  initDispatchGen(scrollC, cf, sd, positional="format", @["ALL AFTER format"]):
+    cf.fin()
+    cf.scrollSys()
     quit(0)
 
   const ess: seq[string] = @[]
@@ -1721,5 +1965,19 @@ ATTR=attr specs as above""",
       short = { "parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
                 "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',
                 "invert":'v', "delay":'D', "session":'S', "nice":'N' } ],
-    [ procs.memory, cmdName="memory", help = {}, short = {} ],
-    [ procs.stats, cmdName="stats" , help = {}, short = {} ])
+    [ scrollC, cmdName="scrollsy", doc=docFromProc(procs.scrollSys),
+      help = { "colors": "color aliases; Syntax: name = ATTR1 ATTR2..",
+               "color" : """attrs for size/load fields.  Syntax:
+  NAME<WS>ATTR<WS>ATTR..
+NAME = size{BKMGT}|load{NNN}
+ATTR = as in `lc` colors""",
+               "frqHdr": "frequency of header repeats",
+               "numIt" : "number of reports",
+               "delay" : "delay between reports",
+               "binary": "K=size/1024,M=size/1024/1024 (vs/1000..)",
+               "plain" : "plain text; aka no color Esc sequences",
+               "hdrs"  : "<OLD_HEADER>:<MY_HEADER> pairs",
+               "format": "fmt1 [fmt2..] formats to query & print" },
+      short = {"colors": 'C', "hdrs": 'H', "disks": 'k'},
+      alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[ess]),
+                 ("style", 's', "APPLY an output style" , @[ess]) ]  ])

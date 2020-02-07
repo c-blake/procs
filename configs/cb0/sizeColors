@@ -1,0 +1,5 @@
+color = "sizeB   fhot1"                 #Value-conditional fields besides paths
+color = "sizeK   fhot2"
+color = "sizeM   fhot3"
+color = "sizeG   fhot4"
+color = "sizeT   fhot5"
