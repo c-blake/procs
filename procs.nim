@@ -1620,7 +1620,7 @@ type
     hdrs*: seq[string]                                      ##usrDefd headers
     frqHdr*, numIt*: int                                    ##header frq, itrs
     delay*: Timespec                                        ##delay between itrs
-    binary*, plain*, raw*: bool                             ##flags; see help
+    binary*, plain*, unnorm*: bool                          ##flags; see help
     disks*, ifaces*, format*: seq[string]                   ##fmts to display
     fields: seq[ScField]                                    #fields to format
     cpuNorm: float
@@ -1643,8 +1643,8 @@ proc fmtJ(n: uint; wid: int): string =
 
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
-  let jiffieEquivalent = (parseInt(join(s.split('.')).strip()).float
-                          * cs.cpuNorm).uint
+  let jiffieEquivalent = (parseInt(join(s.split('.')).strip()).float *
+                          cs.cpuNorm).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
 proc fmtZ(b: uint, wid: int): string =
@@ -1818,7 +1818,7 @@ proc fin*(cf: var ScCf) =
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   for d in cf.disks: cf.dks.incl d
   for i in cf.ifaces: cf.ifs.incl i
-  cf.cpuNorm = if cf.raw: 1.0 else: 1.0 / (procSysStat().cpu.len.float - 1.0)
+  cf.cpuNorm = if cf.unnorm: 1.0 else: 1.0 / (procSysStat().cpu.len.float - 1.0)
   cf.parseColor                                   #.color => .attr
   cf.parseFormat                                  #.format => .fields
   cs = cf.addr                                    #Init global ptr
@@ -1983,7 +1983,7 @@ ATTR = as in `lc` colors""",
                "numIt" : "number of reports",
                "delay" : "delay between reports",
                "binary": "K=size/1024,M=size/1024/1024 (vs/1000..)",
-               "raw"   : "do not normalize jiffy times/loads by #CPUs",
+               "unnorm": "do not normalize jiffy times/loads by #CPUs",
                "plain" : "plain text; aka no color Esc sequences",
                "hdrs"  : "<OLD_HEADER>:<MY_HEADER> pairs",
                "format": "fmt1 [fmt2..] formats to query & print" },
