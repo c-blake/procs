@@ -100,7 +100,7 @@ type
     Committed_AS, VmallocTotal, VmallocUsed, VmallocChunk, Percpu,
     AnonHugePages, ShmemHugePages, ShmemPmdMapped, CmaTotal, CmaFree,
     HugePages_Total, HugePages_Free, HugePages_Rsvd, HugePages_Surp,
-    Hugepagesize, Hugetlb, DirectMap4k, DirectMap2M, DirectMap1G: uint64]
+    Hugepagesize, Hugetlb, DirectMap4k, DirectMap2M, DirectMap1G: uint]
 
   CPUInfo* = tuple[user, nice, system, idle, iowait, irq,
                    softirq, steal, guest, guest_nice: int]
@@ -545,62 +545,63 @@ proc procUptime*(): culong =
 proc procMemInfo*(): MemInfo =
   ## /proc/meminfo fields (in bytes or pages if specified).
   "/proc/meminfo".readFile buf
+  proc toU(s: string, unit=1): uint {.inline.} = toU64(s, unit).uint
   var nm = ""
   for line in buf.split('\n'):
     var i = 0
     for col in line.splitWhitespace:
       if i == 0: nm = col
       else:
-        if   nm=="MemTotal:"       : result.MemTotal        = toU64(col, 1024)
-        elif nm=="MemFree:"        : result.MemFree         = toU64(col, 1024)
-        elif nm=="MemAvailable:"   : result.MemAvailable    = toU64(col, 1024)
-        elif nm=="Buffers:"        : result.Buffers         = toU64(col, 1024)
-        elif nm=="Cached:"         : result.Cached          = toU64(col, 1024)
-        elif nm=="SwapCached:"     : result.SwapCached      = toU64(col, 1024)
-        elif nm=="Active:"         : result.Active          = toU64(col, 1024)
-        elif nm=="Inactive:"       : result.Inactive        = toU64(col, 1024)
-        elif nm=="Active(anon):"   : result.ActiveAnon      = toU64(col, 1024)
-        elif nm=="Inactive(anon):" : result.InactiveAnon    = toU64(col, 1024)
-        elif nm=="Active(file):"   : result.ActiveFile      = toU64(col, 1024)
-        elif nm=="Inactive(file):" : result.InactiveFile    = toU64(col, 1024)
-        elif nm=="Unevictable:"    : result.Unevictable     = toU64(col, 1024)
-        elif nm=="Mlocked:"        : result.Mlocked         = toU64(col, 1024)
-        elif nm=="SwapTotal:"      : result.SwapTotal       = toU64(col, 1024)
-        elif nm=="SwapFree:"       : result.SwapFree        = toU64(col, 1024)
-        elif nm=="Dirty:"          : result.Dirty           = toU64(col, 1024)
-        elif nm=="Writeback:"      : result.Writeback       = toU64(col, 1024)
-        elif nm=="AnonPages:"      : result.AnonPages       = toU64(col, 1024)
-        elif nm=="Mapped:"         : result.Mapped          = toU64(col, 1024)
-        elif nm=="Shmem:"          : result.Shmem           = toU64(col, 1024)
-        elif nm=="KReclaimable:"   : result.KReclaimable    = toU64(col, 1024)
-        elif nm=="Slab:"           : result.Slab            = toU64(col, 1024)
-        elif nm=="SReclaimable:"   : result.SReclaimable    = toU64(col, 1024)
-        elif nm=="SUnreclaim:"     : result.SUnreclaim      = toU64(col, 1024)
-        elif nm=="KernelStack:"    : result.KernelStack     = toU64(col, 1024)
-        elif nm=="PageTables:"     : result.PageTables      = toU64(col, 1024)
-        elif nm=="NFS_Unstable:"   : result.NFS_Unstable    = toU64(col, 1024)
-        elif nm=="Bounce:"         : result.Bounce          = toU64(col, 1024)
-        elif nm=="WritebackTmp:"   : result.WritebackTmp    = toU64(col, 1024)
-        elif nm=="CommitLimit:"    : result.CommitLimit     = toU64(col, 1024)
-        elif nm=="Committed_AS:"   : result.Committed_AS    = toU64(col, 1024)
-        elif nm=="VmallocTotal:"   : result.VmallocTotal    = toU64(col, 1024)
-        elif nm=="VmallocUsed:"    : result.VmallocUsed     = toU64(col, 1024)
-        elif nm=="VmallocChunk:"   : result.VmallocChunk    = toU64(col, 1024)
-        elif nm=="Percpu:"         : result.Percpu          = toU64(col, 1024)
-        elif nm=="AnonHugePages:"  : result.AnonHugePages   = toU64(col, 1024)
-        elif nm=="ShmemHugePages:" : result.ShmemHugePages  = toU64(col, 1024)
-        elif nm=="ShmemPmdMapped:" : result.ShmemPmdMapped  = toU64(col, 1024)
-        elif nm=="CmaTotal:"       : result.CmaTotal        = toU64(col, 1024)
-        elif nm=="CmaFree:"        : result.CmaFree         = toU64(col, 1024)
-        elif nm=="HugePages_Total:": result.HugePages_Total = toU64(col)
-        elif nm=="HugePages_Free:" : result.HugePages_Free  = toU64(col)
-        elif nm=="HugePages_Rsvd:" : result.HugePages_Rsvd  = toU64(col)
-        elif nm=="HugePages_Surp:" : result.HugePages_Surp  = toU64(col)
-        elif nm=="Hugepagesize:"   : result.Hugepagesize    = toU64(col, 1024)
-        elif nm=="Hugetlb:"        : result.Hugetlb         = toU64(col, 1024)
-        elif nm=="DirectMap4k:"    : result.DirectMap4k     = toU64(col, 1024)
-        elif nm=="DirectMap2M:"    : result.DirectMap2M     = toU64(col, 1024)
-        elif nm=="DirectMap1G:"    : result.DirectMap1G     = toU64(col, 1024)
+        if   nm=="MemTotal:"       : result.MemTotal        = toU(col, 1024)
+        elif nm=="MemFree:"        : result.MemFree         = toU(col, 1024)
+        elif nm=="MemAvailable:"   : result.MemAvailable    = toU(col, 1024)
+        elif nm=="Buffers:"        : result.Buffers         = toU(col, 1024)
+        elif nm=="Cached:"         : result.Cached          = toU(col, 1024)
+        elif nm=="SwapCached:"     : result.SwapCached      = toU(col, 1024)
+        elif nm=="Active:"         : result.Active          = toU(col, 1024)
+        elif nm=="Inactive:"       : result.Inactive        = toU(col, 1024)
+        elif nm=="Active(anon):"   : result.ActiveAnon      = toU(col, 1024)
+        elif nm=="Inactive(anon):" : result.InactiveAnon    = toU(col, 1024)
+        elif nm=="Active(file):"   : result.ActiveFile      = toU(col, 1024)
+        elif nm=="Inactive(file):" : result.InactiveFile    = toU(col, 1024)
+        elif nm=="Unevictable:"    : result.Unevictable     = toU(col, 1024)
+        elif nm=="Mlocked:"        : result.Mlocked         = toU(col, 1024)
+        elif nm=="SwapTotal:"      : result.SwapTotal       = toU(col, 1024)
+        elif nm=="SwapFree:"       : result.SwapFree        = toU(col, 1024)
+        elif nm=="Dirty:"          : result.Dirty           = toU(col, 1024)
+        elif nm=="Writeback:"      : result.Writeback       = toU(col, 1024)
+        elif nm=="AnonPages:"      : result.AnonPages       = toU(col, 1024)
+        elif nm=="Mapped:"         : result.Mapped          = toU(col, 1024)
+        elif nm=="Shmem:"          : result.Shmem           = toU(col, 1024)
+        elif nm=="KReclaimable:"   : result.KReclaimable    = toU(col, 1024)
+        elif nm=="Slab:"           : result.Slab            = toU(col, 1024)
+        elif nm=="SReclaimable:"   : result.SReclaimable    = toU(col, 1024)
+        elif nm=="SUnreclaim:"     : result.SUnreclaim      = toU(col, 1024)
+        elif nm=="KernelStack:"    : result.KernelStack     = toU(col, 1024)
+        elif nm=="PageTables:"     : result.PageTables      = toU(col, 1024)
+        elif nm=="NFS_Unstable:"   : result.NFS_Unstable    = toU(col, 1024)
+        elif nm=="Bounce:"         : result.Bounce          = toU(col, 1024)
+        elif nm=="WritebackTmp:"   : result.WritebackTmp    = toU(col, 1024)
+        elif nm=="CommitLimit:"    : result.CommitLimit     = toU(col, 1024)
+        elif nm=="Committed_AS:"   : result.Committed_AS    = toU(col, 1024)
+        elif nm=="VmallocTotal:"   : result.VmallocTotal    = toU(col, 1024)
+        elif nm=="VmallocUsed:"    : result.VmallocUsed     = toU(col, 1024)
+        elif nm=="VmallocChunk:"   : result.VmallocChunk    = toU(col, 1024)
+        elif nm=="Percpu:"         : result.Percpu          = toU(col, 1024)
+        elif nm=="AnonHugePages:"  : result.AnonHugePages   = toU(col, 1024)
+        elif nm=="ShmemHugePages:" : result.ShmemHugePages  = toU(col, 1024)
+        elif nm=="ShmemPmdMapped:" : result.ShmemPmdMapped  = toU(col, 1024)
+        elif nm=="CmaTotal:"       : result.CmaTotal        = toU(col, 1024)
+        elif nm=="CmaFree:"        : result.CmaFree         = toU(col, 1024)
+        elif nm=="HugePages_Total:": result.HugePages_Total = toU(col)
+        elif nm=="HugePages_Free:" : result.HugePages_Free  = toU(col)
+        elif nm=="HugePages_Rsvd:" : result.HugePages_Rsvd  = toU(col)
+        elif nm=="HugePages_Surp:" : result.HugePages_Surp  = toU(col)
+        elif nm=="Hugepagesize:"   : result.Hugepagesize    = toU(col, 1024)
+        elif nm=="Hugetlb:"        : result.Hugetlb         = toU(col, 1024)
+        elif nm=="DirectMap4k:"    : result.DirectMap4k     = toU(col, 1024)
+        elif nm=="DirectMap2M:"    : result.DirectMap2M     = toU(col, 1024)
+        elif nm=="DirectMap1G:"    : result.DirectMap1G     = toU(col, 1024)
         break
       i.inc
 
@@ -1619,33 +1620,33 @@ type
     hdrs*: seq[string]                                      ##usrDefd headers
     frqHdr*, numIt*: int                                    ##header frq, itrs
     delay*: Timespec                                        ##delay between itrs
-    binary*, plain*: bool                                   ##flags; see help
+    binary*, plain*, raw*: bool                             ##flags; see help
     disks*, ifaces*, format*: seq[string]                   ##fmts to display
     fields: seq[ScField]                                    #fields to format
+    cpuNorm: float
     dks, ifs: HashSet[string]                               #devs to total
     headers: string                                         #selected headers
-    loadFmts: seq[tuple[level: int; attr: string]]
+    loadFmts: seq[tuple[level: uint; attr: string]]
     need: SysSrcs
     a0: string                                              #if plain: ""
     attrSize: array[0..25, string]  #CAP letter-indexed with ord(x) - ord('A')
 
 var cs: ptr ScCf            #Lazy way out of making many little procs take ScCf
 
-proc fmtLoad(n: int): string =
+proc fmtLoad(n: uint): string =
   result = cs.loadFmts[^1].attr
   for (lvl, fmt) in cs.loadFmts:
     if lvl >= n: return fmt
 
-proc fmtJ(n, wid: int): string = fmtLoad(n) &
-                                 align(humanReadable4(n.uint, cs.binary), wid) &
-                                 cs.a0
+proc fmtJ(n: uint; wid: int): string =
+  fmtLoad(n) & align(humanReadable4(n.uint, cs.binary), wid) & cs.a0
 
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
-  let jiffieEquivalent = parseInt(join(s.split('.')).strip())
+  let jiffieEquivalent = parseInt(join(s.split('.')).strip()).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
-proc fmtZ[T](b: T, wid: int): string =
+proc fmtZ(b: uint, wid: int): string =
   proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
     cs.attrSize[(if sz[^1] in {'0'..'9'}: ord('B') else: ord(sz[^1])) - ord('A')
                ] & sz & cs.a0
@@ -1718,8 +1719,9 @@ template dAdd(code, sfs, wid, hdr, toStr, getNum: untyped) {.dirty.} =
   sysFmt[code] = (sfs, wid, hdr,
                   proc(dtI: float; w: int; last,curr: Sys):string {.closure.}=
                     proc get(sys: Sys): int = with(sys, [ m, s, d, n ], getNum)
-                    toStr(((curr.get - last.get).float * dtI + 0.5).int, w))
-#XXX time fields should be optionally divided by CPU count.
+                    let nrm = if toStr == fmtJ: cs.cpuNorm else: 1.0
+                    toStr((nrm*(curr.get - last.get).float * dtI + 0.5).uint,w))
+
 template cpuOrZero(c: seq[CPUInfo], i: int, fld): int =
   if c.len == 0: 0 else: c[i].fld       #First sample has s.cpu.len == 0
 dAdd("usrj", {ssStat},    4, "UsrJ", fmtJ): cpuOrZero(s.cpu, 0, user)
@@ -1804,7 +1806,7 @@ proc parseColor(cf: var ScCf) =
     elif nm.startsWith("load") and nm.len > 4:
       var level: int
       if parseInt(nm, level, 4) > 0:
-        cf.loadFmts.add (level, textAttrOn(cols[1..^1], cf.plain))
+        cf.loadFmts.add (level.uint, textAttrOn(cols[1..^1], cf.plain))
       else: raise newException(ValueError, "bad color metric: \"" & spec & "\"")
     else: raise newException(ValueError, "bad color name: \"" & spec & "\"")
 
@@ -1815,6 +1817,7 @@ proc fin*(cf: var ScCf) =
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   for d in cf.disks: cf.dks.incl d
   for i in cf.ifaces: cf.ifs.incl i
+  cf.cpuNorm = if cf.raw: 1.0 else: 1.0 / (procSysStat().cpu.len.float - 1.0)
   cf.parseColor                                   #.color => .attr
   cf.parseFormat                                  #.format => .fields
   cs = cf.addr                                    #Init global ptr
@@ -1979,6 +1982,7 @@ ATTR = as in `lc` colors""",
                "numIt" : "number of reports",
                "delay" : "delay between reports",
                "binary": "K=size/1024,M=size/1024/1024 (vs/1000..)",
+               "raw"   : "do not normalize jiffy times/loads by #CPUs",
                "plain" : "plain text; aka no color Esc sequences",
                "hdrs"  : "<OLD_HEADER>:<MY_HEADER> pairs",
                "format": "fmt1 [fmt2..] formats to query & print" },
