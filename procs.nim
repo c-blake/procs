@@ -1840,7 +1840,7 @@ proc scrollSys*(cf: var ScCf) =
       nanosleep(cf.delay)
       continue
     t   = getMonoTime()                 #update time & dtI
-    dtI = 1e9 / (t.ticks - t0.ticks).float
+    dtI = if it == 0: 1.0 else: 1e9 / (t.ticks - t0.ticks).float
     t0  = t
     for i, f in cf.fields:
       if i != 0: stdout.write ' '
