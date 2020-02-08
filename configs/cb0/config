@@ -26,10 +26,11 @@ format = "%p %t %J %c"  #Default; easily overridden on cmd-line or by style
 [include__lightBG]  #Default to lightBG [fg][hot|HOT] defs but clobber if..
 [include__LC_THEME] #..LC_THEME set
 [include__sizeColors]
-color = "load5   fhot0"   #[0,   5]   jiffies/sec => purple
-color = "load39  fhot1"   #[6,   39]  jiffies/sec => blue
-color = "load74  fhot2"   #[40,  74)  jiffies/sec => cyan
-color = "load99  fhot3"   #[75,  99)  jiffies/sec => green
-color = "load249 fhot4"   #[250, 349) jiffies/sec => yellow
-color = "load349 fhot5"   #[350, *)   jiffies/sec => red
+color = "load4   fhot0"   #[0,  4]  jiffies/sec => purple
+color = "load14  fhot1"   #[5,  14] jiffies/sec => blue
+color = "load24  fhot2"   #[15, 24] jiffies/sec => cyan
+color = "load49  fhot3"   #[25, 49] jiffies/sec => green
+color = "load74  fhot4"   #[50, 74] jiffies/sec => yellow
+color = "load89  fhot5"   #[75, 89) jiffies/sec => red
+color = "load99  fhot+"   #[90, *)  jiffies/sec => white hot!
 Style = "disk = dbrd dbwr dbcn dnrd dnwr dncn"
