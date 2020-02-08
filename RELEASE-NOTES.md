@@ -27,6 +27,10 @@ Version: 0.2
   I tried to reduce those latter two bugs to small reproducibles but it was not
   easy enough.  So, I just worked around them instead.
 
+  Add parsers for /proc/loadavg, /proc/stat, /proc/diskstats, /proc/net/dev and
+  a new command-line subcommand `scrollsy`.  This is still a work very much in
+  progress (needs at least parameterization for which disk/net iface/CPU).
+
 Version: 0.1
 ------------
   Initial public release
