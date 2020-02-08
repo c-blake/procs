@@ -1636,7 +1636,9 @@ proc fmtLoad(n: int): string =
   for (lvl, fmt) in cs.loadFmts:
     if lvl >= n: return fmt
 
-proc fmtJ(n, wid: int): string = fmtLoad(n) & align($n, wid) & cs.a0
+proc fmtJ(n, wid: int): string = fmtLoad(n) &
+                                 align(humanReadable4(n.uint, cs.binary), wid) &
+                                 cs.a0
 
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
@@ -1656,8 +1658,8 @@ template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
                   proc(dtI: float; w: int; last,curr: Sys): string {.closure.} =
                     toStr)
 sAdd("btm", {ssStat},     10, "bootTmSec"): align($curr.s.bootTime, w)
-sAdd("prn", {ssStat},      3, "prn"      ): align($curr.s.procsRunnable, w)
-sAdd("pbl", {ssStat},      3, "pbl"      ): align($curr.s.procsBlocked, w)
+sAdd("prn", {ssStat},      3, "PRn"      ): align($curr.s.procsRunnable, w)
+sAdd("pbl", {ssStat},      3, "PBl"      ): align($curr.s.procsBlocked, w)
 sAdd("la1", {ssLoadAvg},   5, "LdAv1"    ): fmtLoadAvg(curr.l.m1, w)
 sAdd("la5", {ssLoadAvg},   5, "LdAv5"    ): fmtLoadAvg(curr.l.m5, w)
 sAdd("la15",{ssLoadAvg},   5, "LdAv15"   ): fmtLoadAvg(curr.l.m15, w)
@@ -1720,24 +1722,24 @@ template dAdd(code, sfs, wid, hdr, toStr, getNum: untyped) {.dirty.} =
 
 template cpuOrZero(c: seq[CPUInfo], i: int, fld): int =
   if c.len == 0: 0 else: c[i].fld       #First sample has s.cpu.len == 0
-dAdd("usr", {ssStat},     3, "Usr", fmtJ): cpuOrZero(s.cpu, 0, user)
-dAdd("nic", {ssStat},     3, "Nic", fmtJ): cpuOrZero(s.cpu, 0, nice)
-dAdd("sys", {ssStat},     3, "Sys", fmtJ): cpuOrZero(s.cpu, 0, system)
-dAdd("idl", {ssStat},     3, "Idl", fmtJ): cpuOrZero(s.cpu, 0, idle)
-dAdd("iow", {ssStat},     3, "IOW", fmtJ): cpuOrZero(s.cpu, 0, iowait)
-dAdd("hir", {ssStat},     3, "HIr", fmtJ): cpuOrZero(s.cpu, 0, irq)
-dAdd("sir", {ssStat},     3, "SIr", fmtJ): cpuOrZero(s.cpu, 0, softirq)
-dAdd("stl", {ssStat},     3, "Stl", fmtJ): cpuOrZero(s.cpu, 0, steal)
-dAdd("gst", {ssStat},     3, "Gst", fmtJ): cpuOrZero(s.cpu, 0, guest)
-dAdd("gnc", {ssStat},     3, "GNc", fmtJ): cpuOrZero(s.cpu, 0, guest_nice)
+dAdd("usrj", {ssStat},    4, "UsrJ", fmtJ): cpuOrZero(s.cpu, 0, user)
+dAdd("nicj", {ssStat},    4, "NicJ", fmtJ): cpuOrZero(s.cpu, 0, nice)
+dAdd("sysj", {ssStat},    4, "SysJ", fmtJ): cpuOrZero(s.cpu, 0, system)
+dAdd("idlj", {ssStat},    4, "IdlJ", fmtJ): cpuOrZero(s.cpu, 0, idle)
+dAdd("iowj", {ssStat},    4, "IOWJ", fmtJ): cpuOrZero(s.cpu, 0, iowait)
+dAdd("hirj", {ssStat},    4, "HIrJ", fmtJ): cpuOrZero(s.cpu, 0, irq)
+dAdd("sirj", {ssStat},    4, "SIrJ", fmtJ): cpuOrZero(s.cpu, 0, softirq)
+dAdd("stlj", {ssStat},    4, "StlJ", fmtJ): cpuOrZero(s.cpu, 0, steal)
+dAdd("gstj", {ssStat},    4, "GstJ", fmtJ): cpuOrZero(s.cpu, 0, guest)
+dAdd("gncj", {ssStat},    4, "GNcJ", fmtJ): cpuOrZero(s.cpu, 0, guest_nice)
 #XXX Some uses (iostat) want local rather than global name sets; Eg "drb:sda".
 #XXX Also, above specified CPUs e.g. usr:<N>.  With params, we need >= 1 more
 #XXX hdr rows containing used parameter.  May also want filter by maj/min devNo.
 #XXX softIRQ; probably rest of interrupts as well. (Also needs params...)
 
-dAdd("int", {ssStat},     4, "Intr", fmtZ): s.interrupts
-dAdd("csw", {ssStat},     4, "CtSw", fmtZ): s.contextSwitches
-dAdd("pcr", {ssStat},     4, "PMad", fmtZ): s.procs
+dAdd("intr", {ssStat},    4, "Intr", fmtZ): s.interrupts
+dAdd("ctsw", {ssStat},    4, "CtSw", fmtZ): s.contextSwitches
+dAdd("pmad", {ssStat},    4, "PMad", fmtZ): s.procs
 
 template filteredSum(sts: DiskStats|NetDevStats, nms: HashSet[string]): int =
   var sum = 0                   #XXX May be worth saving `filteredSum` in ScCf
@@ -1749,28 +1751,28 @@ template tot(d: DiskStats, dks: HashSet[string], getNum: untyped): int =
   proc get(ds: DiskStat): int = with(ds, [reads, writes, cancels,
                                           inFlight, ioTicks, timeInQ], getNum)
   filteredSum(d, dks)
-dAdd("dbr", {ssDiskStat}, 4, "DBR", fmtZ): d.tot(cs.dks, reads.nSector)*512
-dAdd("dbw", {ssDiskStat}, 4, "DBW", fmtZ): d.tot(cs.dks, writes.nSector)*512
-dAdd("dbc", {ssDiskStat}, 4, "DBC", fmtZ): d.tot(cs.dks, cancels.nSector)*512
-dAdd("dnr", {ssDiskStat}, 4, "D#R", fmtZ): d.tot(cs.dks, reads.nIO)
-dAdd("dnw", {ssDiskStat}, 4, "D#W", fmtZ): d.tot(cs.dks, writes.nIO)
-dAdd("dnc", {ssDiskStat}, 4, "D#C", fmtZ): d.tot(cs.dks, cancels.nIO)
-dAdd("dif", {ssDiskStat}, 4, "DiF", fmtZ): d.tot(cs.dks, inFlight)
-dAdd("dit", {ssDiskStat}, 4, "DIT", fmtZ): d.tot(cs.dks, ioTicks )
-dAdd("dtq", {ssDiskStat}, 4, "DTQ", fmtZ): d.tot(cs.dks, timeInQ )
+dAdd("dbrd", {ssDiskStat}, 4, "DBRd", fmtZ): d.tot(cs.dks, reads.nSector)*512
+dAdd("dbwr", {ssDiskStat}, 4, "DBWr", fmtZ): d.tot(cs.dks, writes.nSector)*512
+dAdd("dbcn", {ssDiskStat}, 4, "DBCn", fmtZ): d.tot(cs.dks, cancels.nSector)*512
+dAdd("dnrd", {ssDiskStat}, 4, "D#Rd", fmtZ): d.tot(cs.dks, reads.nIO)
+dAdd("dnwr", {ssDiskStat}, 4, "D#Wr", fmtZ): d.tot(cs.dks, writes.nIO)
+dAdd("dncn", {ssDiskStat}, 4, "D#Cn", fmtZ): d.tot(cs.dks, cancels.nIO)
+dAdd("difl", {ssDiskStat}, 4, "DiFl", fmtZ): d.tot(cs.dks, inFlight)
+dAdd("ditk", {ssDiskStat}, 4, "DITk", fmtZ): d.tot(cs.dks, ioTicks )
+dAdd("dtiq", {ssDiskStat}, 4, "DTiQ", fmtZ): d.tot(cs.dks, timeInQ )
 
 template tot(n: NetDevStats, ifs: HashSet[string], getNum: untyped): int =
   proc get(nd: NetDevStat): int = with(nd, [rcvd, sent], getNum)
   filteredSum(n, ifs)
-dAdd("nbr", {ssNetDev},   4, "NBR", fmtZ): n.tot(cs.ifs, rcvd.bytes)
-dAdd("nbs", {ssNetDev},   4, "NBS", fmtZ): n.tot(cs.ifs, sent.bytes)
-dAdd("npr", {ssNetDev},   4, "N#R", fmtZ): n.tot(cs.ifs, rcvd.packets)
-dAdd("nps", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
+dAdd("nbrc", {ssNetDev},   4, "NBR", fmtZ): n.tot(cs.ifs, rcvd.bytes)
+dAdd("nbsn", {ssNetDev},   4, "NBS", fmtZ): n.tot(cs.ifs, sent.bytes)
+dAdd("nprc", {ssNetDev},   4, "N#R", fmtZ): n.tot(cs.ifs, rcvd.packets)
+dAdd("npsn", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
 
 proc parseFormat(cf: var ScCf) =
   let format = if cf.format.len > 0: cf.format else:
-                 @[ "usr","sys","iow","hir","sir", "pcr","la1", "mavl","mswf",
-                    "int","csw", "dnr","dnw", "dbr","dbw", "nbr","nbs" ]
+                 @[ "usrj","sysj","iowj","hirj","sirj", "pmad","la1", "mavl",
+                    "intr","ctsw", "dnrd","dnwr", "dbrd","dbwr", "nbrc","nbsn" ]
   var hdrMap: Table[string, string]
   var hdr: string
   for h in cf.hdrs:
@@ -1828,7 +1830,8 @@ proc read*(p: var Sys, need: SysSrcs): bool =
 proc scrollSys*(cf: var ScCf) =
   ## Scrolling system-wide statistics like dstat/vmstat/iostat/etc.  Default
   ## format is scheduled jiffies, load, memory, CtxSwch, disk&net-IO, but user
-  ## can define many of their own styles/bundles.
+  ## can define many of their own styles/bundles.  Like many utilities in this
+  ## genre, the very first report row is "since boot up".
   var last, curr: Sys
   var t, t0: MonoTime
   var dtI: float

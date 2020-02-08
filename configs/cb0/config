@@ -32,4 +32,4 @@ color = "load74  fhot2"   #[40,  74)  jiffies/sec => cyan
 color = "load99  fhot3"   #[75,  99)  jiffies/sec => green
 color = "load249 fhot4"   #[250, 349) jiffies/sec => yellow
 color = "load349 fhot5"   #[350, *)   jiffies/sec => red
-Style = "disk = dbr dbw dbc dnr dnw dnc"
+Style = "disk = dbrd dbwr dbcn dnrd dnwr dncn"
