@@ -635,7 +635,8 @@ proc procSysStat*(): SysStat =
   for line in lines("/proc/stat"):
     let cols = line.splitWhitespace(maxSplit=1)
     if cols.len != 2: continue
-    let (nm, rest) = (cols[0], cols[1])
+    let nm   = cols[0]
+    let rest = cols[1]
     if nm.startsWith("cpu"):    result.cpu.add rest.parseCPUInfo
     elif nm == "intr":          result.interrupts      =
       parseInt(rest.splitWhitespace(maxSplit=1)[0])
