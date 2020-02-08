@@ -1719,7 +1719,7 @@ template dAdd(code, sfs, wid, hdr, toStr, getNum: untyped) {.dirty.} =
                   proc(dtI: float; w: int; last,curr: Sys):string {.closure.}=
                     proc get(sys: Sys): int = with(sys, [ m, s, d, n ], getNum)
                     toStr(((curr.get - last.get).float * dtI + 0.5).int, w))
-
+#XXX time fields should be optionally divided by CPU count.
 template cpuOrZero(c: seq[CPUInfo], i: int, fld): int =
   if c.len == 0: 0 else: c[i].fld       #First sample has s.cpu.len == 0
 dAdd("usrj", {ssStat},    4, "UsrJ", fmtJ): cpuOrZero(s.cpu, 0, user)
