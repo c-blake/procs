@@ -1643,7 +1643,8 @@ proc fmtJ(n: uint; wid: int): string =
 
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
-  let jiffieEquivalent = parseInt(join(s.split('.')).strip()).uint #XXX cpuNorm
+  let jiffieEquivalent = (parseInt(join(s.split('.')).strip()).float
+                          * cs.cpuNorm).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
 proc fmtZ(b: uint, wid: int): string =
