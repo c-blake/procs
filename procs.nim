@@ -1624,7 +1624,7 @@ type
     disks*, ifaces*, format*: seq[string]                   ##fmts to display
     fields: seq[ScField]                                    #fields to format
     cpuNorm: float
-    dks, ifs: HashSet[string]                               #devs to total
+    dks, ifs: seq[Regex]                                    #devs to total
     headers: string                                         #selected headers
     loadFmts: seq[tuple[level: uint; attr: string]]
     need: SysSrcs
@@ -1744,13 +1744,20 @@ dAdd("intr", {ssStat},    4, "Intr", fmtZ): s.interrupts
 dAdd("ctsw", {ssStat},    4, "CtSw", fmtZ): s.contextSwitches
 dAdd("pmad", {ssStat},    4, "PMad", fmtZ): s.procs
 
-template filteredSum(sts: DiskStats|NetDevStats, nms: HashSet[string]): int =
-  var sum = 0                   #XXX May be worth saving `filteredSum` in ScCf
+proc matchAny*(s: string, rxes: seq[Regex]): bool =
+  ## Return ``true`` iff ``s`` matches one of ``rxes`` *or* if ``rxes.len==0``.
+  if rxes.len == 0: return true
+  for r in rxes:
+    if s.contains(r): return true
+
+template filteredSum(sts: DiskStats|NetDevStats, rxes: seq[Regex]): int =
+  var sum = 0                   #May be worth saving result in ScCf someday
   for st in sts:
-    if nms.len == 0 or st.name in nms: sum += st.get
+    if st.name.matchAny(rxes):  #For disks, maj,min devNo matching would be
+      sum += st.get             #..more efficient, but sts.len =~ few dozen.
   sum
 
-template tot(d: DiskStats, dks: HashSet[string], getNum: untyped): int =
+template tot(d: DiskStats, dks: seq[Regex], getNum: untyped): int =
   proc get(ds: DiskStat): int = with(ds, [reads, writes, cancels,
                                           inFlight, ioTicks, timeInQ], getNum)
   filteredSum(d, dks)
@@ -1764,7 +1771,7 @@ dAdd("difl", {ssDiskStat}, 4, "DiFl", fmtZ): d.tot(cs.dks, inFlight)
 dAdd("ditk", {ssDiskStat}, 4, "DITk", fmtZ): d.tot(cs.dks, ioTicks )
 dAdd("dtiq", {ssDiskStat}, 4, "DTiQ", fmtZ): d.tot(cs.dks, timeInQ )
 
-template tot(n: NetDevStats, ifs: HashSet[string], getNum: untyped): int =
+template tot(n: NetDevStats, ifs: seq[Regex], getNum: untyped): int =
   proc get(nd: NetDevStat): int = with(nd, [rcvd, sent], getNum)
   filteredSum(n, ifs)
 dAdd("nbrc", {ssNetDev},   4, "NBR", fmtZ): n.tot(cs.ifs, rcvd.bytes)
@@ -1816,8 +1823,8 @@ proc fin*(cf: var ScCf) =
   cf.a0 = if cf.plain: "" else: "\x1b[0m"
   if cf.numIt == -1: cf.numIt = cf.numIt.high
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
-  for d in cf.disks: cf.dks.incl d
-  for i in cf.ifaces: cf.ifs.incl i
+  for d in cf.disks: cf.dks.add d.re
+  for i in cf.ifaces: cf.ifs.add i.re
   cf.cpuNorm = if cf.unnorm: 1.0 else: 1.0 / (procSysStat().cpu.len.float - 1.0)
   cf.parseColor                                   #.color => .attr
   cf.parseFormat                                  #.format => .fields
@@ -1986,6 +1993,8 @@ ATTR = as in `lc` colors""",
                "unnorm": "do not normalize jiffy times/loads by #CPUs",
                "plain" : "plain text; aka no color Esc sequences",
                "hdrs"  : "<OLD_HEADER>:<MY_HEADER> pairs",
+               "disks" : "PerlCmpatRx's of disks to total; {}=all",
+               "ifaces": "PerlCmpatRx's of interfaces to total; {}=all",
                "format": "fmt1 [fmt2..] formats to query & print" },
       short = {"colors": 'C', "hdrs": 'H', "disks": 'k'},
       alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[ess]),
