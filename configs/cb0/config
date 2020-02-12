@@ -33,4 +33,7 @@ color = "load49  fhot3"   #[25, 49] jiffies/sec => green
 color = "load74  fhot4"   #[50, 74] jiffies/sec => yellow
 color = "load89  fhot5"   #[75, 89) jiffies/sec => red
 color = "load99  fhot+"   #[90, *)  jiffies/sec => white hot!
+ifaces = "eth0"           #I boot with net.ifnames=0; Don't want loopback
+disks  = "sd[a-g][1-4]"   #Include SATA partitions in disk IO totals
+disks  = "nvme.*p[0-9]"   #Include NVMe partitions in disk IO totals
 Style = "disk = dbrd dbwr dbcn dnrd dnwr dncn"
