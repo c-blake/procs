@@ -1129,7 +1129,7 @@ fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
-  if cg.wide: s else: s[0 ..< min(max(0, s.len - 1), max(0, wMax - 1))]
+  if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
 fAdd('P', {pf_ppid0}           ,0,5, "PPID"   ): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "NI"     ): $p.nice
 fAdd('y', {pf_prio}            ,0,4, "PRI"    ): $p.prio
