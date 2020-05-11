@@ -5,7 +5,7 @@
 
 #      nm:ord:dim        attrs           #overall test number for reference
 color = "kern:0x0:0      underline"      #0x00
-color = "sleep:0x2:0     none"           #0x01
+color = "sleep:0x2:0     NONE"           #0x01
 color = "zomb:0x3:0      struck"         #0x02
 color = "stop:0x4:0      blink"          #0x03
 color = "run:0x5:0       bold"           #0x04
