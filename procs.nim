@@ -1878,11 +1878,10 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       if cmdNames[0] == "multi":
         let bn = paramStr(0).lastPathPart
         if   bn == "pd": result.add "display"
-        elif bn == "sc" or bn == "scroll" or bn == "scrollsy":
-          result.add "scrollsy"
+        elif bn in ["sc", "scroll", "scrollsy"]: result.add "scrollsy"
         elif bn == "pf": result.add "find"
-        elif bn == "pk": result.add "find"; result.add "-akill"
-        elif bn == "pw": result.add "find"; result.add "-await"
+        elif bn == "pk": result.add [ "find", "-akill" ]
+        elif bn == "pw": result.add [ "find", "-await" ]
         return result & cmdline
       let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
       var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
