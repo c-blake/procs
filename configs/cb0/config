@@ -4,7 +4,7 @@
 [display]
 [include__kind]     #Define our process typology
 
-[include__lightBG]  #Default to lightBG [fg][hot|HOT] defs but clobber if..
+[include__lightBG]  #Default to lightBG [fg][hue|HUE] defs but clobber if..
 [include__LC_THEME] #..LC_THEME set.  Defs used by color, ageFmt, maybe style.
 
 [include__color]    #Decide test order,colors,sort order,dimension of kind tests
@@ -23,16 +23,16 @@ format = "%p %t %J %c"  #Default; easily overridden on cmd-line or by style
 
 
 [scrollsy]
-[include__lightBG]  #Default to lightBG [fg][hot|HOT] defs but clobber if..
+[include__lightBG]  #Default to lightBG [fg][hue|HUE] defs but clobber if..
 [include__LC_THEME] #..LC_THEME set
 [include__sizeColors]
-color = "load4   fhot0"   #[0,  4]  jiffies/sec => purple
-color = "load14  fhot1"   #[5,  14] jiffies/sec => blue
-color = "load24  fhot2"   #[15, 24] jiffies/sec => cyan
-color = "load49  fhot3"   #[25, 49] jiffies/sec => green
-color = "load74  fhot4"   #[50, 74] jiffies/sec => yellow
-color = "load89  fhot5"   #[75, 89) jiffies/sec => red
-color = "load99  fhot+"   #[90, *)  jiffies/sec => white hot!
+color = "load4   fhue0"   #[0,  4]  jiffies/sec => purple
+color = "load14  fhue1"   #[5,  14] jiffies/sec => blue
+color = "load24  fhue2"   #[15, 24] jiffies/sec => cyan
+color = "load49  fhue3"   #[25, 49] jiffies/sec => green
+color = "load74  fhue4"   #[50, 74] jiffies/sec => yellow
+color = "load89  fhue5"   #[75, 89) jiffies/sec => red
+color = "load99  fhue+"   #[90, *)  jiffies/sec => white hot!
 ifaces = "eth0"           #I boot with net.ifnames=0; Don't want loopback
 disks  = "sd[a-g]"        #Include SATA partitions in disk IO totals
 disks  = "nvme[0-9]n1"    #Include NVMe partitions in disk IO totals
