@@ -26,5 +26,5 @@ kind = "kiod      pcr iod$"
 kind = "*iod      all kern kiod"
 
 #Some user space bundles
-kind = "firefox   pcr ^firefox-bin$|^WebExtensions$|^Web Content$|^RDD Process$"
-kind = "chrome    pcr ^chrome$"
+kind = "firefox pcr firefox-bin|WebExtension|Web Conten|RDD Proc|Privileged Cont"
+kind = "chrome  pcr ^chrome$"
