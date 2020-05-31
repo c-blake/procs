@@ -1,4 +1,4 @@
-#TIME STYLES (6 char fmts w/rainbow color scheme for variable radix).
+#TIME STYLES (6 char fmts w/heatmap color scheme for variable radix).
 #Syntax: [tag]SecondsOld@highlightableStrftimeFormat (augmented with %<DIGIT>)
 #     OR [tag]SecondsOld@/divisor[/digits] [<]unitString attributes
 #        where tag=='+' => alt/caps Fmt (%A%M etc); tag=='-' => plain format
@@ -22,5 +22,4 @@ ageFmt =     "+100000@/6000     <m fhue2"   #16m..16h minutes in cyan
 ageFmt =       "+1000@/100      <s fhue1"   #10s..16m seconds in blue
 ageFmt =          "+0@/1        <j fhue0"   #<10s     jiffies in purple
 #'+' series is used both for accumulated real time (aka age) & cpu time.  It's a
-#bit wonky since old procs conceptually feel cold while heavy CPU use feels hot,
-#but older things tend to also have large accumulations.
+#bit wonky since old procs seem "cold" while heavy CPU use seem "hot". Oh well.
