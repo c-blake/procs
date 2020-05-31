@@ -28,8 +28,8 @@ color = "wq:0x0:3        WHITE on_blue" #0x11
 color = "rcu_*:0x0:3     WHITE on_blue" #0x12
 color = "*iod:0x0:3      WHITE on_blue" #0x13
 color = "kdmflush:0x0:3  WHITE on_blue" #0x14
-color = "firefox:0x0:3   WHITE on_blue" #0x15
-color = "chrome:0x0:3    WHITE on_blue" #0x16
+color = "firefox:0x0:3   inverse"       #0x15
+color = "chrome:0x0:3    inverse"       #0x16
 
 color = "root:0x1:3      fhue5"         #0x17
 
