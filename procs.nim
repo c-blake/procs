@@ -431,12 +431,12 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStatus in sneed and not p.readStatus(pr, fill): return false
   if pfw_wchan in fill: (pr & "wchan").readFile buf; p.wchan = buf
   if psIO in sneed and not p.readIO(pr, fill): return false
-  if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid)
-  if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid)
+  if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid, $p.st.st_uid)
+  if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid, $p.st.st_gid)
   if pfs_usrs in fill:
-    for ui in p.uids: p.usrs.add usrs.getOrDefault(ui)
+    for ui in p.uids: p.usrs.add usrs.getOrDefault(ui, $ui)
   if pfs_grps in fill:
-    for gi in p.gids: p.grps.add grps.getOrDefault(gi)
+    for gi in p.gids: p.grps.add grps.getOrDefault(gi, $gi)
   #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
   if pfn_ipc      in fill: p.nipc      = st_inode(pr & "ns/ipc",    devNull)
   if pfn_mnt      in fill: p.nmnt      = st_inode(pr & "ns/mnt",    devNull)
@@ -714,21 +714,21 @@ proc procLoadAvg*(): LoadAvg =
 # # # # # # # RELATED PROCESS MGMT APIs # # # # # # #
 proc usrToUid*(usr: string): Uid =
   ## Convert string|numeric user designations to Uids via usrs
-  if usr.len == 0: return 27173.Uid
+  if usr.len == 0: return 999.Uid
   if usr[0].isDigit: return toInt(usr).Uid
   if usrs.len == 0: usrs = users()
   if usrs.len != 0 and uids.len == 0: uids = usrs.invert
-  result = uids.getOrDefault(usr, 27173.Uid)
+  result = uids.getOrDefault(usr, 999.Uid)
 proc usrToUid*(usrs: seq[string]): seq[Uid] =
   for usr in usrs: result.add usrToUid(usr)
 
 proc grpToGid*(grp: string): Gid =
   ## Convert string|numeric group designations to Gids via grps
-  if grp.len == 0: return 27173.Gid
+  if grp.len == 0: return 999.Gid
   if grp[0].isDigit: return toInt(grp).Gid
   if grps.len == 0: grps = groups()
   if grps.len != 0 and gids.len == 0: gids = grps.invert
-  result = gids.getOrDefault(grp, 27173.Gid)
+  result = gids.getOrDefault(grp, 999.Gid)
 proc grpToGid*(grps: seq[string]): seq[Gid] =
   for grp in grps: result.add grpToGid(grp)
 
