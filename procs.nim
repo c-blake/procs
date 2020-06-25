@@ -1097,12 +1097,17 @@ proc fmtJif(jiffies: culong): string =
       return jiffies.int.humanDuration(fmt[1..^1], cg.plain)
   $jiffies
 
-proc fmtSz[T](b: T): string =
+const space = repeat(' ', 128)
+proc fmtSz[T](attrSize: array[0..25, string], a0: string, binary: bool, b: T,
+              wid=4): string {.inline.} =
   proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
-    cg.attrSize[(if sz[^1] in {'0'..'9'}: ord('B') else: ord(sz[^1])) - ord('A')
-               ] & sz & cg.a0
+    let ix   = (if sz[^1] in Digits: 'B'.ord else: sz[^1].ord) - 'A'.ord
+    let digs = sz.find Digits
+    space[0 ..< digs] & attrSize[ix] & sz[digs..^1] & a0
   if b.uint64 > 18446744073709551606'u64: "-" else:
-    sizeFmt(align(humanReadable4(b.uint, cg.binary), 4))
+    sizeFmt(align(humanReadable4(b.uint, binary), wid))
+
+proc fmtSz[T](b: T): string = fmtSz(cg.attrSize, cg.a0, cg.binary, b, 4)
 
 proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return "?"
@@ -1647,12 +1652,7 @@ proc fmtLoadAvg(s: string; wid: int): string =
                           cs.cpuNorm).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
-proc fmtZ(b: uint, wid: int): string =
-  proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
-    cs.attrSize[(if sz[^1] in {'0'..'9'}: ord('B') else: ord(sz[^1])) - ord('A')
-               ] & sz & cs.a0
-  if b.uint64 > 18446744073709551606'u64: "-" else:
-    sizeFmt(align(humanReadable4(b.uint, cs.binary), wid))
+proc fmtZ(b: uint, wid: int): string = fmtSz(cs.attrSize,cs.a0,cs.binary,b,wid)
 
 var sysFmt: Table[string, ScField]
 template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
