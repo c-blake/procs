@@ -28,12 +28,14 @@ color = "wq:0x0:3        WHITE on_blue" #0x11
 color = "rcu_*:0x0:3     WHITE on_blue" #0x12
 color = "*iod:0x0:3      WHITE on_blue" #0x13
 color = "kdmflush:0x0:3  WHITE on_blue" #0x14
-color = "firefox:0x0:3   inverse"       #0x15
-color = "chrome:0x0:3    inverse"       #0x16
+color = "iprtVBox:0x0:3  WHITE on_blue" #0x15
+color = "nvidia:0x0:3    WHITE on_blue" #0x16
+color = "firefox:0x0:3   inverse"       #0x18
+color = "chrome:0x0:3    inverse"       #0x19
 
-color = "root:0x1:3      fhue5"         #0x17
+color = "root:0x1:3      fhue5"         #0x20
 
-color = "unknown:0x18:0  NONE"          #0x18 #Added if missing;Here to set ord
+color = "unknown:0x18:0  NONE"          #0x2A #Added if missing;Here to set ord
 
 [include__sizeColors]
 

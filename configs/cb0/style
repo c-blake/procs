@@ -7,7 +7,7 @@
 #  pd -s aX -- all/unaggregated; Add on CL -sKm -ikern for partial kthread agg
 
 Style = "nkern = -mkern"
-Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush"
+Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush -miprtVBox -mnvidia"
 Style = "Bmerge = -mfirefox -mchrome"
 
 #First define unfiltered styles

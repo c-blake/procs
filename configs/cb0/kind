@@ -14,6 +14,8 @@ kind = "scsi_eh   pcr ^scsi_eh_.*"      #in theory these four could collide,
 kind = "scsi_tmf  pcr ^scsi_tmf_.*"     #..but eh.  Seems unlikley.
 kind = "kdmflush  pcr ^kdmflush$"
 kind = "xfs       pcr xfs.*/|^xfsalloc$|^xfs_mru_cache$"
+kind = "iprtVBox  pcr iprt-VBox"
+kind = "nvidia    pcr nvidia|nv_queue|UVM"
 
 #These 3 might collide with user proc names and so we ANDed with builtin kern
 kind = "kwq       pcr wq$"
