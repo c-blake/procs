@@ -1097,13 +1097,12 @@ proc fmtJif(jiffies: culong): string =
       return jiffies.int.humanDuration(fmt[1..^1], cg.plain)
   $jiffies
 
-const space = repeat(' ', 128)
 proc fmtSz[T](attrSize: array[0..25, string], a0: string, binary: bool, b: T,
               wid=4): string {.inline.} =
   proc sizeFmt(sz: string): string =          #colorized metric-byte sizes
     let ix   = (if sz[^1] in Digits: 'B'.ord else: sz[^1].ord) - 'A'.ord
     let digs = sz.find Digits
-    space[0 ..< digs] & attrSize[ix] & sz[digs..^1] & a0
+    sz[0 ..< digs] & attrSize[ix] & sz[digs..^1] & a0
   if b.uint64 > 18446744073709551606'u64: "-" else:
     sizeFmt(align(humanReadable4(b.uint, binary), wid))
 
@@ -1259,24 +1258,33 @@ proc hdrWrite(cf: var DpCf, diff=false) =
       stdout.write cf.a0
   stdout.write '\n'
 
+# Tricky/slow to avoid zero visible width columns under common-case space split.
 proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
   p.ageD = if delta == 0: cf.uptm - p.t0 else: delta.culong
   var used = 0
   let ats = p.kattr
   for i, f in cf.fields:
-    let pfx = f.prefix
-    stdout.write ats, pfx
-    used += printedLen(pfx)
     var fld: string
-    if f.wid < 0: fld = f.fmt(p, max(1, cf.width - used))
+    let pfx  = f.prefix 
+    let nPfx = pfx.printedLen
+    if f.wid < 0:               # Only clip at end of line
+      let fp = f.fmt(p, max(1, cf.width - used - nPfx))
+      let bod = fp.findNot Whitespace
+      fld = if bod >= 0: pfx & fp[0 ..< bod] & ats & fp[bod..^1] & ats
+            else       : pfx & fp & ats
     else:
-      let fp = f.fmt(p)
+      let fp  = f.fmt(p)
       let nfp = fp.printedLen
-      if nfp > f.wid:
-        fld = fp
-        cf.fields[i].wid = nfp
-      else:
-        fld = if f.left: termAlignLeft(fp, f.wid) else: termAlign(fp, f.wid)
+      let bod = fp.findNot Whitespace
+      let fpr = if bod >= 0: fp[0 ..< bod] & ats & fp[bod..^1] & ats
+                else       : ats & fp & ats     # fp reconstituted
+      if nfp > f.wid:           # Over-wide instance; Let it mess up alignments
+        fld = pfx & fpr
+        cf.fields[i].wid = nfp  # Track max so only future can sorta align
+      else:                     # Left or Right aligned
+        let pad = repeat(' ', f.wid - nfp)
+        fld = if f.left: pfx & fpr & pad
+              else     : pfx & pad & fpr
     stdout.write fld
     if i != cf.fields.len - 1:
       used += printedLen(fld)
