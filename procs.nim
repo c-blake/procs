@@ -538,9 +538,13 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
 proc procUptime*(): culong =
   ## System uptime in jiffies (there are 100 jiffies per second)
   "/proc/uptime".readFile buf
-  let uptm = buf.split()[0]
-  let secJif = uptm.split('.')
-  parseInt(secJif[0] & secJif[1]).culong
+  let decimal = buf.find('.')
+  if decimal == -1: return
+  buf[decimal..decimal+1] = buf[decimal+1..decimal+2]
+  buf[decimal+2] = ' '
+  var x: int
+  discard parseInt(buf, x)
+  x.culong
 
 proc procMemInfo*(): MemInfo =
   ## /proc/meminfo fields (in bytes or pages if specified).
