@@ -2,8 +2,8 @@
 #XXX Could port to BSD using libkvm/kvm_getprocs/_getargv/_getenvv/kinfo_proc;
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
-import os, posix, strutils, sets, tables, terminal, algorithm, nre, critbits, 
-       parseutils, std/monotimes,
+import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
+            critbits, parseutils, monotimes],
        cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt]
 type
   Proc* = object                ##Abstract proc data (including a kind vector)
