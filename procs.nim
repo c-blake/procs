@@ -510,6 +510,7 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   ## for fields where summing makes sense in ``merge``.
   template doInt(e, f: untyped) {.dirty.} =
     if e in fill: p.f -= q.f
+  doInt(pf_rss                , rss               )
   doInt(pf_minflt             , minflt            )
   doInt(pf_cminflt            , cminflt           )
   doInt(pf_majflt             , majflt            )
