@@ -1155,7 +1155,9 @@ fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
 fAdd('P', {pf_ppid0}           ,0,5, "PPID"   ): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "NI"     ): $p.nice
 fAdd('y', {pf_prio}            ,0,4, "PRI"    ): $p.prio
-fAdd('w', {pfw_wchan}          ,1,7, "WCHAN"  ): p.wchan[0..<min(7,p.wchan.len)]
+fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
+  let wch = if p.wchan.startsWith("__x64_sys_"): p.wchan[10..^1] else: p.wchan
+  wch[0 ..< min(9,wch.len)]
 fAdd('s', {pf_state}           ,0,4, "STAT"   ): $p.state
 fAdd('t', {pf_tty}             ,1,3, "TTY"    ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
