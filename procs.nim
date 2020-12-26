@@ -1328,7 +1328,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``display`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
   cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
-  cf.a0 = if cf.plain: "" else: "\x1b[0m"
+  cf.a0 = if cf.plain: "" else: textAttrOFF
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
   if cf.delay >= ts0 and cf.diffCmp.len==0: cf.diffCmp = "J"  #default to cumCPU
@@ -1848,7 +1848,7 @@ proc parseColor(cf: var ScCf) =
 
 proc fin*(cf: var ScCf) =
   ##Finalize cf ob post-user sets/updates, pre-``scrollSys`` calls.
-  cf.a0 = if cf.plain: "" else: "\x1b[0m"
+  cf.a0 = if cf.plain: "" else: textAttrOFF
   if cf.numIt == -1: cf.numIt = cf.numIt.high
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   for d in cf.disks: cf.dks.add d.re
