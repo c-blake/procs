@@ -1914,7 +1914,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
       var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
       if cfPath.len == 0:                             #..else use getConfigDir
-        cfPath = os.getConfigDir() & cmdNames[0] & "/config"  #See if dir w/cfg
+        cfPath = os.getConfigDir() / cmdNames[0] / "config"   #See if dir w/cfg
         if not existsFile(cfPath): cfPath = cfPath[0..^8]     #..else use file
       result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
                         quiet=true, noRaise=true)
