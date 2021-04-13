@@ -1050,8 +1050,8 @@ cAdd('3', {pfd_3}              , cmp, string  ): p.fd3
 cAdd('4', {pfd_4}              , cmp, string  ): p.fd4
 cAdd('5', {pfd_5}              , cmp, string  ): p.fd5
 cAdd('6', {pfd_6}              , cmp, string  ): p.fd6
-cAdd('<', {pfi_rch,pfi_rbl}    , cmp, uint64  ): p.rch + p.rbl
-cAdd('>', {pfi_wch,pfi_wbl}    , cmp, uint64  ): p.wch + p.wbl
+cAdd('<', {pfi_rch}            , cmp, uint64  ): p.rch # ,pfi_rbl + p.rbl
+cAdd('>', {pfi_wch}            , cmp, uint64  ): p.wch # ,pfi_wbl + p.wbl
 cAdd('O', {pfo_score}          , cmp, cint    ): p.oom_score
 
 proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
@@ -1207,8 +1207,8 @@ fAdd('3', {pfd_3}              ,1,3, "FD3"    ): p.fd3
 fAdd('4', {pfd_4}              ,1,3, "FD4"    ): p.fd4
 fAdd('5', {pfd_5}              ,1,3, "FD5"    ): p.fd5
 fAdd('6', {pfd_6}              ,1,3, "FD6"    ): p.fd6
-fAdd('<', {pfi_rch,pfi_rbl}    ,0,4, "READ"   ): fmtSz(p.rch + p.rbl)
-fAdd('>', {pfi_wch,pfi_wbl}    ,0,4, "WRIT"   ): fmtSz(p.wch + p.wbl)
+fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
+fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 
 proc parseFormat(cf: var DpCf) =
