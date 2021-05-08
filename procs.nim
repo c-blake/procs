@@ -1467,6 +1467,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   var zero: Proc
   var next = initTable[Pid, Proc](4)
   while true:
+    stdout.flushFile
     nanosleep(cf.delay)
     if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
     next.clear; procs.setLen 0; parent.clear
