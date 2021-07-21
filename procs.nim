@@ -167,7 +167,7 @@ var grps*: Table[Gid, string]      #group tables
 var gids*: Table[string, Gid]
 
 proc invert*[T, U](x: Table[T, U]): Table[U, T] =
-  for k, v in x.pairs: result.add v, k
+  for k, v in x.pairs: result[v] = k
 
 # # # # # # # PROCESS SPECIFIC /proc/PID/file PARSING # # # # # # #
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
@@ -1449,7 +1449,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
     for i in 0 ..< procs.len: procs[i].pidPath = parent.pidPath(procs[i].pid0)
   if cf.merge.len > 0:
     var procs2: seq[Proc]
-    var lastSlot = initTable[tuple[k,d:uint8], int](tables.rightSize(procs.len))
+    var lastSlot = initTable[tuple[k,d:uint8], int](procs.len)
     for p in procs:
       if not cf.maybeMerge(procs2, p, cf.need, lastSlot): procs2.add p
     procs = procs2
@@ -1488,7 +1488,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
         continue
     if cf.merge.len > 0:
       var procs2: seq[Proc]
-      var lastSlot=initTable[tuple[k,d:uint8], int](tables.rightSize(procs.len))
+      var lastSlot=initTable[tuple[k,d:uint8], int](procs.len)
       for p in procs:
         if not cf.maybeMerge(procs2, p, cf.need, lastSlot): procs2.add p
       procs = procs2
@@ -1554,7 +1554,7 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
   ## features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var actions = (if actions.len == 0: @[acEcho] else: actions)
-  var exclPIDs = initHashSet[string](sets.rightSize(min(1, exclude.len)))
+  var exclPIDs = initHashSet[string](min(1, exclude.len))
   for p in exclude: exclPIDs.incl (if p == "PPID": $getppid() else: p)
   exclPIDs.incl $getpid()               #always exclude self
   var pList: seq[Pid]
@@ -1850,7 +1850,7 @@ proc parseColor(cf: var ScCf) =
 proc fin*(cf: var ScCf) =
   ##Finalize cf ob post-user sets/updates, pre-``scrollSys`` calls.
   cf.a0 = if cf.plain: "" else: textAttrOFF
-  if cf.numIt == -1: cf.numIt = cf.numIt.high
+  if cf.numIt == -1: cf.numIt = cf.numIt.typeof.high
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   for d in cf.disks: cf.dks.add d.re
   for i in cf.ifaces: cf.ifs.add i.re
@@ -1916,7 +1916,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
       if cfPath.len == 0:                             #..else use getConfigDir
         cfPath = os.getConfigDir() / cmdNames[0] / "config"   #See if dir w/cfg
-        if not existsFile(cfPath): cfPath = cfPath[0..^8]     #..else use file
+        if not fileExists(cfPath): cfPath = cfPath[0..^8]     #..else use file
       result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
                         quiet=true, noRaise=true)
       result.add envToCL(underJoin) #Finally add $PROCS_DISPLAY $PROCS_FIND..
