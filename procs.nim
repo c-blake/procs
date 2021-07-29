@@ -413,7 +413,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   result = true                         #Ok unless early exit says elsewise
   let pr = "/proc/" & pid & "/"
   if psFStat in sneed:                  #Must happen before p.st gets used below
-    if stat(pr, p.st) == -1: return false
+    if stat(pr.cstring, p.st) == -1: return false
   p.spid = pid
   p.pid = toPid(pid)
   p.pidPath.setLen 0
@@ -754,10 +754,10 @@ proc ttyToDev*(tty: string): Dev = #tty string names -> nums
   ## Convert /dev/ttx or ttx to a (Linux) device number
   var st: Stat
   if tty.startsWith('/'): return (if stat(tty, st)==0: st.st_rdev else: 0xFFFF)
-  if stat("/dev/" & tty, st)==0: return st.st_rdev
-  if tty.startsWith('t') and tty.len>1 and stat("/dev/tty" & tty[1..^1], st)==0:
+  if stat(cstring("/dev/" & tty), st)==0: return st.st_rdev
+  if tty.startsWith('t') and tty.len>1 and stat(cstring("/dev/tty" & tty[1..^1]), st)==0:
     return st.st_rdev
-  if tty.startsWith('p') and tty.len>1 and stat("/dev/pts/"&tty[1..^1], st)==0:
+  if tty.startsWith('p') and tty.len>1 and stat(cstring("/dev/pts/"&tty[1..^1]), st)==0:
     return st.st_rdev
   return 0xFFFF
 proc ttyToDev*(ttys: seq[string]): seq[Dev] = #tty string names -> nums
