@@ -1129,7 +1129,8 @@ proc fmtSz[T](b: T): string = fmtSz(cg.attrSize, cg.a0, cg.binary, b, 4)
 proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return "?"
   let mills = (1000.uint64 * n.uint64 + 5) div d.uint64
-  $(mills div 10) & '.' & $(mills mod 10)
+  let leading = mills div 10
+  if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
 
 var fmtCodes: set[char]   #left below is just dflt alignment. User can override.
 var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
