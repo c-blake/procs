@@ -23,7 +23,7 @@ type
     exit_sig*, processor*, exitCode*: cint
     size*, res*, share*, txt*, lib*, dat*, dty*: culong
     environ*, usrs*, grps*: seq[string]
-    cmdline*, root*, cwd*, exe*: string
+    cmdLine*, root*, cwd*, exe*: string
     name*, umask*, stateS*: string
     tgid*, ngid*, pid1*, ppid*, tracerPid*, nStgid*, nSpid*, nSpgid*, nSsid*:Pid
     uids*: array[4, Uid]  #id_real, id_eff, id_set, id_fs
@@ -35,12 +35,12 @@ type
     sigQ*, sigPnd*, shdPnd*, sigBlk*, sigIgn*, sigCgt*: string
     capInh*, capPrm*, capEff*, capBnd*, capAmb*: string
     spec_Store_Bypass*: string
-    cpus_allowed*, mems_allowed*: uint16
-    cpus_allowed_list*, mems_allowed_list*: string
-    volun_ctxt_switch*, nonvolun_ctxt_switch*: uint64
+    cpusAllowed*, memsAllowed*: uint16
+    cpusAllowedList*, memsAllowedList*: string
+    volunCtxtSwitch*, nonVolunCtxtSwitch*: uint64
     wchan*: string
     rch*, wch*, syscr*, syscw*, rbl*, wbl*, wcancel*: uint64
-    nipc*, nmnt*, nnet*, npid*, nuser*, nuts*, ncgroup*, npid4Kids*: Ino
+    nIpc*, nMnt*, nNet*, nPid*, nUser*, nUts*, nCgroup*, nPid4Kids*: Ino
     fd0*, fd1*, fd2*, fd3*, fd4*, fd5*, fd6*: string      #/proc/PID/fd/*
     oom_score*, oom_adj*, oom_score_adj*: cint
     #XXX /proc/PID/(personality|limits|..)
@@ -69,10 +69,10 @@ type
     pfs_hugeTLB, pfs_coreDumping, pfs_tHP_enabled, pfs_threads,
     pfs_sigQ, pfs_sigPnd, pfs_shdPnd, pfs_sigBlk, pfs_sigIgn, pfs_sigCgt,
     pfs_capInh, pfs_capPrm, pfs_capEff, pfs_capBnd, pfs_capAmb,
-    pfs_noNewPrivs, pfs_seccomp, pfs_spec_Store_Bypass,
-    pfs_cpus_allowed, pfs_cpus_allowed_list,
-    pfs_mems_allowed, pfs_mems_allowed_list,
-    pfs_volun_ctxt_switch, pfs_nonvolun_ctxt_switch,
+    pfs_noNewPrivs, pfs_seccomp, pfs_specStoreBypass,
+    pfs_cpusAllowed, pfs_cpusAllowedList,
+    pfs_memsAllowed, pfs_memsAllowedList,
+    pfs_volunCtxtSwitch, pfs_nonVolunCtxtSwitch,
     pfw_wchan,                                                          #wchan
     pfi_rch, pfi_wch, pfi_syscr, pfi_syscw, pfi_rbl, pfi_wbl, pfi_wcancel, #io
     pfn_ipc, pfn_mnt, pfn_net, pfn_pid, pfn_user, pfn_uts,              #NmSpcs
@@ -99,7 +99,7 @@ type
     KernelStack, PageTables, NFS_Unstable, Bounce, WritebackTmp, CommitLimit,
     Committed_AS, VmallocTotal, VmallocUsed, VmallocChunk, Percpu,
     AnonHugePages, ShmemHugePages, ShmemPmdMapped, CmaTotal, CmaFree,
-    HugePages_Total, HugePages_Free, HugePages_Rsvd, HugePages_Surp,
+    HugePagesTotal, HugePagesFree, HugePagesRsvd, HugePagesSurp,
     Hugepagesize, Hugetlb, DirectMap4k, DirectMap2M, DirectMap1G: uint]
 
   CPUInfo* = tuple[user, nice, system, idle, iowait, irq,
@@ -157,9 +157,9 @@ const needsStatus = { pfs_name, pfs_umask, pfs_stateS, pfs_tgid, pfs_ngid,
   pfs_vmSwap, pfs_hugeTLB, pfs_coreDumping, pfs_tHP_enabled, pfs_threads,
   pfs_sigQ, pfs_sigPnd, pfs_shdPnd, pfs_sigBlk, pfs_sigIgn, pfs_sigCgt,
   pfs_capInh, pfs_capPrm, pfs_capEff, pfs_capBnd, pfs_capAmb, pfs_noNewPrivs,
-  pfs_seccomp, pfs_spec_Store_Bypass, pfs_cpus_allowed,
-  pfs_cpus_allowed_list, pfs_mems_allowed, pfs_mems_allowed_list,
-  pfs_volun_ctxt_switch, pfs_nonvolun_ctxt_switch }
+  pfs_seccomp, pfs_specStoreBypass, pfs_cpusAllowed,
+  pfs_cpusAllowedList, pfs_memsAllowed, pfs_memsAllowedList,
+  pfs_volunCtxtSwitch, pfs_nonVolunCtxtSwitch }
 
 var usrs*: Table[Uid, string]      #user tables
 var uids*: Table[string, Uid]
@@ -180,7 +180,7 @@ proc needs*(fill: var ProcFields): ProcSrcs =
   if pffs_grp in fill: fill.incl pffs_gid   #..add the numeric id to fill.
   if pfs_usrs in fill: fill.incl pfs_uids
   if pfs_grps in fill: fill.incl pfs_gids
-  if (needsFstat  * fill).card > 0: result.incl psFstat
+  if (needsFstat  * fill).card > 0: result.incl psFStat
   if (needsStat   * fill).card > 0: result.incl psStat
   if (needsStatm  * fill).card > 0: result.incl psStatm
   if (needsStatus * fill).card > 0: result.incl psStatus
@@ -316,7 +316,7 @@ proc readStatus*(p: var Proc; pr: string, fill: ProcFields): bool=
     elif pfs_tgid       < fill and n=="Tgid:":       p.tgid       = toPid(c[1])
     elif pfs_ngid       < fill and n=="Ngid:":       p.ngid       = toPid(c[1])
     elif pfs_pid1       < fill and n=="Pid:":        p.pid1       = toPid(c[1])
-    elif pfs_ppid       < fill and n=="PPid:":       p.ppid       = toPid(c[1])
+    elif pfs_pPid       < fill and n=="PPid:":       p.ppid       = toPid(c[1])
     elif pfs_tracerPid  < fill and n=="TracerPid:":  p.tracerPid  = toPid(c[1])
     elif pfs_uids       < fill and n=="Uid:":
       if c.len != 5: return false
@@ -364,18 +364,18 @@ proc readStatus*(p: var Proc; pr: string, fill: ProcFields): bool=
     elif pfs_capAmb     < fill and n=="CapAmb:":     p.capAmb     = c[1]
     elif pfs_noNewPrivs < fill and n=="NoNewPrivs:": p.noNewPrivs = toU16(c[1])
     elif pfs_seccomp    < fill and n=="Seccomp:":    p.seccomp    = toU16(c[1])
-    elif pfs_spec_Store_Bypass < fill and n=="Speculation_Store_Bypass:":
+    elif pfs_specStoreBypass < fill and n=="Speculation_Store_Bypass:":
       p.spec_Store_Bypass = c[1]
     elif pfs_cpusAllowed<fill and n=="Cpus_allowed:":p.cpusAllowed=toU16(c[1])
-    elif pfs_cpus_allowed_list < fill and n=="Cpus_allowed_list:":
-      p.cpus_allowed_list    = c[1]
+    elif pfs_cpusAllowedList < fill and n=="Cpus_allowed_list:":
+      p.cpusAllowedList   = c[1]
     elif pfs_memsAllowed<fill and n=="Mems_allowed:":p.memsAllowed=toU16(c[1])
-    elif pfs_mems_allowed_list < fill and n=="Mems_allowed_list:":
-      p.mems_allowed_list    = c[1]
-    elif pfs_volun_ctxt_switch < fill and n=="voluntary_ctxt_switches:":
-      p.volun_ctxt_switch    = toU64(c[1])
-    elif pfs_volun_ctxt_switch < fill and n=="nonvoluntary_ctxt_switches:":
-      p.nonvolun_ctxt_switch = toU64(c[1])
+    elif pfs_memsAllowedList < fill and n=="Mems_allowed_list:":
+      p.memsAllowedList   = c[1]
+    elif pfs_volunCtxtSwitch < fill and n=="voluntary_ctxt_switches:":
+      p.volunCtxtSwitch    = toU64(c[1])
+    elif pfs_volunCtxtSwitch < fill and n=="nonvoluntary_ctxt_switches:":
+      p.nonVolunCtxtSwitch = toU64(c[1])
 
 proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Populate ``Proc p`` pfi_ fields requested in ``fill`` via /proc/PID/io.
@@ -420,7 +420,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
     (pr & "cmdline").readFile buf
-    p.cmdline = buf
+    p.cmdLine = buf
   if pfen_environ in fill:
     (pr & "environ").readFile buf
     p.environ = buf.split('\0')
@@ -438,14 +438,14 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if pfs_grps in fill:
     for gi in p.gids: p.grps.add grps.getOrDefault(gi, $gi)
   #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
-  if pfn_ipc      in fill: p.nipc      = st_inode(pr & "ns/ipc",    devNull)
-  if pfn_mnt      in fill: p.nmnt      = st_inode(pr & "ns/mnt",    devNull)
-  if pfn_net      in fill: p.nnet      = st_inode(pr & "ns/net",    devNull)
-  if pfn_pid      in fill: p.npid      = st_inode(pr & "ns/pid",    devNull)
-  if pfn_user     in fill: p.nuser     = st_inode(pr & "ns/user",   devNull)
-  if pfn_uts      in fill: p.nuts      = st_inode(pr & "ns/uts",    devNull)
-  if pfn_cgroup   in fill: p.ncgroup   = st_inode(pr & "ns/cgroup", devNull)
-  if pfn_pid4Kids in fill:p.npid4Kids=st_inode(pr&"ns/pid_for_children",devNull)
+  if pfn_ipc      in fill: p.nIpc      = st_inode(pr & "ns/ipc",    devNull)
+  if pfn_mnt      in fill: p.nMnt      = st_inode(pr & "ns/mnt",    devNull)
+  if pfn_net      in fill: p.nNet      = st_inode(pr & "ns/net",    devNull)
+  if pfn_pid      in fill: p.nPid      = st_inode(pr & "ns/pid",    devNull)
+  if pfn_user     in fill: p.nUser     = st_inode(pr & "ns/user",   devNull)
+  if pfn_uts      in fill: p.nUts      = st_inode(pr & "ns/uts",    devNull)
+  if pfn_cgroup   in fill: p.nCgroup   = st_inode(pr & "ns/cgroup", devNull)
+  if pfn_pid4Kids in fill:p.nPid4Kids=st_inode(pr&"ns/pid_for_children",devNull)
   if pfd_0 in fill: p.fd0 = readlink(pr & "fd/0", devNull)
   if pfd_1 in fill: p.fd1 = readlink(pr & "fd/1", devNull)
   if pfd_2 in fill: p.fd2 = readlink(pr & "fd/2", devNull)
@@ -487,7 +487,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   if pfs_vmLck              in fill: p.vmLck                += q.vmLck
   if pfs_vmPin              in fill: p.vmPin                += q.vmPin
   if pfs_volunCtxtSwitch    in fill: p.volunCtxtSwitch      += q.volunCtxtSwitch
-  if pfs_nonvolunCtxtSwitch in fill:p.nonvolunCtxtSwitch += q.nonvolunCtxtSwitch
+  if pfs_nonVolunCtxtSwitch in fill:p.nonVolunCtxtSwitch += q.nonVolunCtxtSwitch
   if pfi_rch                in fill: p.rch                  += q.rch
   if pfi_wch                in fill: p.wch                  += q.wch
   if pfi_syscr              in fill: p.syscr                += q.syscr
@@ -498,7 +498,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   if overwriteSetValued: #XXX trickier fields: mem,capabilities,signals,sched,..
     if pf_tty       in fill: p.tty       = q.tty
     if pf_cmd       in fill: p.cmd       = q.cmd
-    if pfcl_cmdline in fill: p.cmdline   = q.cmdline
+    if pfcl_cmdline in fill: p.cmdLine   = q.cmdLine
     if pfw_wchan    in fill: p.wchan     = q.wchan
     if pf_processor in fill: p.processor = q.processor
     if pffs_usr     in fill: p.usr       = q.usr
@@ -539,7 +539,7 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   doInt(pfs_rssFile           , rssFile           )
   doInt(pfs_rssShmem          , rssShmem          )
   doInt(pfs_volunCtxtSwitch   , volunCtxtSwitch   )
-  doInt(pfs_nonvolunCtxtSwitch, nonvolunCtxtSwitch)
+  doInt(pfs_nonVolunCtxtSwitch, nonVolunCtxtSwitch)
   doInt(pfi_rch               , rch               )
   doInt(pfi_wch               , wch               )
   doInt(pfi_syscr             , syscr             )
@@ -611,10 +611,10 @@ proc procMemInfo*(): MemInfo =
         elif nm=="ShmemPmdMapped:" : result.ShmemPmdMapped  = toU(col, 1024)
         elif nm=="CmaTotal:"       : result.CmaTotal        = toU(col, 1024)
         elif nm=="CmaFree:"        : result.CmaFree         = toU(col, 1024)
-        elif nm=="HugePages_Total:": result.HugePages_Total = toU(col)
-        elif nm=="HugePages_Free:" : result.HugePages_Free  = toU(col)
-        elif nm=="HugePages_Rsvd:" : result.HugePages_Rsvd  = toU(col)
-        elif nm=="HugePages_Surp:" : result.HugePages_Surp  = toU(col)
+        elif nm=="HugePages_Total:": result.HugePagesTotal  = toU(col)
+        elif nm=="HugePages_Free:" : result.HugePagesFree   = toU(col)
+        elif nm=="HugePages_Rsvd:" : result.HugePagesRsvd   = toU(col)
+        elif nm=="HugePages_Surp:" : result.HugePagesSurp   = toU(col)
         elif nm=="Hugepagesize:"   : result.Hugepagesize    = toU(col, 1024)
         elif nm=="Hugetlb:"        : result.Hugetlb         = toU(col, 1024)
         elif nm=="DirectMap4k:"    : result.DirectMap4k     = toU(col, 1024)
@@ -1000,7 +1000,7 @@ template cAdd(code, pfs, cmpr, T, data: untyped) {.dirty.} =
 cAdd('p', {}                   , cmp, Pid     ): p.pid
 cAdd('c', {pf_cmd}             , cmp, string  ): p.cmd
 cAdd('C', {pfcl_cmdline,pf_cmd}, cmp, string  ):
-  if p.cmdline.len > 0: p.cmdline.cmdCLean else: p.cmd
+  if p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
 cAdd('u', {pffs_uid}           , cmp, Uid     ): p.getUid
 cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
 cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
@@ -1143,7 +1143,7 @@ fAdd('p', {}                   ,0,5, "PID"    ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
-  let s = if p.cmdline.len > 0: p.cmdline.cmdClean else: p.cmd
+  let s = if p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
 fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.getUid.uint
 fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
@@ -1329,7 +1329,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``display`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
   cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
-  cf.a0 = if cf.plain: "" else: textAttrOFF
+  cf.a0 = if cf.plain: "" else: textAttrOff
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
   if cf.delay >= ts0 and cf.diffCmp.len==0: cf.diffCmp = "J"  #default to cumCPU
@@ -1410,7 +1410,7 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
         lastSlot[kd] = procs2.len
         procs2.add p
         procs2[^1].cmd = cf.kslotNm[k] & "/"
-        procs2[^1].cmdline = procs2[^1].cmd
+        procs2[^1].cmdLine = procs2[^1].cmd
       return true
 
 proc display*(cf: var DpCf) = # [AMOVWYbkl] free
@@ -1507,7 +1507,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
 #Redundant upon `display` with some non-display action, but its simpler filter
 #language (syntax&impl) can be much more efficient (for user&system) sometimes.
 proc contains(rxes: seq[Regex], p: Proc, full=false): bool =
-  let c = if full and p.cmdline.len > 0: p.cmdline.cmdClean else: p.cmd
+  let c = if full and p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
   for r in rxes:  #Needs to be
     if c.contains(r): return true
 
@@ -1850,7 +1850,7 @@ proc parseColor(cf: var ScCf) =
 
 proc fin*(cf: var ScCf) =
   ##Finalize cf ob post-user sets/updates, pre-``scrollSys`` calls.
-  cf.a0 = if cf.plain: "" else: textAttrOFF
+  cf.a0 = if cf.plain: "" else: textAttrOff
   if cf.numIt == -1: cf.numIt = cf.numIt.typeof.high
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   for d in cf.disks: cf.dks.add d.re
@@ -1912,7 +1912,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
         elif bn == "pf": result.add "find"
         elif bn == "pk": result.add [ "find", "-akill" ]
         elif bn == "pw": result.add [ "find", "-await" ]
-        return result & cmdline
+        return result & cmdLine
       let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
       var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
       if cfPath.len == 0:                             #..else use getConfigDir
