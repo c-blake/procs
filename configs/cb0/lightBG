@@ -12,6 +12,8 @@ colors = "fhue4 = yellow"
 colors = "fhue5 = red"
 colors = "fhue+ = black"        #default fg => no-op
 
+colors = "pgreen = green"       #See darkBG for notes
+
 colors = "FHUE- = WHITE"        #FHUE- BHUE- is invisible
 colors = "FHUE0 = PURPLE"
 colors = "FHUE1 = BLUE"
