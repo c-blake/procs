@@ -32,10 +32,11 @@ color = "iprtVBox:0x0:3  WHITE on_blue" #0x15
 color = "nvidia:0x0:3    WHITE on_blue" #0x16
 color = "firefox:0x0:3   inverse"       #0x18
 color = "chrome:0x0:3    inverse"       #0x19
+color = "vbox:0x0:3      inverse"       #0x1A
 
-color = "root:0x1:3      fhue5"         #0x20
+color = "root:0x1:3      fhue5"         #0x1B
 
-color = "unknown:0x18:0  NONE"          #0x2A #Added if missing;Here to set ord
+color = "unknown:0x18:0  NONE"          #0x1C #Added if missing;Here to set ord
 
 [include__sizeColors]
 
