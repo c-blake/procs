@@ -27,8 +27,8 @@ Merging/coloring categories/kinds are all very user-defined.  In the above,
 kernel threads are underlined and processes marked as runnable are bolded,
 and my terminal makes bold default foreground color render as orange.
 
-MORE GENERAL COMMENTS
-=====================
+GENERAL COMMENTS
+----------------
 This program is a melange of various procps/top/pidof/pgrep/pkill functionality
 with plans for whole system statistics.  It supports environment-variable-driven
 themed colorized process display based upon builtin process traits and also
@@ -45,14 +45,14 @@ intended to also be a user-friendly API/library interface to process
 statistics/data.  So, it can perhaps facilitate other new utility programs.
 Its only non-stdlib dependency is `cligen`.
 
-Though written in Nim, not C, this API/multicommand is generally about as
-efficient or better.  `procs` tries hard not to make unnecessary system calls.
-E.g., with a format of just `'%p %c'` it will only open & read `/proc/*/stat`
-files.  Like `lc`, `procs display` is more of a "ps construction toolkit" than
-a pool of pre-packaged formats.  Fancy configs can create more work/slow things
-down.  Such is true with almost any featureful program.  I have timed a basic
-process listing as taking about 60% the run-time of the C-based procps `ps`,
-though there are surely environments/configurations where `ps` can be faster.
+Though written in Nim, not C, this API/multicommand is about as efficient or
+faster.  `procs` tries hard not to make unnecessary system calls.  E.g., with a
+format of just `'%p %c'` it will only open & read `/proc/*/stat` files.  Like
+`lc`, `procs display` is more of a "ps construction toolkit" than a pool of
+pre-packaged formats.  Fancy configs can create more work/slow things down.
+Such is true with almost any featureful program.  I have timed a basic process
+listing as taking about 60% the run-time of the C-based procps `ps`, though
+there are surely environments/configurations where `ps` can be faster.
 
 ASAP mode
 ---------
