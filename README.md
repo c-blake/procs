@@ -47,7 +47,7 @@ Its only non-stdlib dependency is `cligen`.
 
 Though written in Nim, not C, this API/multicommand is generally about as
 efficient or better.  `procs` tries hard not to make unnecessary system calls.
-E.g., with a format of just '%p %c' it will only open & read `/proc/\*/stat`
+E.g., with a format of just '%p %c' it will only open & read `/proc/*/stat`
 files.  Like `lc`, `procs display` is more of a "ps construction toolkit" than
 a pool of pre-packaged formats.  Fancy configs can create more work/slow things
 down.  Such is true with almost any featureful program.  I have timed a basic
@@ -79,9 +79,11 @@ a file and look at a nicely embellished report later.  It allows user-defined
 sense of "idle".  You can use traits besides CPU activity like RAM/IO activity,
 and even things independent of having been scheduled such as signal masks, nice
 value, etc.  It does not print system-wide statistics every iteration - that is
-what `procs scrollsy` is for.  `top` always felt "over bundled" to me.  This is
-kind of abstract and new/unusual.  So, here is a screenshot (`p=pd -sb` with my
-configs/cb0 config) of GNU yes cruising along at 100 GB/s (no need for `pv`!):
+what `procs scrollsy` is for.  `top` always felt "over bundled" to me.
+
+This is kind of abstract and new/unusual.  So, here is a screenshot (`p=pd -sb`
+with my `configs/cb0` config) of GNU yes cruising along at 100 GB/s (no need for
+`pv`!):
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
 `wait`/`Wait` actions of `procs find` (or `pw`) are more unusual functionality.
@@ -89,7 +91,7 @@ The selected set of processes is checked for lack of existence (via a 0 signal)
 each `delay` separated interval.  `procs` exits when either any or all (lower or
 uppercase) of the processes have failed to exist at least once.  Up to fast PID
 recycling this recreates features of the `Bash wait`/`wait -n` builtin for
-processes unrelated to the wait-er.
+processes *unrelated* to the wait-er.
 
 `procs` is definitely a work in progress, but a nice enough bundle of useful
 ideas to share.  With so many features and just me as a user, there are surely
