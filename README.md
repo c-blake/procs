@@ -64,7 +64,7 @@ ASAP mode
 ---------
 One feature more unique to `procs display` is its ASAP mode.  For output styles
 with no sorting or merging, process rows are written to stdout as soon as the
-data is collected.  This lowers user-perceived latency to "first output" by a
+data is collected.  This lowers user-perceived "latency to first output" by a
 very large multiple.  That can help on a system that is struggling to make
 progress/give the `procs display` process CPU time.  This ASAP style of flow
 also applies to `procs find --actions=kill`, for example, to send signals as
