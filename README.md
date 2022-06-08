@@ -54,6 +54,9 @@ down.  Such is true with almost any featureful program.  I have timed a basic
 process listing as taking about 60% the run-time of the C-based procps `ps`,
 though there are surely environments/configurations where `ps` can be faster.
 
+ASAP mode
+---------
+
 One feature more unique to `procs display` is its ASAP mode.  For output styles
 with no sorting or merging, process rows are written to stdout as soon as the
 data is collected.  This lowers user-perceived latency to "first output" by a
@@ -65,11 +68,17 @@ a near halt.  The `pgrep`/`pkill` in `procps` (at least as of version 3.3.15)
 reads and selects all processes before acting upon them.  While hopefully rare,
 when ASAP action matters it can be very helpful.
 
+Aliases
+-------
+
 If you create hard-links or sym-links from the `procs` executable to any of
 { "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
 those commands activate, respectively, `procs display`, `procs find`, `procs
 find -akill`, and `procs find -await`.  Being a `cligen` multi-command you can
 also type the shortest unique prefix for most things, e.g., `procs k`.
+
+Replacing "top" like functionality
+----------------------------------
 
 `procs display --delay 1` provides a similar use case but somewhat different
 theory of operation to `top -ib`.  `procs` is not an interactive program and has
@@ -87,6 +96,9 @@ with my `configs/cb0` config) of GNU yes cruising along at 100 GB/s (no need for
 by RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
+
+Actions on unrelated processes
+------------------------------
 
 `wait`/`Wait` actions of `procs find` (or `pw`) are more unusual functionality.
 The selected set of processes is checked for lack of existence (via a 0 signal)
