@@ -29,21 +29,21 @@ and my terminal makes bold default foreground color render as orange.
 
 GENERAL COMMENTS
 ----------------
-This program is a melange of various procps/top/pidof/pgrep/pkill functionality
-with plans for whole system statistics.  It supports environment-variable-driven
-themed colorized process display based upon builtin process traits and also
-based upon user-defined process classifications.  It also supports "merging"
-or "rolling up" statistics for processes related to each other in user-defined
-ways, e.g. all kernel threads.  Conceptually, this is similar to what already
-happens with the process statistics for a multi-threaded program, but the
-relationship between merged procs can be less reliant upon kernel categories.
+This program is a melange of various procps/top/pidof/pgrep/pkill functionality.
+It does environment-variable-driven themed display of process and system-wide
+metadata colorized by builtin process traits and also based upon user-defined
+process classifications.  It also supports "merging" or "rolling up" statistics
+for processes related to each other in user-defined ways, e.g. kernel threads
+or `firefox` processes.  Conceptually, this is similar to what already happens
+with the process statistics for a multi-threaded program, but the relationship
+between merged procs can be less reliant upon kernel categories.
 
 Configuration is similar enough to https://github.com/c-blake/lc/ that they can
-share theme files for the multi-command.  Some ideas like username abbreviation
-and the kind/color systems carry over almost exactly.  Unlike `lc`, `procs` is
-intended to also be a user-friendly API/library interface to process
-statistics/data.  So, it can perhaps facilitate other new utility programs.
-Its only non-stdlib dependency is `cligen`.
+share theme files via symlinks.  Some ideas like username abbreviation and the
+kind/color systems carry over almost exactly.  Unlike `lc`, `procs` is intended
+to also be a user-friendly API/library interface to process statistics/data.
+So, it can perhaps facilitate other new utility programs.  Its only non-stdlib
+dependency is `cligen`.
 
 Though written in Nim, not C, this API/multicommand is about as efficient or
 faster.  `procs` tries hard not to make unnecessary system calls.  E.g., with a
@@ -56,7 +56,6 @@ there are surely environments/configurations where `ps` can be faster.
 
 ASAP mode
 ---------
-
 One feature more unique to `procs display` is its ASAP mode.  For output styles
 with no sorting or merging, process rows are written to stdout as soon as the
 data is collected.  This lowers user-perceived latency to "first output" by a
@@ -70,7 +69,6 @@ when ASAP action matters it can be very helpful.
 
 Aliases
 -------
-
 If you create hard-links or sym-links from the `procs` executable to any of
 { "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
 those commands activate, respectively, `procs display`, `procs find`, `procs
@@ -79,7 +77,6 @@ also type the shortest unique prefix for most things, e.g., `procs k`.
 
 Replacing "top" like functionality
 ----------------------------------
-
 `procs display --delay 1` provides a similar use case but somewhat different
 theory of operation to `top -ib`.  `procs` is not an interactive program and has
 no compile/run-time curses/ncurses/terminal dependency.  All coloring/merging
@@ -99,7 +96,6 @@ reverse said sort order if you like..)
 
 Actions on unrelated processes
 ------------------------------
-
 `wait`/`Wait` actions of `procs find` (or `pw`) are more unusual functionality.
 The selected set of processes is checked for lack of existence (via a 0 signal)
 each `delay` separated interval.  `procs` exits when either any or all (lower or
