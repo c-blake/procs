@@ -72,8 +72,8 @@ ideas generally available in `procs display` are also retained.  You can log to
 a file and look at a nicely embellished report later.  It allows user-defined
 sense of "idle".  You can use traits besides CPU activity like RAM/IO activity,
 and even things independent of having been scheduled such as signal masks, nice
-value, etc.  It does not print system-wide statistics every iteration, although
-may grow an option for that.
+value, etc.  It does not print system-wide statistics every iteration - that is
+what `procs scrollsy` is for.  `top` always felt "over bundled" to me.
 
 If you create hard-links or sym-links from the `procs` executable to any of
 { "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
