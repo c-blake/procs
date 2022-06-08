@@ -38,10 +38,10 @@ GENERAL COMMENTS
 This program is a melange of various procps/top/pidof/pgrep/pkill functionality.
 It does environment-variable-driven themed display of process and system-wide
 metadata colorized by builtin process traits and also based upon user-defined
-process classifications.  It also supports "merging" or "rolling up" statistics
-for processes related to each other in user-defined ways, e.g. kernel threads
-or `firefox` processes.  Conceptually, this is similar to what already happens
-with the process statistics for a multi-threaded program, but the relationship
+process categories.  It also supports "merging" or "rolling up" statistics for
+processes related to each other in user-defined ways, e.g. kernel threads or
+`firefox` processes.  Conceptually, this is similar to what already happens with
+the process statistics for a multi-threaded program, but the relationship
 between merged procs can be less reliant upon kernel categories.
 
 Configuration is similar enough to https://github.com/c-blake/lc/ that they can
@@ -66,12 +66,13 @@ One feature more unique to `procs display` is its ASAP mode.  For output styles
 with no sorting or merging, process rows are written to stdout as soon as the
 data is collected.  This lowers user-perceived "latency to first output" by a
 very large multiple.  That can help on a system that is struggling to make
-progress/give the `procs display` process CPU time.  This ASAP style of flow
-also applies to `procs find --actions=kill`, for example, to send signals as
-quickly as possible to misbehaving program which could be grinding a system to
-a near halt.  The `pgrep`/`pkill` in `procps` (at least as of version 3.3.15)
-reads and selects all processes before acting upon them.  While hopefully rare,
-when ASAP action matters it can be very helpful.
+progress/give the `procs display` process CPU time.
+
+ASAP style of flow also applies to `procs find --actions=kill`, for example, to
+send signals as quickly as possible to misbehaving program which could be
+grinding a system to a near halt.  The `pgrep`/`pkill` in `procps` (at least as
+of version 3.3.15) reads and selects all processes before acting upon them.
+While hopefully rare, when ASAP action matters it can be very helpful.
 
 Aliases
 -------
@@ -87,16 +88,18 @@ Replacing "top" like functionality
 theory of operation to `top -ib`.  `procs` is not an interactive program and has
 no compile/run-time curses/ncurses/terminal dependency.  All coloring/merging
 ideas generally available in `procs display` are also retained.  You can log to
-a file and look at a nicely embellished report later.  It allows user-defined
-sense of "idle".  You can use traits besides CPU activity like RAM/IO activity,
-and even things independent of having been scheduled such as signal masks, nice
-value, etc.  It does not print system-wide statistics every iteration - that is
-what `procs scrollsy` is for.  `top` always felt "over bundled" to me.
+a file and look at a nicely embellished report later.
 
-This is kind of abstract and new/unusual.  So, here is a screenshot (`p=pd -sb`
-with my `configs/cb0` config) of GNU yes cruising along at 100 GB/s (no need for
-`pv`!).  A relevant part of configs/cb0/style is `-DR><J -oDJ><R` which diffs
-by RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
+This way allows user-defined sense of "idle".  You can use traits besides CPU
+activity like RAM/IO activity, and even things independent of having been
+scheduled such as signal masks, nice value, etc.  It does not print system-wide
+statistics every iteration - that is what `procs scrollsy` is for.  `top` always
+felt "over bundled" to me.
+
+This is kind of new/unusual/abstract.  So, here is a screenshot (`p=pd -sb` with
+my `configs/cb0` config) of GNU yes cruising along at 100 GB/s (no need for
+`pv`!).  A relevant part of configs/cb0/style is `-DR><J -oDJ><R` which diffs by
+RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
