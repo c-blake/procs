@@ -65,6 +65,12 @@ a near halt.  The `pgrep`/`pkill` in `procps` (at least as of version 3.3.15)
 reads and selects all processes before acting upon them.  While hopefully rare,
 when ASAP action matters it can be very helpful.
 
+If you create hard-links or sym-links from the `procs` executable to any of
+{ "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
+those commands activate, respectively, `procs display`, `procs find`, `procs
+find -akill`, and `procs find -await`.  Being a `cligen` multi-command you can
+also type the shortest unique prefix for most things, e.g., `procs k`.
+
 `procs display --delay 1` provides a similar use case but somewhat different
 theory of operation to `top -ib`.  `procs` is not an interactive program and has
 no compile/run-time curses/ncurses/terminal dependency.  All coloring/merging
@@ -73,13 +79,10 @@ a file and look at a nicely embellished report later.  It allows user-defined
 sense of "idle".  You can use traits besides CPU activity like RAM/IO activity,
 and even things independent of having been scheduled such as signal masks, nice
 value, etc.  It does not print system-wide statistics every iteration - that is
-what `procs scrollsy` is for.  `top` always felt "over bundled" to me.
-
-If you create hard-links or sym-links from the `procs` executable to any of
-{ "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
-those commands activate, respectively, `procs display`, `procs find`, `procs
-find -akill`, and `procs find -await`.  Being a `cligen` multi-command you can
-also type the shortest unique prefix for most things, e.g., `procs k`.
+what `procs scrollsy` is for.  `top` always felt "over bundled" to me.  This is
+kind of abstract and new/unusual.  So, here is a screenshot (`p=pd -sb` with my
+configs/cb0 config) of GNU yes cruising along at 100 GB/s (no need for `pv`!):
+![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
 `wait`/`Wait` actions of `procs find` (or `pw`) are more unusual functionality.
 The selected set of processes is checked for lack of existence (via a 0 signal)
