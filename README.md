@@ -12,7 +12,13 @@ cp -r procs/configs/cb0 $HOME/.config/procs
 ```
 The Nim experience can sometimes have fairly rough-hewn edges, though.  So far,
 though, something like the above has worked for me on Gentoo Linux, Debian, and
-Android Termux.  `procs` only supports Linux /proc queries at the moment.
+Android Termux.  `procs` only supports Linux /proc queries at the moment.  If
+the above nimble does not work, you can maybe just:
+```
+git clone https://github.com/c-blake/cligen
+git clone https://github.com/c-blake/procs
+cd procs; nim c -d:danger --path:../cligen procs
+```
 
 Here are some screenshots with many related kernel threads merged (command used
 is shown in the output):
