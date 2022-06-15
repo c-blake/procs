@@ -1544,12 +1544,13 @@ let signum* = { #suppress archaic STKFLT so "ST" can imply STOP; alias CLD,SYS
   "PWR" : 30, "SYS" : 31, "UNUSED": 31 }.toCritBitTree
 
 proc ctrlC() {.noconv.} = quit 130
-proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
-    session: seq[Pid] = @[], tty: seq[string] = @[], group: seq[string] = @[],
-    euid: seq[string] = @[], uid: seq[string] = @[], root=0.Pid, ns=0.Pid,
-    nsList: seq[NmSpc] = @[], first=false, newest=false, oldest=false,
-    exclude: seq[string] = @[], invert=false, delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
-    delim="\n", signals: seq[string] = @[], nice=0, actions: seq[PdAct] = @[],
+proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
+    pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty: seq[string] = @[],
+    group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
+    root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
+    oldest=false, exclude: seq[string] = @[], invert=false,
+    delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int), delim="\n",
+    signals: seq[string] = @[], nice=0, actions: seq[PdAct] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, count,
   ## kill, nice, wait for any|all).  Unifies pidof, pgrep, pkill, snice, waita
@@ -1579,7 +1580,10 @@ proc find*(pids="", full=false, parent: seq[Pid] = @[], pgroup: seq[Pid] = @[],
        root==0 and ns==0:
       stderr.write "procs: no criteria given; -h for help; exiting\n"
       return 1
-  for pattern in PCREpatterns: rxes.add pattern.re        #compile patterns
+  if ignoreCase:        #compile patterns
+    for pattern in PCREpatterns: rxes.add re("(?i)" & pattern)
+  else:
+    for pattern in PCREpatterns: rxes.add pattern.re
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
   if parent.len  > 0: fill.incl pf_ppid0
@@ -1988,6 +1992,7 @@ ATTR=attr specs as above""",
     [ procs.find, cmdName="find", doc=docFromProc(procs.find),
       help = { "pids":      "whitespace separated PIDs to subset",
                "full":      "match full command name",
+               "ignoreCase":"ignore case in matching patterns",
                "parent":    "match only kids of given parent",
                "pgroup":    "match process group IDs",
                "session":   "match session IDs",
