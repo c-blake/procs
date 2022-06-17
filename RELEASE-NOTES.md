@@ -1,6 +1,45 @@
 RELEASE NOTES
 =============
 
+Version: 0.4
+------------
+
+    Add -i flag to force pattern insensitivity { (?i) added to start of every
+    pattern as per lib/impure/nre.nim documentation.  Seems to work fine. }
+
+    Make `pw` less chatty (only ^C not default Nim message), but still
+    exit 130 in case there is some `pw patterns &&` shell construct.
+
+    For example config, add vbox & make Style delta(D) option order same as
+    order(o) { although this is just for visual consistency since any delta
+    produces a report with some `-d1` mode }.  Also combine first 4 eth devs.
+    Modernize darkBG & lightBG theme examples.
+
+    For >=100% just show integer percentage; 3 significant figures is plenty.
+
+    Ensure data is flushed to stdout before sleeping in differential mode.
+
+    Do not total syscall IO & blockdev IO for %<,%> (too often doubles IO).
+
+    Make build clean under `--styleCheck:hint --styleCheck:usages`.  Also get
+    rid of cstring warnings.  Fix several deprecations; mv `Table.add` ->
+    `Table.[]=` ; While technically [ug]id -> user name mapping is multivalued
+    we were only using a random one of the many values.  Now the last writer
+    wins.  Maybe 1st writer should, but user/group name aliases are rare.
+    Adapt to https://github.com/nim-lang/Nim/pull/17402
+
+Version: 0.3
+------------
+    Use textAttrOff, not literal.
+
+    Make wchan 2 more terminal columns + __x86_sys_ prefix strip really enhances
+    readability of truncated System.map symbols.
+
+    Include RSS as well as rest of /proc/PID/(status|statm) in `minusEq` for
+    differential mode with `basic` style.
+
+    Work around a weird memory overallocation bug.
+
 Version: 0.2
 ------------
   Get EUID working correctly (basically fstat on /proc/PID/ directory is
