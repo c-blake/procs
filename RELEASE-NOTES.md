@@ -4,8 +4,8 @@ RELEASE NOTES
 Version: 0.4
 ------------
 
-    Add -i flag to force pattern insensitivity { (?i) added to start of every
-    pattern as per lib/impure/nre.nim documentation.  Seems to work fine. }
+    Add -i flag to `pf` to force pattern insensitivity { (?i) added to start of
+    every pattern as per lib/impure/nre.nim documentation. Seems to work fine. }
 
     Make `pw` less chatty (only ^C not default Nim message), but still
     exit 130 in case there is some `pw patterns &&` shell construct.
