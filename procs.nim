@@ -1543,7 +1543,8 @@ let signum* = { #suppress archaic STKFLT so "ST" can imply STOP; alias CLD,SYS
   "XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF"  : 27, "WINCH": 28, "POLL": 29,
   "PWR" : 30, "SYS" : 31, "UNUSED": 31 }.toCritBitTree
 
-proc ctrlC() {.noconv.} = quit 130
+proc ctrlC() {.noconv.} = echo ""; quit 130
+setControlCHook(ctrlC)
 proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty: seq[string] = @[],
     group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
@@ -1648,7 +1649,6 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       for pid in pList: result += (kill(pid, sig) == -1).int
       if i < sigs.len - 2: delay.nanosleep
   if pList.len > 0:                           #wait for condition if requested
-    setControlCHook(ctrlC)
     if   acWait1 in actions: discard waitAny(pList, delay)
     elif acWaitA in actions: waitAll(pList, delay)
 
