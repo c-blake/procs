@@ -109,7 +109,7 @@ Actions on unrelated processes
 The selected set of processes is checked for lack of existence (via a 0 signal)
 each `delay` separated interval.  `procs` exits when either any or all (lower or
 uppercase) of the processes have failed to exist at least once.  Up to fast PID
-recycling this recreates features of the `Bash wait`/`wait -n` builtin for
+recycling, this recreates features of the `Bash wait`/`wait -n` builtin for
 processes *unrelated* to the wait-er.
 
 `procs` is definitely a work in progress, but a nice enough bundle of useful
