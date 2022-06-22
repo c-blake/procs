@@ -1901,10 +1901,6 @@ proc scrollSys*(cf: var ScCf) =
       last = curr
       nanosleep(cf.delay)
 
-# # # # COMMAND-LINE INTERFACE: snapSys - system-wide snapshot stats # # # #
-# There are only so many terminal columns and much data.  User may prefer a
-# whole-terminal dashboard with 'watch'-style update-to-update diffs/highlights.
-
 when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   import cligen, cligen/cfUt
 
