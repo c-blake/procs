@@ -1,6 +1,14 @@
 RELEASE NOTES
 =============
 
+Version: 0.4.1
+--------------
+
+    Quieter exit upon Control-C in all subprograms.  (This could arguably be
+    a cligen feature adjustable by end CLusers, like SIGPIPE behavior.)
+
+    Extend -xPPID self killing/acting-avoidance to include own process group.
+
 Version: 0.4
 ------------
 
