@@ -1558,6 +1558,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   ## features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var actions = (if actions.len == 0: @[acEcho] else: actions)
+  let exclPPID = "PPID" in exclude
+  let selfPgrp = if exclPPID: getpgid(0) else: 0
   var exclPIDs = initHashSet[string](min(1, exclude.len))
   for p in exclude: exclPIDs.incl (if p == "PPID": $getppid() else: p)
   exclPIDs.incl $getpid()               #always exclude self
@@ -1614,6 +1616,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     elif oldest and p.t0.uint > tM                    : match = 0
     elif parent.len  > 0 and p.ppid0     notin parent : match = 0
     elif pgroup.len  > 0 and p.pgrp      notin pgroup : match = 0
+    elif exclPPID        and p.pgrp != selfPgrp       : match = 0
     elif session.len > 0 and p.sess      notin session: match = 0
     elif tty.len     > 0 and p.tty       notin tty    : match = 0
     elif group.len   > 0 and p.st.st_gid notin group  : match = 0
@@ -2002,7 +2005,7 @@ ATTR=attr specs as above""",
                "first":     "select first matching PID",
                "newest":    "select most recently started",
                "oldest":    "select least recently started",
-               "exclude":   "omit these PIDs { \"PPID\" = parent(this) }",
+               "exclude":   "omit these PIDs {PPID=>par&pgrp(this)}",
                "inVert":    "inVert/negate the matching (like grep -v)",
                "delim":     "put after each output PID",
                "delay":     "seconds between signals/existence chks",
