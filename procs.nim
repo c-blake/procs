@@ -5,6 +5,7 @@
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
             critbits, parseutils, monotimes],
        cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt]
+when not declared(stdout): import std/syncio
 type
   Proc* = object                ##Abstract proc data (including a kind vector)
     kind*: seq[uint8]             ##kind nums for independent format dimensions
