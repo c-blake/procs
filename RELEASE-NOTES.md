@@ -1,6 +1,17 @@
 RELEASE NOTES
 =============
 
+Version: 0.5.0
+--------------
+
+    Nicer Control-C exits
+
+    Emphasize the 'v' in requested "invert" `procs find`/`pf` feature.
+
+    Extend find/act/kill self-avoidance to own whole process group.
+
+    Make back/forward compatible with nimPreviewSlimSystem
+
 Version: 0.4.1
 --------------
 
