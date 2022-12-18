@@ -7,6 +7,7 @@ import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
        cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt]
 when not declared(stdout): import std/syncio
 type
+  Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
     kind*: seq[uint8]             ##kind nums for independent format dimensions
     st*: Stat
@@ -906,7 +907,7 @@ proc addCombo(cf: var DpCf; tester: auto; nm, s: string) =
   for t in s.splitWhitespace:
     try:
       let tt = cf.tests[t]; tsts.add tt; pfs = pfs + tt.pfs
-    except: raise newException(ValueError, "bad kind: \"" & t & "\"")
+    except Ce: raise newException(ValueError, "bad kind: \"" & t & "\"")
   cf.tests[nm] = (pfs, proc(p: var Proc): bool = tester(tsts, p))
 
 proc parseKind(cf: var DpCf) =
@@ -964,7 +965,7 @@ proc compileFilter(cf: var DpCf, spec: seq[string], msg: string): set[uint8] =
       result.incl(k.slot)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #must fully classify if any kind is used as a filter
-    except: raise newException(ValueError, msg & " name \"" & nm & "\"")
+    except Ce: raise newException(ValueError, msg & " name \"" & nm & "\"")
 
 proc parseFilters(cf: var DpCf) =
   cf.sin = cf.compileFilter(cf.incl, "incl filter"); cf.nin = cf.sin.card
@@ -1063,8 +1064,8 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
   for c in order:
     if   c == '-': sgn = -1; continue
     elif c == '+': sgn = +1; continue
-    try   : cmpEntry = cmpOf[c]
-    except: raise newException(ValueError, "unknown sort key code " & c.repr)
+    try      : cmpEntry = cmpOf[c]
+    except Ce: raise newException(ValueError, "unknown sort key code " & c.repr)
     cmps.add((sgn, cmpEntry.cmp))
     need = need + cmpEntry.pfs
     if c == 'a': result = true
@@ -1083,14 +1084,14 @@ proc parseAge(cf: var DpCf) =
     let aF = aFs.split('@')
     if aF.len != 2: raise newException(ValueError, "bad ageFmt:\"" & aFs & "\"")
     if aF[0].startsWith('+'):   #2**31 =~ 68 yrs in future from when fin is run.
-     try   : cf.tmFmtU.add((parseInt(aF[0]), hl(aF[1], strftimeCodes,cf.plain)))
-     except: cf.tmFmtU.add((-2147483648.int, hl(aF[1], strftimeCodes,cf.plain)))
+     try      :cf.tmFmtU.add((aF[0].parseInt, hl(aF[1],strftimeCodes,cf.plain)))
+     except Ce:cf.tmFmtU.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
     elif aF[0].startsWith('-'): #plain mode formats
-     try:    cf.tmFmtP.add((-parseInt(aF[0]),hl(aF[1], strftimeCodes,cf.plain)))
-     except: cf.tmFmtP.add((-2147483648.int, hl(aF[1], strftimeCodes,cf.plain)))
+     try      :cf.tmFmtP.add((-aF[0].parseInt,hl(aF[1],strftimeCodes,cf.plain)))
+     except Ce:cf.tmFmtP.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
     else:
-     try   : cf.tmFmtL.add((parseInt(aF[0]), hl(aF[1], strftimeCodes,cf.plain)))
-     except: cf.tmFmtL.add((-2147483648.int, hl(aF[1], strftimeCodes,cf.plain)))
+     try      :cf.tmFmtL.add((aF[0].parseInt, hl(aF[1],strftimeCodes,cf.plain)))
+     except Ce:cf.tmFmtL.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
 
 proc kattr(p: Proc): string =
   for e in p.kind: result.add cg.kinds[e].attr
@@ -1228,8 +1229,8 @@ proc parseFormat(cf: var DpCf) =
     of inField:
       if c in {'-', '+'}: algn = c; continue  #Any number of 'em;Last one wins
       state = inPrefix
-      try   : fmtE = fmtOf[c]
-      except: raise newException(ValueError, "unknown format code " & c.repr)
+      try      : fmtE = fmtOf[c]
+      except Ce: raise newException(ValueError, "unknown format code " & c.repr)
       let leftAlign = if algn != '\0': algn == '-' #User spec always wins else..
                       else:                        #..1st col left&field default
                         if leftMost: true else: fmtE.left
@@ -1255,7 +1256,7 @@ proc parseMerge(cf: var DpCf) =
       cf.mergeKDs.incl (k.slot, k.dim.uint8)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #classify all if any kind is used as a merge
-    except:
+    except Ce:
       raise newException(ValueError, " name \"" & nm & "\"")
 
 proc parseHdrs(cf: var DpCf) =
@@ -1831,9 +1832,9 @@ proc parseFormat(cf: var ScCf) =
     hdrMap[cols[0]] = cols[1]
   cf.fields.setLen(0)
   for i, f in format:
-    try   : cf.fields.add sysFmt[f]
-    except: raise newException(ValueError, "unknown format code \"" & f & "\"")
-    try   : hdr = hdrMap[cf.fields[^1].hdr]
+    try      : cf.fields.add sysFmt[f]
+    except Ce: raise newException(ValueError, "unknown format code \""&f&"\"")
+    try            : hdr = hdrMap[cf.fields[^1].hdr]
     except KeyError: hdr = cf.fields[^1].hdr
     cf.fields[^1].wid = max(cf.fields[^1].wid, hdr.len)
     if i != 0: cf.headers.add ' '
