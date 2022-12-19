@@ -757,9 +757,9 @@ proc ttyToDev*(tty: string): Dev = #tty string names -> nums
   var st: Stat
   if tty.startsWith('/'): return (if stat(tty, st)==0: st.st_rdev else: 0xFFFF)
   if stat(cstring("/dev/" & tty), st)==0: return st.st_rdev
-  if tty.startsWith('t') and tty.len>1 and stat(cstring("/dev/tty" & tty[1..^1]), st)==0:
+  if tty.len>1 and tty[0]=='t' and stat(cstring("/dev/tty"&tty[1..^1]), st)==0:
     return st.st_rdev
-  if tty.startsWith('p') and tty.len>1 and stat(cstring("/dev/pts/"&tty[1..^1]), st)==0:
+  if tty.len>1 and tty[0]=='p' and stat(cstring("/dev/pts/"&tty[1..^1]), st)==0:
     return st.st_rdev
   return 0xFFFF
 proc ttyToDev*(ttys: seq[string]): seq[Dev] = #tty string names -> nums
