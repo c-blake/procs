@@ -17,7 +17,7 @@ the above nimble does not work, you can maybe just:
 ```
 git clone https://github.com/c-blake/cligen
 git clone https://github.com/c-blake/procs
-cd procs; nim c -d:danger --path:../cligen procs
+cd procs; nim c -d:release --path:../cligen procs
 ```
 
 Here are some screenshots with many related kernel threads merged (command used
