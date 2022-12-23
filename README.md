@@ -103,7 +103,7 @@ RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
-For system-wide statistics you can use `procs scrollsys` (with default format
+For system-wide statistics you can use `procs scrollsy` (with default format
 in configs/cb0/config:[scrollsy]:
 ![scrollsy](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/scrollsy.png)
 `top` is really just a combination of these two with (usually) less history
