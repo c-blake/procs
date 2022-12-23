@@ -35,14 +35,14 @@ and my terminal makes bold default foreground color render as orange.
 
 GENERAL COMMENTS
 ----------------
-This program is a melange of various procps/top/pidof/pgrep/pkill functionality.
+This program is a mix of various procps/top/vmstat/pidof/pgrep/pkill features.
 It does environment-variable-driven themed display of process and system-wide
 metadata colorized by builtin process traits and also based upon user-defined
 process categories.  It also supports "merging" or "rolling up" statistics for
 processes related to each other in user-defined ways, e.g. kernel threads or
 `firefox` processes.  Conceptually, this is similar to what already happens with
-the process statistics for a multi-threaded program, but the relationship
-between merged procs can be less reliant upon kernel categories.
+process statistics for a multi-threaded program, but the relationship between
+merged procs can be less reliant upon kernel categories.
 
 Configuration is similar enough to https://github.com/c-blake/lc/ that they can
 share theme files via symlinks.  Some ideas like username abbreviation and the
@@ -69,16 +69,16 @@ very large multiple.  That can help on a system that is struggling to make
 progress/give the `procs display` process CPU time.
 
 ASAP style of flow also applies to `procs find --actions=kill`, for example, to
-send signals as quickly as possible to misbehaving program which could be
-grinding a system to a near halt.  The `pgrep`/`pkill` in `procps` (at least as
-of version 3.3.15) reads and selects all processes before acting upon them.
+***send signals as quickly as possible*** to misbehaving matching programs which
+may be grinding a system to a near halt.  The `pgrep`/`pkill` in `procps` (at
+least as of version 3.3.15) read & select all processes before acting upon any.
 While hopefully rare, when ASAP action matters it can be very helpful.
 
 Aliases
 -------
-If you create hard-links or sym-links from the `procs` executable to any of
-{ "pd", "pf", "pk", or "pw" }, then the multi-command can be bypassed and
-those commands activate, respectively, `procs display`, `procs find`, `procs
+If you create hard-links or sym-links from the `procs` executable to any of {
+"pd", "pf", "pk", "pw", "scroll", "sc" }, then the multi-command can be bypassed
+and those commands activate, respectively, `procs display`, `procs find`, `procs
 find -akill`, and `procs find -await`.  Being a `cligen` multi-command you can
 also type the shortest unique prefix for most things, e.g., `procs k`.
 
@@ -103,9 +103,8 @@ RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
-For system-wide statistics you can use `procs scrollsy` or run via an `ln -s
-procs sc|scroll`.  With default format in configs/cb0/config:[scrollsy], it
-makes output like this:
+For system-wide statistics you can use `procs scrollsy`.  With default format in
+configs/cb0/config:[scrollsy], it makes output like this:
 ![scrollsy](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/scrollsy.png)
 
 `top` is really just a combination of these two with (usually) less history
