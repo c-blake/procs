@@ -103,6 +103,13 @@ RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
+For system-wide statistics you can use `procs scrollsys` (with default format
+in configs/cb0/config:[scrollsy]:
+![scrollsy](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/scrollsy.png)
+`top` is really just a combination of these two with (usually) less history
+retained/accessible via terminal scrollback.  With two terminal windows you can
+get the same data in a perhaps more open/re-analyzable format.
+
 Actions on unrelated processes
 ------------------------------
 `wait`/`Wait` actions of `procs find` (or `pw`) are more unusual functionality.
