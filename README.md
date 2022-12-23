@@ -103,9 +103,11 @@ RAM, write, read & cumulative jiffies and then sorts by the same.  (You can
 reverse said sort order if you like..)
 ![p-d1](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/p-d1.png)
 
-For system-wide statistics you can use `procs scrollsy` (with default format
-in configs/cb0/config:[scrollsy]:
+For system-wide statistics you can use `procs scrollsy` or run via an `ln -s
+procs sc|scroll`.  With default format in configs/cb0/config:[scrollsy], it
+makes output like this:
 ![scrollsy](https://raw.githubusercontent.com/c-blake/procs/master/screenshots/scrollsy.png)
+
 `top` is really just a combination of these two with (usually) less history
 retained/accessible via terminal scrollback.  With two terminal windows you can
 get the same data in a perhaps more open/re-analyzable format.
