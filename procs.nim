@@ -769,25 +769,32 @@ proc ttyToDev*(ttys: seq[string]): seq[Dev] = #tty string names -> nums
 #should maybe even become seq[fd].  procs can still die between classification &
 #pidfd creation.  Need CLONE_PIDFD/parent-kid relationship for TRUE reliability,
 #BUT non-parent-kid relations is actually the main point of this API.
-proc waitAny*(pList: seq[Pid], delay: Timespec): int =
-  ## Wait for any PIDs in ``pList`` to not exist
-  while true:
-    for i, pid in pList:
-      if kill(pid, 0) == -1 and errno != EPERM: return i
+iterator waitLoop(delay, limit: Timespec): int =
+  let lim = limit.tv_sec.int*1_000_000_000 + limit.tv_nsec
+  let dly = delay.tv_sec.int*1_000_000_000 + delay.tv_nsec
+  let nL = lim div dly
+  var j = 0
+  while j < nL or lim == 0:
+    yield j; inc j
     nanosleep(delay)
 
-proc waitAll*(pList: seq[Pid], delay: Timespec) =
-  ## Wait for all PIDs in ``pList`` to not exist at least once
+proc waitAny*(pList: seq[Pid]; delay, limit: Timespec): int =
+  ## Wait for ANY PIDs in `pList` to not exist; Timeout after `limit`.
+  for it in waitLoop(delay, limit):
+    for i, pid in pList:
+      if kill(pid, 0) == -1 and errno != EPERM: return i
+
+proc waitAll*(pList: seq[Pid]; delay, limit: Timespec) =
+  ## Wait for ALL PIDs in `pList` to not exist once; Timeout after `limit`.
   var failed = newSeq[bool](pList.len)
   var count = 0
-  while true:
+  for it in waitLoop(delay, limit):
     for i, pid in pList:
       if not failed[i]:
         if kill(pid, 0) == -1 and errno != EPERM:
           failed[i] = true
           count.inc
     if count == failed.len: return
-    nanosleep(delay)
 
 # # # # # # # COMMAND-LINE INTERFACE: display # # # # # # #
 type
@@ -1552,7 +1559,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
     root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
     oldest=false, exclude: seq[string] = @[], invert=false,
-    delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int), delim="\n",
+    delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
+    limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n",
     signals: seq[string] = @[], nice=0, actions: seq[PdAct] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, count,
@@ -1654,8 +1662,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       for pid in pList: result += (kill(pid, sig) == -1).int
       if i < sigs.len - 2: delay.nanosleep
   if pList.len > 0:                           #wait for condition if requested
-    if   acWait1 in actions: discard waitAny(pList, delay)
-    elif acWaitA in actions: waitAll(pList, delay)
+    if   acWait1 in actions: discard waitAny(pList, delay, limit)
+    elif acWaitA in actions: waitAll(pList, delay, limit)
 
 # # # # COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats # # # #
 type
@@ -2011,6 +2019,7 @@ ATTR=attr specs as above""",
                "inVert":    "inVert/negate the matching (like grep -v)",
                "delim":     "put after each output PID",
                "delay":     "seconds between signals/existence chks",
+               "limit":     "seconds after which exist check times out",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
                "actions":   "echo/count/kill/nice/wait/Wait" },
