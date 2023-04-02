@@ -6,5 +6,5 @@ license     = "MIT/ISC"
 bin         = @[ "procs" ]
 
 # Dependencies
-requires "nim >= 0.20.2", "cligen >= 1.5.37"
+requires "nim >= 1.6.0", "cligen >= 1.6.0"
 skipDirs = @["configs"]
