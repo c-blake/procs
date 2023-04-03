@@ -1558,7 +1558,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty: seq[string] = @[],
     group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
     root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
-    oldest=false, exclude: seq[string] = @[], invert=false,
+    oldest=false, age=0, exclude: seq[string] = @[], invert=false,
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n",
     signals: seq[string] = @[], nice=0, actions: seq[PdAct] = @[],
@@ -1590,9 +1590,10 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   else:
     if pids.len==0 and parent.len==0 and pgroup.len==0 and session.len==0 and
        tty.len==0 and group.len==0 and euid.len==0 and uid.len==0 and
-       root==0 and ns==0:
+       root==0 and ns==0 and age==0:
       stderr.write "procs: no criteria given; -h for help; exiting\n"
       return 1
+  let uptm = if age != 0: procUptime() else: 0.culong
   if ignoreCase:        #compile patterns
     for pattern in PCREpatterns: rxes.add re("(?i)" & pattern)
   else:
@@ -1609,7 +1610,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if root != 0      : fill.incl pfr_root
   if ns != 0:
     for ns in nsList: fill.incl toPfn(ns)
-  if newest or oldest: fill.incl pf_t0
+  if newest or oldest or age != 0: fill.incl pf_t0
   let sneed = needs(fill)               #source needs
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
@@ -1635,6 +1636,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     elif ns != 0         and p.nsNotEq(q, nsList)     : match = 0
     elif root != 0       and p.root != q.root         : match = 0
     elif rxes.len    > 0 and not rxes.contains(p,full): match = 0
+    elif age         > 0 and uptm - p.t0 <= age.uint  : match = 0
+    elif age         < 0 and uptm - p.t0 >= uint(-age): match = 0
     if (match xor invert.int) == 0: continue  #-v messes up newest/oldest logic
     if (newest or oldest) and pList.len == 0: #first passing always new min|max
         tM = p.t0; pList.add p.pid; continue
@@ -2015,6 +2018,7 @@ ATTR=attr specs as above""",
                "first":     "select first matching PID",
                "newest":    "select most recently started",
                "oldest":    "select least recently started",
+               "age":       ">0 older than age jiff; <0 =>younger than",
                "exclude":   "omit these PIDs {PPID=>par&pgrp(this)}",
                "inVert":    "inVert/negate the matching (like grep -v)",
                "delim":     "put after each output PID",
@@ -2023,9 +2027,9 @@ ATTR=attr specs as above""",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
                "actions":   "echo/count/kill/nice/wait/Wait" },
-      short = { "parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
-                "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',
-                "inVert":'v', "delay":'D', "session":'S', "nice":'N' } ],
+      short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
+             "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
+             "inVert":'v', "delay":'D', "session":'S', "nice":'N'} ],
     [ scrollC, cmdName="scrollsy", doc=docFromProc(procs.scrollSys),
       help = { "colors": "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color" : """attrs for size/load fields.  Syntax:
