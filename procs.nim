@@ -2029,7 +2029,7 @@ ATTR=attr specs as above""",
                "actions":   "echo/count/kill/nice/wait/Wait" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
-             "inVert":'v', "delay":'D', "session":'S', "nice":'N'} ],
+             "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A'} ],
     [ scrollC, cmdName="scrollsy", doc=docFromProc(procs.scrollSys),
       help = { "colors": "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color" : """attrs for size/load fields.  Syntax:
