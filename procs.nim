@@ -1642,12 +1642,12 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     if (newest or oldest) and pList.len == 0: #first passing always new min|max
         tM = p.t0; pList.add p.pid; continue
     if newest:                                #t0 < tM has already been skipped
-      if p.t0 == tM and p.pid > pList[0]:     #PIDs wrap around=>iffy tie-break
-        tM = p.t0; pList.setLen 1; pList[0] = p.pid   #update max
+      if p.t0>tM or p.t0==tM and p.pid>pList[0]: #PIDwraparound=>iffy tie-break
+        tM = p.t0; pList[0] = p.pid           #update max start time
       continue
     elif oldest:                              #t0 > tM has already been skipped
-      if p.t0 == tM and p.pid < pList[0]:     #PIDs wrap around=>iffy tie-break
-        tM = p.t0; pList.setLen 1; pList[0] = p.pid   #update min
+      if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
+        tM = p.t0; pList[0] = p.pid           #update min start time
       continue
     actions.act(p.pid, delim, sigs, nice, cnt, result)
     if acKill in actions and sigs.len > 1 and delay > ts0:
