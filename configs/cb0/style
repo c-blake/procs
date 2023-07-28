@@ -1,23 +1,20 @@
-#LISTING STYLES/ALIASES; I think -f below should really end in "*4, but parsecfg
-#sez "invalid token".
-#
-#These styles support the following workflow:
-#  pd -s (quick|basic|long|user|mem|jobs) -- most filtered/aggregated
+#LISTING STYLES/ALIASES.  These styles support workflows like:
+#  pd -s (basic|long|user|mem|jobs) -- most filtered/aggregated
 #  pd -s kX -- less aggregated kernel formats
 #  pd -s aX -- all/unaggregated; Add on CL -sKm -ikern for partial kthread agg
 
-Style = "nkern = -mkern"
+Style = "nkern  = -mkern"
 Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush -miprtVBox -mnvidia"
 Style = "Bmerge = -mfirefox -mchrome -mvbox"
 
 #First define unfiltered styles
-Style = r"""abasic =   -DR><J -oDJ><R "-f%p %R %< %> %J %t %D%C"""
-Style = r"""along  = -U4       -oDT   "-f%L %U %p %P %y %v %R %w %t %J %D%C"""
-Style = r"""auser  = -U4       -oDT   "-f%U %p %E %m %v %R %t %a %j %J %D%C"""
-Style = r"""amem   =           -oDT   "-f%p %t %J %H %r %d %R %m %D%C"""
-Style = r"""ajobs  = -U4       -oDT   "-f%P %p %g %o %t %G %U %J %D%C"""
-#Style = r"""asig   = -U4       -oDT   "-f..."""
-#Style = r"""areg   = -U4       -oDT   "-f..."""
+Style = "abasic =   -DR><J -oDJ><R \"-f%p %R %< %> %J %t %D%C\""
+Style = "along  = -U4       -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
+Style = "auser  = -U4       -oDT   \"-f%U %p %E %m %v %R %t %a %j %J %D%C\""
+Style = "amem   =           -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
+Style = "ajobs  = -U4       -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
+#Style = "asig   = -U4       -oDT   \"-f..."""
+#Style = "areg   = -U4       -oDT   \"-f..."""
 
 #Then only kernel thread group merged aggregation
 Style = "kbasic = -sKm -s abasic"
