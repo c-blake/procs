@@ -1966,7 +1966,11 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
       help = { "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
 where <RELATION> says processes match:
-  any|all|none  earlier defd test names
+  *pcr*          WhiteSep Perl-Compatible Regexes
+                 that match lower-c/CMD (program)
+  *uid|gid*      numeric uids|gids (or Uid|Gid)
+  *usr|grp*      exact string users or groups
+  *any|all|none* earlier defd kind test names
 BUILTIN: sleep run stop zomb niced MT L kern""",
                "colors" : "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color"  : """text attrs for proc kind/fields. Syntax:
