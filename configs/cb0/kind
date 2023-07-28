@@ -28,6 +28,6 @@ kind = "kiod      pcr iod$"
 kind = "*iod      all kern kiod"
 
 #Some user space bundles
-kind = "firefox pcr firefox|MainThread|WebExtension|Web Conten|RDD Proc|Privileged Cont|GeckoMain"
+kind = "firefox pcr firefox|MainThread|WebExtension|Web Conten|RDD Proc|Privileged Cont|GeckoMain|Isolated Servic"
 kind = "chrome  pcr chrome|nacl_helper|crashpad_handle"
 kind = "vbox    pcr VBox"
