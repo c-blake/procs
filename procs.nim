@@ -1967,7 +1967,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       help = { "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
 where <RELATION> says processes match:
   *pcr*          WhiteSep Perl-Compatible Regexes
-                 that match lower-c/CMD (program)
+               that match lower-c/CMD (program)
   *uid|gid*      numeric uids|gids (or Uid|Gid)
   *usr|grp*      exact string users or groups
   *any|all|none* earlier defd kind test names
@@ -1992,8 +1992,11 @@ ATTR=attr specs as above""",
                "indent" : "per-level depth-indentation",
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
-               "maxUnm" : "like maxName for user names",
-               "maxGnm" : "like maxName for group names",
+               "maxUnm":"""abbreviation specification for user names:
+  a\*|M,head(M/2),tail(M-hdSep),sep(\*),?chars()
+  a:bestPos -2:pfx -3:sfx -4:mfx -5:1\* -6:2\*
+  POSITIVE_NUMBER=thatWidth/head/tail""",
+               "maxGnm" : "like maxUnm for group names",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
                "merge"  : "merge rows within these kind:dim",
