@@ -14,6 +14,7 @@
 #Just some global default overrides.  All easily overridden on cmd line.
 #order  = toPpu     #Default: uid,tty,sess,ppid,pid
 format = "%p %t %J %c"  #Default; easily overridden on cmd-line or by style
+indent = 2
 
 #format = "%p %t %o %u %J %D%c"
 
