@@ -1435,13 +1435,6 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##  U USER     y PRI   T START  m %MEM  R RSS  g PGID  I EIP    i IGNORED
   ##  D fmt:depth-in-tree; order:pid-path; BOTH=>forest-indent    x CAUGHT
   ##  0-6 string values of /proc/PID/fd/0-6 symlinks     O oomSco
-  ##
-  ##ATTR specs: NONE, plain, bold, italic, underline, blink, inverse, struck,
-  ##black,red,green,yellow,blue,purple,cyan,white; UPPERCASE=>HIGHintensity;
-  ##"on_" prefix => BACKGROUND color; 256-color xterm attrs: [fb][0..23] for
-  ##FORE/BACKgrnd grey scale&[fb]RGB a 6x6x6 color cube; each [RGB] is on [0,5].
-  ##xterm/st true colors are [fb]HHHHHH (common R,G,B hex).  Field AND strftime
-  ##formats both accept %{ATTR1 ATTR2..}CODE to set colors for any %CODE field.
   if cf.cmps.len == 0 and cf.merge.len == 0 and not cf.forest:
     cf.displayASAP(); return
   if cf.header: cf.hdrWrite
@@ -1942,8 +1935,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
     result = result & cmdLine       #and then whatever user entered
 
   const nimbleFile = staticRead "procs.nimble"
-  clCfg.version = nimbleFile.fromNimble "version"
-
+  clCfg.version = nimbleFile.fromNimble("version") &
+    "\n\nTEXT ATTRIBUTE SPECIFICATION:\n" & addPrefix("  ", textAttrHelp)
   proc c_getenv(env: cstring): cstring {.importc:"getenv", header:"<stdlib.h>".}
   let noColor = c_getenv("NO_COLOR") != nil
   let tsM1 = Timespec(tv_sec: (-1).Time)
@@ -1964,7 +1957,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   const ess: seq[string] = @[]
   dispatchMulti(
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
-      help = { "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
+      help = { "version": "Emit Version & *HELP SETTING COLORS*",
+               "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
 where <RELATION> says processes match:
   *pcr*          WhiteSep Perl-Compatible Regexes
                that match lower-c/CMD (program)
@@ -1974,10 +1968,10 @@ where <RELATION> says processes match:
 BUILTIN: sleep run stop zomb niced MT L kern""",
                "colors" : "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color"  : """text attrs for proc kind/fields. Syntax:
-  NAME[[:KEY][:DIM]]<WS>ATTR<WS>ATTR..
+  NAME[[:KEY][:SLOT]]<WS>ATTR<WS>ATTR..
 NAME=kind nm as above|size{BKMGT}
-KEY=0..255 sort/ord key,DIM=dimensionNo.
-ATTR=attr specs as above""",
+KEY=0..255 sort/ord key,SLOT=dimensionNo.
+ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "ageFmt":"""Syntax: PROCAGE'@'[-+]STRFTIMEFMT where:
   PROCAGE in {seconds, 'ANYTIME'},
   + means Duration, - means plain mode,
@@ -1992,10 +1986,7 @@ ATTR=attr specs as above""",
                "indent" : "per-level depth-indentation",
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
-               "maxUnm":"""abbreviation specification for user names:
-  a\*|M,head(M/2),tail(M-hdSep),sep(\*),?chars()
-  a:bestPos -2:pfx -3:sfx -4:mfx -5:1\* -6:2\*
-  POSITIVE_NUMBER=thatWidth/head/tail""",
+               "maxUnm" : "abbreviation specification for user names:\n" & parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
