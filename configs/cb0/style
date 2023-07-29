@@ -8,7 +8,7 @@ Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcrypt
 Style = "Bmerge = -mfirefox -mchrome -mvbox"
 
 #First define unfiltered styles
-Style = "abasic =   -DR><J -oDJ><R \"-f%p %R %< %> %J %t %D%C\""
+Style = "abasic =   -DJ><R -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
 Style = "along  = -U4       -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
 Style = "auser  = -U4       -oDT   \"-f%U %p %E %m %v %R %t %a %j %J %D%C\""
 Style = "amem   =           -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
