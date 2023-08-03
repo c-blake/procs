@@ -107,7 +107,7 @@ format in `configs/cb0/config:[scrollsy]`, it makes output like this:
 
 `top` is really just a combination of `pd -d1` & `sc` with usually less history
 accessible via terminal scrollback.  With two terminal windows you can get the
-same data in a perhaps more open/re-analyzable format.
+same data (much more really) in a more open/re-analyzable format.
 
 Actions on unrelated processes
 ------------------------------
