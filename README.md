@@ -79,7 +79,7 @@ If you create hard-links or sym-links from the `procs` executable to any of {
 "pd", "pf", "pk", "pw", "scroll", "sc" }, then the multi-command can be bypassed
 and those commands activate, respectively, `procs display`, `procs find`, `procs
 find -akill`, and `procs find -await`.  Being a `cligen` multi-command you can
-also type the shortest unique prefix for most things, e.g., `procs k`.
+also type the shortest unique prefix for most things, e.g., `procs f -ak`.
 
 Replacing "top" like functionality with `pd` and `sc`
 -----------------------------------------------------
