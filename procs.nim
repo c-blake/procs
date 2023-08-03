@@ -208,6 +208,10 @@ proc pidsIt*(pids: seq[string]): auto =
     else:
       for pid in allPids(): yield pid
 
+template forPid*(pids: seq[string], body) {.dirty.} =
+  if pids.len > 0: (for pid in pids: body)
+  else: (for pid in allPids(): body)
+
 proc toPid(s: string): Pid   {.inline.} = parseInt(s).Pid
 proc toDev(s: string): Dev   {.inline.} = parseInt(s).Dev
 proc toCul(s: string, unit=1): culong{.inline.} = parseInt(s).culong*unit.culong
@@ -1380,8 +1384,7 @@ proc displayASAP*(cf: var DpCf) =
   if cf.header: cf.hdrWrite
   var last = initTable[Pid, Proc](4)
   var p: Proc
-  let it = pidsIt(cf.pids)
-  for pid in it():
+  forPid(cf.pids):
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
       stdout.flushFile    #..a cost < O(5%): well worth it whenever it matters.
@@ -1393,13 +1396,12 @@ proc displayASAP*(cf: var DpCf) =
   var zero: Proc
   var next = initTable[Pid, Proc](4)
   while true:
-    nanosleep(cf.delay)
-    if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
-    next.clear
-    stdout.write '\n'
+    nanosleep(cf.delay)                     # getTime is surely faster, but this
+    if cf.needUptm: cf.uptm = procUptime()  #..is but 1 of many dozen /proc/PIDs
+    next.clear                              #..which we are about to process.
+    stdout.write '\n'                       # Clear, delimit, & maybe write hdr
     if cf.header: cf.hdrWrite true
-    let it = pidsIt(cf.pids)
-    for pid in it():
+    forPid(cf.pids):
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
         next[p.pid] = p
         p.minusEq(last.getOrDefault(p.pid), cf.diff)
@@ -1441,8 +1443,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   var last = initTable[Pid, Proc](4)
   var parent = initTable[Pid, Pid]()
   var procs = newSeqOfCap[Proc](cf.pids.len)
-  let it = pidsIt(cf.pids)
-  for pid in it():
+  forPid(cf.pids):
     procs.setLen procs.len + 1
     if not procs[^1].read(pid, cf.need, cf.sneed) or cf.failsFilters(procs[^1]):
       zeroMem procs[^1].addr, Proc.sizeof; procs.setLen procs.len - 1
@@ -1477,8 +1478,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
     stdout.write '\n'
     if cf.header: cf.hdrWrite true
     cmpsG = cf.diffCmps.addr
-    let it = pidsIt(cf.pids)
-    for pid in it():
+    forPid(cf.pids):
       procs.setLen procs.len + 1
       if not procs[^1].read(pid,cf.need,cf.sneed) or cf.failsFilters(procs[^1]):
         zeroMem procs[^1].addr, Proc.sizeof
@@ -1608,11 +1608,10 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
-  let it = pidsIt(pids)
   let workAtEnd = sigs.len > 1 or acWait1 in actions or acWaitA in actions
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
-  for pid in it():
+  forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
     var match = 1
