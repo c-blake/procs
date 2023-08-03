@@ -965,7 +965,7 @@ proc parseColor(cf: var DpCf) =
       else:
         raise newException(ValueError, "unknown color key: \"" & nm & "\"")
   if unknown == 255:  #Terminate .kinds if usr did not specify attrs for unknown
-   add(cf.kinds, ("", 255.uint8, cf.tests["unknown"].test))
+   cf.kinds.add ("", 255.uint8, proc(f: var Proc): bool {.closure.} = true)
   cf.kslotNm.setLen cf.kslot.len                 #Build inverse table:
   for nm,val in cf.kslot:                        #  kind slots -> names
     cf.kslotNm[val.slot] = nm
@@ -1073,14 +1073,14 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
   cmps.setLen(0)
   if order == "-": return
   var sgn = +1
-  var cmpEntry: tuple[pfs: ProcFields, cmp: proc(x, y: ptr Proc): int]
   for c in order:
     if   c == '-': sgn = -1; continue
     elif c == '+': sgn = +1; continue
-    try      : cmpEntry = cmpOf[c]
+    try:
+      let cmpE = cmpOf[c]
+      cmps.add (sgn, cmpE.cmp)
+      need = need + cmpE.pfs
     except Ce: raise newException(ValueError, "unknown sort key code " & c.repr)
-    cmps.add((sgn, cmpEntry.cmp))
-    need = need + cmpEntry.pfs
     if c == 'a': result = true
     sgn = +1
 
@@ -1231,36 +1231,31 @@ proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
                else: "%{bold}p %{italic}s %{inverse}R %{underline}J %c"
   type State = enum inPrefix, inField
-  var leftMost = true; var algn = '\0'
+  var frst = true; var algn = '\0'
   var state = inPrefix
   var prefix = ""
-  var fmtE: tuple[pfs: ProcFields; left: bool; wid: int; hdr: string,
-                  fmt: proc(p: var Proc, wMax=0): string]
   cf.fields.setLen(0)
   for c in specifierHighlight(format, fmtCodes, cf.plain):
     case state
     of inField:
       if c in {'-', '+'}: algn = c; continue  #Any number of 'em;Last one wins
       state = inPrefix
-      try      : fmtE = fmtOf[c]
+      try:
+        let fmtE = fmtOf[c]
+        let lA = if algn != '\0': algn=='-'   # User spec always wins else frst
+                 else: (if frst: true else: fmtE.left) #..left else field dflt
+        cf.fields.add (prefix[0..^1], lA, fmtE.wid, c, fmtE.hdr[0..^1],fmtE.fmt)
+        cf.need = cf.need + fmtE.pfs
+        frst = false; algn = '\0'; prefix.setLen 0
       except Ce: raise newException(ValueError, "unknown format code " & c.repr)
-      let leftAlign = if algn != '\0': algn == '-' #User spec always wins else..
-                      else:                        #..1st col left&field default
-                        if leftMost: true else: fmtE.left
-      cf.fields.add((prefix, leftAlign, fmtE.wid, c, fmtE.hdr, fmtE.fmt))
-      leftMost = false; algn = '\0'
-      prefix = ""
-      cf.need = cf.need + fmtE.pfs
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
       elif c == 'D': cf.forest = true
       elif c in {'T', 'a', 'e', 'E'}: cf.needUptm = true
       elif c in {'m'}: cf.needTotRAM = true
     of inPrefix:
-      if c == '%':
-        state = inField
-        continue
-      prefix.add(c)
+      if c == '%': state = inField; continue
+      prefix.add c
 
 proc parseMerge(cf: var DpCf) =
   for nm in cf.merge:
@@ -1486,8 +1481,8 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
         zeroMem procs[^1].addr, Proc.sizeof
         procs.setLen procs.len - 1
         continue
-      next[procs[^1].pid] = procs[^1]
-      procs[^1].minusEq(last.getOrDefault(procs[^1].pid), cf.diff)
+      let pid = procs[^1].pid; next[pid] = procs[^1]
+      procs[^1].minusEq(last.getOrDefault(pid), cf.diff)
       if multiLevelCmp(procs[^1].addr, zero.addr) == 0:
         zeroMem procs[^1].addr, Proc.sizeof; procs.setLen procs.len - 1
         continue
@@ -1830,21 +1825,20 @@ proc parseFormat(cf: var ScCf) =
                  @[ "usrj","sysj","iowj","hirj","sirj", "pmad","la1", "mavl",
                     "intr","ctsw", "dnrd","dnwr", "dbrd","dbwr", "nbrc","nbsn" ]
   var hdrMap: Table[string, string]
-  var hdr: string
   for h in cf.hdrs:
     let cols = h.split(':')
     if cols.len != 2: raise newException(ValueError, "Bad hdrs: \"" & h & "\"")
     hdrMap[cols[0]] = cols[1]
-  cf.fields.setLen(0)
+  cf.fields.setLen 0
   for i, f in format:
-    try      : cf.fields.add sysFmt[f]
+    try:
+      let sF = sysFmt[f]; cf.fields.add sF  # 2 step silences sink copy warning
+      let hdr = hdrMap.getOrDefault(cf.fields[^1].hdr, cf.fields[^1].hdr)
+      cf.fields[^1].wid = max(cf.fields[^1].wid, hdr.len)
+      if i != 0: cf.headers.add ' '
+      cf.headers.add align(hdr, cf.fields[^1].wid)
+      cf.need = cf.need + cf.fields[^1].ss
     except Ce: raise newException(ValueError, "unknown format code \""&f&"\"")
-    try            : hdr = hdrMap[cf.fields[^1].hdr]
-    except KeyError: hdr = cf.fields[^1].hdr
-    cf.fields[^1].wid = max(cf.fields[^1].wid, hdr.len)
-    if i != 0: cf.headers.add ' '
-    cf.headers.add align(hdr, cf.fields[^1].wid)
-    cf.need = cf.need + cf.fields[^1].ss
   cf.headers.add '\n'
 
 proc parseColor(cf: var ScCf) =
