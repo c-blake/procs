@@ -2,13 +2,9 @@ BASICS
 ======
 Getting a `procs` config going *should* be as easy as (on Debian):
 ```
-apt install nim  #(https://nim-lang.org/ has other options)
-nimble install procs
-$HOME/.nimble/bin/procs   #gives a help message
-(cd $HOME/.nimble/bin; ln -s procs pd)
-# Here is one way to get a fancier config going:
-git clone https://github.com/c-blake/procs
-cp -r procs/configs/cb0 $HOME/.config/procs
+apt install nim         # See also https://nim-lang.org/
+nimble install procs    # Also installs $HOME/etc/procs conf
+$HOME/.nimble/bin/procs # gives a help message
 ```
 The Nim experience can sometimes have fairly rough-hewn edges, though.  So far,
 though, something like the above has worked for me on Gentoo Linux, Debian, and

@@ -1913,6 +1913,8 @@ proc scrollSys*(cf: var ScCf) =
 
 when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   import cligen, cligen/cfUt
+  const procsEtc {.strdefine.} = ""   # Allow -d:procsEtc= override of auto etc/
+  let argv {.importc: "cmdLine".}: cstringArray   #NOTE MUST be in main module
 
   proc mergeParams(cmdNames: seq[string],
                    cmdLine=os.commandLineParams()): seq[string] =
@@ -1926,10 +1928,15 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
         elif bn == "pw": result.add [ "find", "-await" ]
         return result & cmdLine
       let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
-      var cfPath = os.getEnv(underJoin & "_CONFIG")   #See if cfg file redirect
+      var cfPath = getEnv(cmdNames[0].toUpperAscii&"_CONFIG") #cf redirect,ifAny
       if cfPath.len == 0:                             #..else use getConfigDir
         cfPath = os.getConfigDir() / cmdNames[0] / "config"   #See if dir w/cfg
-        if not fileExists(cfPath): cfPath = cfPath[0..^8]     #..else use file
+        if not fileExists(cfPath):
+          cfPath = cfPath[0..^8]                              #..else try file
+          if not dirExists(cfPath):                           #..else fall back
+            cfPath = if procsEtc.len > 0: procsEtc            #..to CT default
+                     else: argv.findAssociated("etc/procs")   #..or assoc dir|
+            if fileExists(cfPath / "config"): cfPath = cfPath / "config" #..file
       result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "",
                         quiet=true, noRaise=true)
       result.add envToCL(underJoin) #Finally add $PROCS_DISPLAY $PROCS_FIND..
