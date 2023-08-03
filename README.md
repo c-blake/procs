@@ -51,8 +51,8 @@ dependency is `cligen`.
 
 Though written in Nim, not C, this API/multicommand is about as efficient or
 faster.  `procs` tries hard not to make unnecessary system calls.  E.g., with a
-format of just `'%p %c'` it will only open & read `/proc/*/stat` files.  Like
-`lc`, `procs display` is more of a "ps construction toolkit" than a pool of
+format of just `'%p %c'` it will only open & read `/proc/*/stat` files.[^1]
+Like `lc`, `procs display` is more of a "ps construction toolkit" than a pool of
 pre-packaged formats.  Fancy configs can create more work/slow things down.
 Such is true with almost any featureful program.  I have timed a basic process
 listing as taking about 60% the run-time of the C-based procps `ps`, though
@@ -121,3 +121,14 @@ processes *unrelated* to the wait-er.
 `procs` is definitely a work in progress, but a nice enough bundle of useful
 ideas to share.  With so many features and just me as a user, there are surely
 many bugs.
+
+[^1]: Meanwhile, Linux procps ps (the /bin/ps on most Linux) will open, read,
+parse, and close both /proc/PID/stat and /proc/PID/status.  This make `procs
+display` aka `pd` is roughly twice as fast.  Using a /n -> /dev/null symlink:
+```
+$ PROCS_CONFIG=/n tim 'pd -f%p\ %c>/n' '/bin/ps ax>/n'
+(2.8576 +- 0.0070)e-03  pd -f%p\ %c>/n
+(5.0281 +- 0.0063)e-03  /bin/ps ax>/n
+```
+Adding proc typology & colorization back (not using `PROCS_CONFIG=/n`) slows
+`pd` down to `3.9739 +- 0.0044 ms`, still 1.27X faster than stock Linux `ps`.
