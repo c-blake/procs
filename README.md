@@ -14,6 +14,8 @@ the above nimble does not work, you can maybe just:
 git clone https://github.com/c-blake/cligen
 git clone https://github.com/c-blake/procs
 cd procs; nim c -d:release --path:../cligen procs
+mv procs SOMEWHERE_IN_$PATH
+cp -r configs/cb0 ~/.config/procs
 ```
 
 Here are some screenshots with many related kernel threads merged (command used
