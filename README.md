@@ -64,13 +64,14 @@ One feature more unique to `procs display` is its ASAP mode.  For output styles
 with no sorting or merging, process rows are written to stdout as soon as the
 data is collected.  This lowers user-perceived "latency to first output" by a
 very large multiple.  That can help on a system that is struggling to make
-progress/give the `procs display` process CPU time.
+progress/schedule the `procs display` process any CPU time.
 
-ASAP style of flow also applies to `procs find --actions=kill`, for example, to
-***send signals as quickly as possible*** to misbehaving matching programs which
-may be grinding a system to a near halt.  The `pgrep`/`pkill` in `procps` (at
-least as of version 3.3.15) read & select all processes before acting upon any.
-While hopefully rare, when ASAP action matters it can be very helpful.
+ASAP style of flow also applies to `procs find --actions=kill` (more briefly
+`pk`) , for example, to ***send signals as quickly as possible*** to misbehaving
+matching programs which may be grinding a system to a near halt.  The
+`pgrep`/`pkill` in `procps` (at least as of version 3.3.15) read & select all
+processes ***before*** acting upon any.  While hopefully rare, when ASAP action
+matters it can be very helpful.
 
 Aliases
 -------
