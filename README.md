@@ -124,11 +124,8 @@ many bugs.
 
 [^1]: Meanwhile, Linux procps ps (the /bin/ps on most Linux) will open, read,
 parse, and close both /proc/PID/stat and /proc/PID/status.  This make `procs
-display` aka `pd` is roughly twice as fast.  Using a /n -> /dev/null symlink:
-```
-$ PROCS_CONFIG=/n tim 'pd -f%p\ %c>/n' '/bin/ps ax>/n'
-(2.8576 +- 0.0070)e-03  pd -f%p\ %c>/n
-(5.0281 +- 0.0063)e-03  /bin/ps ax>/n
-```
-Adding proc typology & colorization back (not using `PROCS_CONFIG=/n`) slows
-`pd` down to `3.9739 +- 0.0044 ms`, still 1.27X faster than stock Linux `ps`.
+display` aka `pd` is roughly twice as fast.  Using a `/n -> /dev/null` symlink
+`PROCS_CONFIG=/n tim 'pd -f%p\ %c>/n' '/bin/ps ax>/n'` gives `(2.8576 +-
+0.0070)e-03  pd -f%p\ %c>/n` & `(5.0281 +- 0.0063)e-03  /bin/ps ax>/n`.  Adding
+process typology & highlights back (not using `PROCS_CONFIG=/n`) slows `pd` down
+to `3.9739 +- 0.0044 ms`, still 1.27X faster than stock Linux `ps`.
