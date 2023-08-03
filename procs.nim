@@ -212,15 +212,15 @@ template forPid*(pids: seq[string], body) {.dirty.} =
   if pids.len > 0: (for pid in pids: body)
   else: (for pid in allPids(): body)
 
-proc toPid(s: string): Pid   {.inline.} = parseInt(s).Pid
-proc toDev(s: string): Dev   {.inline.} = parseInt(s).Dev
-proc toCul(s: string, unit=1): culong{.inline.} = parseInt(s).culong*unit.culong
-proc toCui(s: string): cuint {.inline.} = parseInt(s).cuint
-proc toU16(s: string): uint16{.inline.} = parseInt(s).uint16
-proc toU64(s: string, unit=1): uint64{.inline.} = parseInt(s).uint64*unit.uint64
-proc toCin(s: string): cint  {.inline.} = parseInt(s).cint
-proc toInt(s: string): int   {.inline.} = parseInt(s)
-proc toMem(s: string): uint64{.inline.} = parseInt(s).uint64
+proc toPid(s: string|MSlice): Pid   {.inline.} = parseInt(s).Pid
+proc toDev(s: string|MSlice): Dev   {.inline.} = parseInt(s).Dev
+proc toCul(s: string|MSlice, unit=1): culong{.inline.} = parseInt(s).culong*unit.culong
+proc toCui(s: string|MSlice): cuint {.inline.} = parseInt(s).cuint
+proc toU16(s: string|MSlice): uint16{.inline.} = parseInt(s).uint16
+proc toU64(s: string|MSlice, unit=1): uint64{.inline.} = parseInt(s).uint64*unit.uint64
+proc toCin(s: string|MSlice): cint  {.inline.} = parseInt(s).cint
+proc toInt(s: string|MSlice): int   {.inline.} = parseInt(s)
+proc toMem(s: string|MSlice): uint64{.inline.} = parseInt(s).uint64
 
 var buf = newStringOfCap(4096)          #shared IO buffer for all readFile
 
@@ -231,12 +231,14 @@ proc readStat*(p: var Proc; pr: string, fill: ProcFields): bool =
   (pr & "stat").readFile buf
   let cmd0 = buf.find(" (")             #Bracket command.  Works even if cmd has
   let cmd1 = buf.rfind(") ")            #..parens or whitespace chars in it.
-  if cmd0 == -1 or cmd1 == -1 or p.spid != buf[0 ..< cmd0]:
-    return false
-  if pf_pid0 in fill: p.pid0 = toPid(buf[0 ..< cmd0])
-  if pf_cmd  in fill: p.cmd  = buf[cmd0 + 2 ..< cmd1]
+  if cmd0 == -1 or cmd1 == -1 or p.spid.len < cmd0 or
+    cmpMem(p.spid[0].addr, buf[0].addr, p.spid.len) != 0: return false
+  let nC = cmd1 - (cmd0 + 2)
+  if pf_pid0 in fill: p.pid0 = MSlice(mem: buf[0].addr, len: cmd0).toPid
+  if pf_cmd  in fill: p.cmd.setLen nC; copyMem p.cmd[0].addr,buf[cmd0+2].addr,nC
   var i = 1
-  for s in buf[cmd1 + 2 ..< ^1].split:
+  if buf[^1] == '\n': buf.setLen buf.len - 1
+  for s in MSlice(mem: buf[cmd1 + 2].addr, len: buf.len - (cmd1 + 2)).mSlices:
     i.inc; case i
     of pf_state    .int:p.state    =if pf_state     in fill: s[0]      else:'\0'
     of pf_ppid0    .int:p.ppid0    =if pf_ppid0     in fill: toPid(s)     else:0
