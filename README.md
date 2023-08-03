@@ -83,8 +83,8 @@ also type the shortest unique prefix for most things, e.g., `procs f -ak`.
 
 Replacing "top" like functionality with `pd` and `sc`
 -----------------------------------------------------
-`procs display --delay 1` or more briefly `pd -d1` provides a similar use case
-but different theory of operation to `top -ib`.  `procs` is not an interactive
+`procs display --delay 1` or more briefly `pd -d1` aids a similar use case but
+different theory of operation to `top -ib`.  `procs` is not an interactive
 program and has no compile/run-time curses/ncurses/terminal dependency.  All
 coloring/merging ideas generally available in `pd` are used for a differential
 report.  You can log to a file and look at a nicely embellished report later.
