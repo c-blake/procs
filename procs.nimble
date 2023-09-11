@@ -1,5 +1,5 @@
 # Package
-version     = "0.6.1"
+version     = "0.6.2"
 author      = "Charles Blake"
 description = "Unix process&system query&format lib&multi-command CLI in Nim"
 license     = "MIT/ISC"
@@ -7,7 +7,7 @@ bin         = @["procs"]
 installDirs = @["configs"]
 
 # Dependencies
-requires "nim >= 1.6.0", "cligen >= 1.6.14"
+requires "nim >= 1.6.0", "cligen >= 1.6.15"
 skipDirs = @["configs"]
 
 import os, strutils #XXX from os import parentDir, getEnv, dirExists fails
