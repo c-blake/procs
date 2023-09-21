@@ -699,7 +699,7 @@ proc procNetDevStats*(): seq[NetDevStat] =
       row.name.setLen row.name.len - 1
     row.rcvd = parseNetStat(cols[1..8])
     row.sent = parseNetStat(cols[9..16])
-    result.add row
+    result.add row.move
 
 proc parseIOStat*(cols: seq[string]): DiskIOStat =
   result.nIO     = parseInt(cols[0])
@@ -723,7 +723,7 @@ proc procDiskStats*(): seq[DiskStat] =
     row.ioTicks  = parseInt(cols[12])
     row.timeInQ  = parseInt(cols[13])
     row.cancels  = cols[14..17].parseIOStat()
-    result.add row
+    result.add row.move
 
 proc procLoadAvg*(): LoadAvg =
   let cols = readFile("/proc/loadavg").splitWhitespace()
@@ -1375,6 +1375,7 @@ proc pidPath(parent: Table[Pid, Pid], pid: Pid): seq[Pid] =
 
 #XXX display,displayASAP should grow a threads mode like '/bin/ps H' etc.
 #XXX display,displayASAP should grow --action so caller can use user-defd kinds.
+{.push hint[Performance]:off.} # next[p.pid|pid] = needed for arbitrary diffing
 proc displayASAP*(cf: var DpCf) =
   ## Aggressively output as we go; Incompatible with non-kernel-default sorts.
   ## This yields much faster initial/gradual output on a struggling system.
@@ -1385,7 +1386,7 @@ proc displayASAP*(cf: var DpCf) =
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
       stdout.flushFile    #..a cost < O(5%): well worth it whenever it matters.
-      if cf.delay >= ts0: last[p.pid] = p
+      if cf.delay >= ts0: last[p.pid] = p.move
 #XXX Sort NEEDS all procs@once; COULD print non-merged/min depth ASAP; rest@end.
   if cf.delay < ts0: return
   let dJiffies = cf.delay.tv_sec.int * 100 + (cf.delay.tv_nsec.int div 100)
@@ -1400,8 +1401,8 @@ proc displayASAP*(cf: var DpCf) =
     if cf.header: cf.hdrWrite true
     forPid(cf.pids):
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
-        next[p.pid] = p
-        p.minusEq(last.getOrDefault(p.pid), cf.diff)
+        next[p.pid] = p                              #Not done now,but wchan
+        p.minusEq(last.getOrDefault(p.pid), cf.diff) #..diff is reasonable
         if multiLevelCmp(p.addr, zero.addr) != 0:
           cf.fmtWrite p, dJiffies
           stdout.flushFile
@@ -1481,8 +1482,8 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
         zeroMem procs[^1].addr, Proc.sizeof
         procs.setLen procs.len - 1
         continue
-      let pid = procs[^1].pid; next[pid] = procs[^1]
-      procs[^1].minusEq(last.getOrDefault(pid), cf.diff)
+      let pid = procs[^1].pid; next[pid] = procs[^1]     #Not done now,but wchan
+      procs[^1].minusEq(last.getOrDefault(pid), cf.diff) #..diff is reasonable.
       if multiLevelCmp(procs[^1].addr, zero.addr) == 0:
         zeroMem procs[^1].addr, Proc.sizeof; procs.setLen procs.len - 1
         continue
