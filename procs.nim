@@ -45,6 +45,9 @@ type
     nIpc*, nMnt*, nNet*, nPid*, nUser*, nUts*, nCgroup*, nPid4Kids*: Ino
     fd0*, fd1*, fd2*, fd3*, fd4*, fd5*, fd6*: string      #/proc/PID/fd/*
     oom_score*, oom_adj*, oom_score_adj*: cint
+    pss*, pss_dirty*, pss_anon*, pss_file*, shrClean*, shrDirty*, #smaps_rollup
+      pvtClean*, pvtDirty*, refd*, anon*, lazyFree*, thpAnon*, thpShm*,
+      thpFile*, thpShr*, thpPvt*, pss_swap*, pss_lock*: uint64
     #XXX /proc/PID/(personality|limits|..)
 
   ProcField* = enum                                                     #stat
@@ -80,10 +83,15 @@ type
     pfn_ipc, pfn_mnt, pfn_net, pfn_pid, pfn_user, pfn_uts,              #NmSpcs
     pfn_cgroup, pfn_pid4Kids,
     pfd_0, pfd_1, pfd_2, pfd_3, pfd_4, pfd_5, pfd_6,            #/proc/PID/fd/*
-    pfo_score, pfo_adj, pfo_score_adj                           #oom scoring
+    pfo_score, pfo_adj, pfo_score_adj,                          #oom scoring
+    pfsr_pss, pfsr_pss_dirty, pfsr_pss_anon, pfsr_pss_file, pfsr_shrClean,
+    pfsr_shrDirty, pfsr_pvtClean, pfsr_pvtDirty, pfsr_refd, pfsr_anon,
+    pfsr_lazyFree, pfsr_thpAnon, pfsr_thpShm, pfsr_thpFile, pfsr_thpShr,
+    pfsr_thpPvt, pfsr_pss_swap, pfsr_pss_lock
+
   ProcFields* = set[ProcField]
 
-  ProcSrc = enum psFStat, psStat, psStatm, psStatus, psWChan, psIO
+  ProcSrc = enum psFStat, psStat, psStatm, psStatus, psWChan, psIO, psSMapsR
   ProcSrcs* = set[ProcSrc]
 
   NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
@@ -175,6 +183,11 @@ proc invert*[T, U](x: Table[T, U]): Table[U, T] =
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
                   pfi_rbl, pfi_wbl, pfi_wcancel }
 
+const needsSMapsR = { pfsr_pss, pfsr_pss_dirty, pfsr_pss_anon, pfsr_pss_file,
+  pfsr_shrClean, pfsr_shrDirty, pfsr_pvtClean, pfsr_pvtDirty, pfsr_refd,
+  pfsr_anon, pfsr_lazyFree, pfsr_thpAnon, pfsr_thpShm, pfsr_thpFile,
+  pfsr_thpShr, pfsr_thpPvt, pfsr_pss_swap, pfsr_pss_lock }
+
 proc needs*(fill: var ProcFields): ProcSrcs =
   ## Compute the ``ProcDatas`` argument for ``read(var Proc)`` based on
   ## all the requested fields in ``fill``.
@@ -187,6 +200,7 @@ proc needs*(fill: var ProcFields): ProcSrcs =
   if (needsStatm  * fill).card > 0: result.incl psStatm
   if (needsStatus * fill).card > 0: result.incl psStatus
   if (needsIO     * fill).card > 0: result.incl psIO
+  if (needsSMapsR * fill).card > 0: result.incl psSMapsR
   if pffs_usr in fill or pfs_usrs in fill and usrs.len == 0: usrs = users()
   if pffs_grp in fill or pfs_grps in fill and grps.len == 0: grps = groups()
 
@@ -413,6 +427,41 @@ proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
     if pfi_wcancel in fill and nm == "cancelled_write_bytes:":
       p.wcancel = toU64(cols[1])
 
+proc readSMapsR*(p: var Proc; pr: string, fill: ProcFields): bool =
+  ## Use /proc/PID/smaps_rollup to populate ``fill``-requested ``Proc p`` pfsr_
+  ## fields.  Returns false on missing/corrupt file (eg. stale ``pid``).
+  result = true
+  (pr & "smaps_rollup").readFile buf
+  if buf.len == 0:  # %M is rare enough to not optimize setting to zero?
+    p.pss = 0; p.pss_dirty = 0; p.pss_anon = 0; p.pss_file = 0; p.shrClean = 0
+    p.shrDirty = 0; p.pvtClean = 0; p.pvtDirty = 0; p.refd = 0; p.anon = 0
+    p.lazyFree = 0; p.thpAnon = 0; p.thpShm = 0; p.thpFile = 0; p.thpShr = 0
+    p.thpPvt = 0; p.pss_swap = 0; p.pss_lock = 0
+    return          # Likely a permissions problem
+  var cols = newSeqOfCap[string](2)
+  for line in buf.split('\n'):
+    if line.len == 0 or line.splitr(cols, seps=wspace) < 2: continue
+    let nm = cols[0]
+    template doF(eTag, sTag, f, e) = (if eTag in fill and nm == sTag: p.f = e)
+    doF pfsr_pss      , "Pss:"            , pss      , cols[1].toU64*1024
+    doF pfsr_pss_dirty, "Pss_Dirty:"      , pss_dirty, cols[1].toU64*1024
+    doF pfsr_pss_anon , "Pss_Anon:"       , pss_anon , cols[1].toU64*1024
+    doF pfsr_pss_file , "Pss_File:"       , pss_file , cols[1].toU64*1024
+    doF pfsr_shrClean , "Shared_Clean:"   , shrClean , cols[1].toU64*1024
+    doF pfsr_shrDirty , "Shared_Dirty:"   , shrDirty , cols[1].toU64*1024
+    doF pfsr_pvtClean , "Private_Clean:"  , pvtClean , cols[1].toU64*1024
+    doF pfsr_pvtDirty , "Private_Dirty:"  , pvtDirty , cols[1].toU64*1024
+    doF pfsr_refd     , "Referenced:"     , refd     , cols[1].toU64*1024
+    doF pfsr_anon     , "Anonymous:"      , anon     , cols[1].toU64*1024
+    doF pfsr_lazyFree , "LazyFree:"       , lazyFree , cols[1].toU64*1024
+    doF pfsr_thpAnon  , "AnonHugePages:"  , thpAnon  , cols[1].toU64*1024
+    doF pfsr_thpShm   , "ShmemPmdMapped:" , thpShm   , cols[1].toU64*1024
+    doF pfsr_thpFile  , "FilePmdMapped:"  , thpFile  , cols[1].toU64*1024
+    doF pfsr_thpShr   , "Shared_Hugetlb:" , thpShr   , cols[1].toU64*1024
+    doF pfsr_thpPvt   , "Private_Hugetlb:", thpPvt   , cols[1].toU64*1024
+    doF pfsr_pss_swap , "SwapPss:"        , pss_swap , cols[1].toU64*1024
+    doF pfsr_pss_lock , "Locked:"         , pss_lock , cols[1].toU64*1024
+
 let devNull* = open("/dev/null", fmWrite)
 proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   ## Omnibus entry point.  Fill ``Proc p`` with fields requested in ``fill`` via
@@ -439,6 +488,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStatus in sneed and not p.readStatus(pr, fill): return false
   if pfw_wchan in fill: (pr & "wchan").readFile buf; p.wchan = buf
   if psIO in sneed and not p.readIO(pr, fill): return false
+  if psSMapsR in sneed and not p.readSMapsR(pr, fill): return false
   if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid, $p.st.st_uid)
   if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid, $p.st.st_gid)
   if pfs_usrs in fill:
@@ -519,6 +569,7 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   template doInt(e, f: untyped) {.dirty.} =
     if e in fill: p.f -= q.f
   doInt(pf_rss                , rss               )
+  doInt(pfsr_pss              , pss               )
   doInt(pf_minflt             , minflt            )
   doInt(pf_cminflt            , cminflt           )
   doInt(pf_majflt             , majflt            )
@@ -1069,6 +1120,7 @@ cAdd('6', {pfd_6}              , cmp, string  ): p.fd6
 cAdd('<', {pfi_rch}            , cmp, uint64  ): p.rch # ,pfi_rbl + p.rbl
 cAdd('>', {pfi_wch}            , cmp, uint64  ): p.wch # ,pfi_wbl + p.wbl
 cAdd('O', {pfo_score}          , cmp, cint    ): p.oom_score
+cAdd('M', {pfsr_pss}           , cmp, uint64  ): p.pss
 
 proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
   cmps.setLen(0)
@@ -1228,6 +1280,7 @@ fAdd('6', {pfd_6}              ,1,3, "FD6"    ): p.fd6
 fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
+fAdd('M', {pfsr_pss}           ,0,4, "PSS"    ): fmtSz(p.pss)
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
@@ -1439,7 +1492,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##  u UID      n NI    a AGE    E %CPU  r TRS  H CMJF  S ESP    B BLOCKED
   ##  U USER     y PRI   T START  m %MEM  R RSS  g PGID  I EIP    i IGNORED
   ##  D fmt:depth-in-tree; order:pid-path; BOTH=>forest-indent    x CAUGHT
-  ##  0-6 string values of /proc/PID/fd/0-6 symlinks     O oomSco
+  ##  0-6 string values of /proc/PID/fd/0-6 symlinks     O oomSco M PSS
   if cf.cmps.len == 0 and cf.merge.len == 0 and not cf.forest:
     cf.displayASAP(); return
   if cf.header: cf.hdrWrite
