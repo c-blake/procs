@@ -1155,7 +1155,7 @@ template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
   fmtCodes.incl(code)
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
-fAdd('N', {}                   ,0,19,"NOW"    ): cg.nowNs
+fAdd('N', {}                   ,0,20,"NOW"    ): cg.nowNs
 fAdd('p', {}                   ,0,5, "PID"    ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
