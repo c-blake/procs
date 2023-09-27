@@ -830,9 +830,10 @@ type
     need, diff: ProcFields                                  #fieldNeeds(above 6)
     sneed: ProcSrcs                                         #dataNeeds(above)
     uidNeeds, gidNeeds, usrNeeds, grpNeeds: ProcFields      #allow id src swtch
-    forest, needKin, needUptm, needTotRAM: bool             #flags
+    forest, needKin, needUptm, needTotRAM, needNow: bool    #flags
     uptm: culong
     totRAM: uint64
+    nowNs: string
     tmFmtL, tmFmtU, tmFmtP: seq[tuple[age:int, fmt:string]] #(age,tFmt)lo/up/pln
     uAbb, gAbb: Abbrev
     a0, attrDiff: string                                    #if plain: ""
@@ -1154,6 +1155,7 @@ template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
   fmtCodes.incl(code)
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
+fAdd('N', {}                   ,0,19,"NOW"    ): cg.nowNs
 fAdd('p', {}                   ,0,5, "PID"    ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
@@ -1251,6 +1253,7 @@ proc parseFormat(cf: var DpCf) =
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
       elif c == 'D': cf.forest = true
+      elif c == 'N': cf.needNow = true
       elif c in {'T', 'a', 'e', 'E'}: cf.needUptm = true
       elif c in {'m'}: cf.needTotRAM = true
     of inPrefix:
@@ -1382,6 +1385,7 @@ proc displayASAP*(cf: var DpCf) =
   if cf.header: cf.hdrWrite
   var last = initTable[Pid, Proc](4)
   var p: Proc
+  if cf.needNow: cf.nowNs = $getTime()
   forPid(cf.pids):
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
@@ -1399,6 +1403,7 @@ proc displayASAP*(cf: var DpCf) =
     next.clear                              #..which we are about to process.
     if cf.blanks: stdout.write '\n'         # Clear, delimit, & maybe write hdr
     if cf.header: cf.hdrWrite true
+    if cf.needNow: cf.nowNs = $getTime()
     forPid(cf.pids):
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
         next[p.pid] = p                              #Not done now,but wchan
@@ -1441,6 +1446,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   var last = initTable[Pid, Proc](4)
   var parent = initTable[Pid, Pid]()
   var procs = newSeqOfCap[Proc](cf.pids.len)
+  if cf.needNow: cf.nowNs = $getTime()
   forPid(cf.pids):
     procs.setLen procs.len + 1
     if not procs[^1].read(pid, cf.need, cf.sneed) or cf.failsFilters(procs[^1]):
@@ -1475,6 +1481,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
     next.clear; procs.setLen 0; parent.clear
     if cf.blanks: stdout.write '\n'
     if cf.header: cf.hdrWrite true
+    if cf.needNow: cf.nowNs = $getTime()
     cmpsG = cf.diffCmps.addr
     forPid(cf.pids):
       procs.setLen procs.len + 1
