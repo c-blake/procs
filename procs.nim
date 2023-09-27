@@ -817,7 +817,7 @@ type
     order*, diffCmp*, format*, maxUnm*, maxGnm*: string     ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
-    wide*, binary*, plain*, header*, realIds*, blank*: bool ##flags; see help
+    blanks*, wide*, binary*, plain*, header*, realIds*: bool ##flags; see help
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     kinds: seq[Kind]                                        #kinds user colors
@@ -1397,7 +1397,7 @@ proc displayASAP*(cf: var DpCf) =
     nanosleep(cf.delay)                     # getTime is surely faster, but this
     if cf.needUptm: cf.uptm = procUptime()  #..is but 1 of many dozen /proc/PIDs
     next.clear                              #..which we are about to process.
-    if cf.blank: stdout.write '\n'          # Clear, delimit, & maybe write hdr
+    if cf.blanks: stdout.write '\n'         # Clear, delimit, & maybe write hdr
     if cf.header: cf.hdrWrite true
     forPid(cf.pids):
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
@@ -1473,7 +1473,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
     nanosleep(cf.delay)
     if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
     next.clear; procs.setLen 0; parent.clear
-    if cf.blank: stdout.write '\n'
+    if cf.blanks: stdout.write '\n'
     if cf.header: cf.hdrWrite true
     cmpsG = cf.diffCmps.addr
     forPid(cf.pids):
@@ -1945,7 +1945,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
   let tsM1 = Timespec(tv_sec: (-1).Time)
   let tsP1 = Timespec(tv_sec: (+1).Time)
 
-  let dd = DpCf(header:true, blank:true, indent: 3, plain: noColor, delay: tsM1)
+  let dd = DpCf(header:true, blanks:true, indent:3, plain: noColor, delay:tsM1)
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin()
     cf.display()
@@ -1989,7 +1989,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "indent" : "per-level depth-indentation",
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
-               "blank"  : "add a blank row after each report",
+               "blanks" : "add blank rows after each delay report",
                "maxUnm" : "abbreviation specification for user names:\n" & parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
                "excl"   : "kinds to exclude",
@@ -1999,7 +1999,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "realIds": "use real uid/gid from /proc/PID/status" },
       short = { "width":'W', "indent":'I', "incl":'i', "excl":'x', "header":'H',
                 "maxUnm":'U', "maxGnm":'G', "version":'v', "colors":'C',
-                "diffcmp":'D', "blank":'B' },
+                "diffcmp":'D', "blanks":'B' },
       alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[
                    @[ "io" , "-DJ><", "-f%p %t %< %> %J %c" ] ]),   #built-ins
                  ("style", 's', "APPLY an output style" , @[ess]) ] ],
