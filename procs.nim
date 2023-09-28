@@ -1191,7 +1191,7 @@ proc fmtSz[T](attrSize: array[0..25, string], a0: string, binary: bool, b: T,
     sz[0 ..< digs] & attrSize[ix] & sz[digs..^1] & a0   # For economy, `minusEq`
   if b.uint64 < 9223372036854775808u64:                 #..only adjusts fields
     sizeFmt(align(humanReadable4(b.uint, binary), wid)) #..of same unsigned type
-  else: "-" & sizeFmt(align(humanReadable4(not b.uint, binary), wid))
+  else: sizeFmt(align("-" & humanReadable4(not b.uint, binary), wid))
 
 proc fmtSz[T](b: T): string = fmtSz(cg.attrSize, cg.a0, cg.binary, b, 4)
 
