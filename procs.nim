@@ -4,7 +4,8 @@
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
             critbits, parseutils, monotimes],
-       cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt]
+       cligen/[posixUt, mslice, sysUt, textUt, humanUt, abbrev, macUt, puSig]
+export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 type
   Ce = CatchableError
@@ -1596,14 +1597,6 @@ proc act(actions: seq[PdAct], pid: Pid, delim: string, sigs: seq[cint],
     of acWaitA: discard
     of acCount: cnt.inc
 
-let signum* = { #suppress archaic STKFLT so "ST" can imply STOP; alias CLD,SYS
-  "HUP" :  1, "INT" :  2, "QUIT"  :  3, "ILL"   :  4, "TRAP" :  5, "ABRT":  6,
-  "BUS" :  7, "FPE" :  8, "KILL"  :  9, "USR1"  : 10, "SEGV" : 11, "USR2": 12,
-  "PIPE": 13, "ALRM": 14, "TERM"  : 15, "stkflt": 16, "CHLD" : 17, "CLD" : 17,
-  "CONT": 18, "STOP": 19, "TSTP"  : 20, "TTIN"  : 21, "TTOU" : 22, "URG" : 23,
-  "XCPU": 24, "XFSZ": 25, "VTALRM": 26, "PROF"  : 27, "WINCH": 28, "POLL": 29,
-  "PWR" : 30, "SYS" : 31, "UNUSED": 31 }.toCritBitTree
-
 proc ctrlC() {.noconv.} = echo ""; quit 130
 setControlCHook(ctrlC)
 proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
@@ -1630,9 +1623,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var rxes: seq[Regex]
   var sigs: seq[cint]
   var p, q: Proc
-  for sig in signals:
-    if sig.len > 0 and sig[0] in { '0' .. '9' }: sigs.add toCin(sig)
-    else: sigs.add signum.match(sig.toUpper, "signal name").val.cint
+  for sig in signals: sigs.add sig.parseUnixSignal
   if nice != 0 and acNice notin actions: actions.add acNice
   if sigs.len > 0 and acKill notin actions: actions.add acKill
   if sigs.len == 0 and acKill in actions: sigs.add 15 #default to SIGTERM=15
