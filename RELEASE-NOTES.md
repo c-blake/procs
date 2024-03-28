@@ -1,11 +1,74 @@
 RELEASE NOTES
 =============
 
-Version: 0.6.0
+Version: 0.7.0
 --------------
     Give 2 new ways to test for existence of any matches:
-     - `pf -e STUFF || start-it`
-     - `pf -ac STUFF >/dev/null || start-it`
+      - `pf -e STUFF || start-it`
+      - `pf -ac STUFF >/dev/null || start-it`
+
+    Bump minor since this adds an important new use case (though, arguably, so
+    did nanosecond time stamps).
+
+Version: 0.6.5
+--------------
+    Rely upon `cligen/puSig` for posix/unix signal names.
+
+Version: 0.6.4
+--------------
+    Add PSS (proportional set size) keyed by 'M' / "%M".
+
+    Handle formatting negative numbers better (for differential mode).
+
+Version: 0.6.3
+--------------
+    Add nanosecond time stamp field for high-resolution logs
+
+    Add --blanks for differential report readability (esp. w/no header row..)
+
+Version: 0.6.2
+--------------
+    Just for cligen dependency version bump.
+
+Version: 0.6.1
+--------------
+    silence some `mm:arc` performance warnings.
+
+Version: 0.6.0
+--------------
+    Update default distributed style to have %a (age) as well as used %Jiffies.
+
+    Work around long-present crash in differential mode if compiled in mm:arc
+    mode via `template forPid`.
+    
+    Speed up `procs find` by 1.25x via cligen/mslice number parsers.
+
+    Add some real installer-script logic to procs.nimble.
+
+Version: 0.5.8
+--------------
+    Better help.  Add text attr help dump to version text.
+    Improve default distributed configs.
+
+Version: 0.5.7
+--------------
+    Fix bad bug in newest/oldest
+
+Version: 0.5.5..6
+-----------------
+    Add `--age` to `pf`; Make --actions take -a name; `--age` take `-A`.
+
+Version: 0.5.4
+--------------
+    Add --limit feature to time out existence checks in wait* actions.
+
+Version: 0.5.2..3
+-----------------
+    Just dep/nimble futzing.
+
+Version: 0.5.1
+--------------
+    Clean-compile/de-warnification & do pty not tty in `ttyToDev`.
 
 Version: 0.5.0
 --------------
