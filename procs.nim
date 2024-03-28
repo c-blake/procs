@@ -99,8 +99,8 @@ type
                 nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
                 nsPid4Kids = "pid4kids"
 
-  PdAct* = enum acEcho  = "echo", acKill  = "kill", acNice = "nice",
-                acWait1 = "wait", acWaitA = "Wait", acCount = "count" #,acList?
+  PfAct* = enum acEcho  = "echo", acKill  = "kill", acNice = "nice",
+                acWait1 = "wait", acWaitA = "Wait", acCount = "count"
 
   # # # # Types for System-wide data # # # #
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
@@ -1586,7 +1586,7 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsCgroup:   (if q.nCgroup   != p.nCgroup  : return false)
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
-proc act(actions: seq[PdAct], pid: Pid, delim: string, sigs: seq[cint],
+proc act(actions: seq[PfAct], pid: Pid, delim: string, sigs: seq[cint],
          nice: int, cnt: var int, nErr: var int) =
   for a in actions:
     case a
@@ -1605,8 +1605,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
     oldest=false, age=0, exclude: seq[string] = @[], invert=false,
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
-    limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n",
-    signals: seq[string] = @[], nice=0, actions: seq[PdAct] = @[],
+    limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n", exist=false,
+    signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, count,
   ## kill, nice, wait for any|all).  Unifies pidof, pgrep, pkill, snice, waita
@@ -1681,6 +1681,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     elif age         > 0 and uptm - p.t0 <= age.uint  : match = 0
     elif age         < 0 and uptm - p.t0 >= uint(-age): match = 0
     if (match xor invert.int) == 0: continue  #-v messes up newest/oldest logic
+    if exist: return 0
     if (newest or oldest) and pList.len == 0: #first passing always new min|max
         tM = p.t0; pList.add p.pid; continue
     if newest:                                #t0 < tM has already been skipped
@@ -1691,15 +1692,17 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
         tM = p.t0; pList[0] = p.pid           #update min start time
       continue
-    actions.act(p.pid, delim, sigs, nice, cnt, result)
+    if not exist: actions.act(p.pid, delim, sigs, nice, cnt, result)
     if acKill in actions and sigs.len > 1 and delay > ts0:
       t0 = getTime()
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
+  if exist: return 1
   if newest or oldest and pList.len > 0:
     actions.act(pList[0], delim, sigs, nice, cnt, result)
-  if acCount in actions:
-    stderr.write cnt, "\n"
+  if acCount in actions:                      #~Confusable w/PIDs if acEcho BUT
+    stdout.write cnt, delim                   #..always@end&Doing both acts rare
+    if cnt == 0 and result == 0: inc result   #Exit false on no match
   if acKill in actions and sigs.len > 1:      #send any remaining signals
     var dt = delay - (getTime() - t0)
     if dt < delay: dt.nanosleep
@@ -2078,6 +2081,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "delim":     "put after each output PID",
                "delay":     "seconds between signals/existence chks",
                "limit":     "seconds after which exist check times out",
+               "exist":     "exit w/status 0 at FIRST match;NO actions",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
                "actions":   "echo/count/kill/nice/wait/Wait" },
