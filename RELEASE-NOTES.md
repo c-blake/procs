@@ -1,6 +1,12 @@
 RELEASE NOTES
 =============
 
+Version: 0.6.0
+--------------
+    Give 2 new ways to test for existence of any matches:
+     - `pf -e STUFF || start-it`
+     - `pf -ac STUFF >/dev/null || start-it`
+
 Version: 0.5.0
 --------------
 
