@@ -1448,7 +1448,7 @@ proc displayASAP*(cf: var DpCf) =
       if cf.delay >= ts0: last[p.pid] = p.move
 #XXX Sort NEEDS all procs@once; COULD print non-merged/min depth ASAP; rest@end.
   if cf.delay < ts0: return
-  let dJiffies = cf.delay.tv_sec.int * 100 + (cf.delay.tv_nsec.int div 100)
+  let dJiffies = cf.delay.tv_sec.int*100 + (cf.delay.tv_nsec.int div 10_000_000)
   cmpsG = cf.diffCmps.addr
   var zero: Proc
   var next = initTable[Pid, Proc](4)
@@ -1526,7 +1526,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   else:
     for p in procs: cf.fmtWrite p.unsafeAddr[], 0
   if cf.delay < ts0: return
-  let dJiffies = cf.delay.tv_sec.int * 100 + (cf.delay.tv_nsec.int div 100)
+  let dJiffies = cf.delay.tv_sec.int*100 + (cf.delay.tv_nsec.int div 10_000_000)
   var zero: Proc
   var next = initTable[Pid, Proc](4)
   while true:
