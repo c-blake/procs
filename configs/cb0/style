@@ -10,7 +10,7 @@ Style = "Bmerge = -mfirefox -mchrome -mvbox"
 #First define unfiltered styles
 Style = "abasic =   -DJ><R -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
 Style = "along  = -U4       -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
-Style = "auser  = -U4       -oDT   \"-f%U %p %E %m %v %R %t %a %j %J %D%C\""
+Style = "auser  = -U4       -oDT   \"-f%U %p %b %m %v %R %t %a %j %J %D%C\""
 Style = "amem   =           -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
 Style = "ajobs  = -U4       -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
 #Style = "asig   = -U4       -oDT   \"-f..."""
