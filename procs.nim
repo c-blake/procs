@@ -49,7 +49,7 @@ type
     pss*, pss_dirty*, pss_anon*, pss_file*, shrClean*, shrDirty*, #smaps_rollup
       pvtClean*, pvtDirty*, refd*, anon*, lazyFree*, thpAnon*, thpShm*,
       thpFile*, thpShr*, thpPvt*, pss_swap*, pss_lock*: uint64
-    #XXX /proc/PID/(personality|limits|..)
+    pSched*, pWait*, pNOnCPU*: int64    #XXX /proc/PID/(personality|limits|..)
 
   ProcField* = enum                                                     #stat
     pf_pid0=0, pf_cmd, pf_state, pf_ppid0, pf_pgrp, pf_sess, pf_tty, pf_pgid,
@@ -88,11 +88,12 @@ type
     pfsr_pss, pfsr_pss_dirty, pfsr_pss_anon, pfsr_pss_file, pfsr_shrClean,
     pfsr_shrDirty, pfsr_pvtClean, pfsr_pvtDirty, pfsr_refd, pfsr_anon,
     pfsr_lazyFree, pfsr_thpAnon, pfsr_thpShm, pfsr_thpFile, pfsr_thpShr,
-    pfsr_thpPvt, pfsr_pss_swap, pfsr_pss_lock
+    pfsr_thpPvt, pfsr_pss_swap, pfsr_pss_lock,
+    pfss_sched, pfss_wait, pfss_NOnCPU # User+Sys Tm;Tm waiting2run;NumOnThisCPU
 
   ProcFields* = set[ProcField]
 
-  ProcSrc = enum psFStat, psStat, psStatm, psStatus, psWChan, psIO, psSMapsR
+  ProcSrc = enum psFStat,psStat,psStatm,psStatus,psWChan,psIO,psSMapsR,psSchedSt
   ProcSrcs* = set[ProcSrc]
 
   NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
@@ -171,6 +172,7 @@ const needsStatus = { pfs_name, pfs_umask, pfs_stateS, pfs_tgid, pfs_ngid,
   pfs_seccomp, pfs_specStoreBypass, pfs_cpusAllowed,
   pfs_cpusAllowedList, pfs_memsAllowed, pfs_memsAllowedList,
   pfs_volunCtxtSwitch, pfs_nonVolunCtxtSwitch }
+const needsSchedSt = { pfss_sched, pfss_wait, pfss_NOnCPU }
 
 var usrs*: Table[Uid, string]      #user tables
 var uids*: Table[string, Uid]
@@ -201,6 +203,7 @@ proc needs*(fill: var ProcFields): ProcSrcs =
   if (needsStatm  * fill).card > 0: result.incl psStatm
   if (needsStatus * fill).card > 0: result.incl psStatus
   if (needsIO     * fill).card > 0: result.incl psIO
+  if (needsSchedSt * fill).card > 0: result.incl psSchedSt
   if (needsSMapsR * fill).card > 0: result.incl psSMapsR
   if pffs_usr in fill or pfs_usrs in fill and usrs.len == 0: usrs = users()
   if pffs_grp in fill or pfs_grps in fill and grps.len == 0: grps = groups()
@@ -428,6 +431,25 @@ proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
     if pfi_wcancel in fill and nm == "cancelled_write_bytes:":
       p.wcancel = toU64(cols[1])
 
+proc readSchedStat*(p: var Proc; pr: string, fill: ProcFields): bool =
+  ## Fill `Proc p` pfss_ fields requested in `fill` via /proc/PID/schedstat.  If
+  ## (stale `pid`, not Linux, CONFIG_SCHEDSTATS=n, etc.) return false.
+  result = true
+  (pr & "schedstat").readFile buf
+  if buf.len == 0:
+    if card({pfss_sched, pf_utime, pf_stime}*fill) == 3:
+      p.pSched = int64(p.utime + p.stime)*10_000_000i64
+    if pfss_wait   in fill: p.pWait   = 0
+    if pfss_NOnCPU in fill: p.pNOnCPU = 0
+    return
+  var cols = newSeqOfCap[string](3)
+  for line in buf.split('\n'):
+    if line.len == 0: break
+    if line.splitr(cols, sep=' ') != 3: return false
+    if pfss_sched  in fill: p.pSched  = cols[0].toInt
+    if pfss_wait   in fill: p.pWait   = cols[1].toInt
+    if pfss_NOnCPU in fill: p.pNOnCPU = cols[2].toInt
+
 proc readSMapsR*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Use /proc/PID/smaps_rollup to populate ``fill``-requested ``Proc p`` pfsr_
   ## fields.  Returns false on missing/corrupt file (eg. stale ``pid``).
@@ -489,6 +511,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStatus in sneed and not p.readStatus(pr, fill): return false
   if pfw_wchan in fill: (pr & "wchan").readFile buf; p.wchan = buf
   if psIO in sneed and not p.readIO(pr, fill): return false
+  if psSchedSt in sneed: discard p.readSchedStat(pr, fill)
   if psSMapsR in sneed and not p.readSMapsR(pr, fill): return false
   if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid, $p.st.st_uid)
   if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid, $p.st.st_gid)
@@ -534,6 +557,8 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   if pf_stime               in fill: p.stime                += q.stime
   if pf_cutime              in fill: p.cutime               += q.cutime
   if pf_cstime              in fill: p.cstime               += q.cstime
+  if pfss_sched             in fill: p.pSched               += q.pSched
+  if pfss_wait              in fill: p.pWait                += q.pWait
   if pf_utime               in fill: p.t0 = min(p.t0, q.t0)
   if pf_exitCode            in fill: p.exitCode             += q.exitCode
   if pf_nThr                in fill: p.nThr                 += q.nThr
@@ -579,6 +604,8 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   doInt(pf_stime              , stime             )
   doInt(pf_cutime             , cutime            )
   doInt(pf_cstime             , cstime            )
+  doInt(pfss_sched            , pSched            )
+  doInt(pfss_wait             , pWait             )
   doInt(pf_exitCode           , exitCode          )
   doInt(pf_nThr               , nThr              )
   doInt(pfsm_size             , size              )
@@ -869,7 +896,7 @@ type
     order*, diffCmp*, format*, maxUnm*, maxGnm*: string     ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
-    blanks*, wide*, binary*, plain*, header*, realIds*: bool ##flags; see help
+    blanks*, wide*, binary*, plain*, header*, realIds*, schedStat*: bool ##flags
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     kinds: seq[Kind]                                        #kinds user colors
@@ -1088,6 +1115,10 @@ cAdd('J', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
 cAdd('e', {pf_utime,pf_stime}  , cmp, culong  ): p.utime + p.stime
 cAdd('E', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
+proc totCPUns(p: Proc): float =
+  if cg.schedstat: p.pSched.float else: float(p.utime + p.stime)*1e7
+cAdd('b', {pf_utime,pf_stime,pfss_sched}, cmp, uint64):
+                                 uint64(p.totCPUns*1e2/max(1.0, p.ageD.float))
 cAdd('L', {pf_flags}           , cmp, culong  ): p.flags
 cAdd('v', {pf_vsize}           , cmp, culong  ): p.vsize
 cAdd('d', {pf_vsize, pf_startcode, pf_endcode}, cmp, uint64):
@@ -1244,12 +1275,12 @@ fAdd('T', {pf_t0}              ,1,6, "START"  ):
 fAdd('j', {pf_utime,pf_stime}  ,0,4, "TIME"   ): fmtJif(p.utime + p.stime)
 fAdd('J', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "CTIM"):
   fmtJif(p.utime + p.stime + p.cutime + p.cstime)
-fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.utime+p.stime,p.ageD)
+fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
-fAdd('b', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "ppbU"): #TODO pd itself
-  if p.ageD == 0: "?" else: fmtSz(cg.attrSize, cg.a0, false, #..& --schedstat,-e
-    int(float(p.utime + p.stime + p.cutime + p.cstime)*1e9/p.ageD.float), 4)
+fAdd('b', {pf_utime,pf_stime,pfss_sched},0,4, "ppbT"):
+  if p.ageD == 0: "?"   #TODO Better data for pd itself; Re-set p.t0,uptm here?
+  else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "F"      ): "x"&toHex(p.flags.BiggestInt,6)
 fAdd('v', {pf_vsize}           ,0,4, "VSZ"    ): fmtSz(p.vsize)
@@ -2057,7 +2088,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "realIds": "use real uid/gid from /proc/PID/status" },
       short = { "width":'W', "indent":'I', "incl":'i', "excl":'x', "header":'H',
                 "maxUnm":'U', "maxGnm":'G', "version":'v', "colors":'C',
-                "diffcmp":'D', "blanks":'B' },
+                "diffcmp":'D', "blanks":'B', "schedstat":'t' },
       alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[
                    @[ "io" , "-DJ><", "-f%p %t %< %> %J %c" ] ]),   #built-ins
                  ("style", 's', "APPLY an output style" , @[ess]) ] ],
