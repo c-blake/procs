@@ -3,12 +3,19 @@ RELEASE NOTES
 
 Version: 0.7.0
 --------------
+    Add new parts per billion CPU time usage as %b; Update
+    configs/cb0/style.auser to use it.
+
     Give 2 new ways to test for existence of any matches:
       - `pf -e STUFF || start-it`
       - `pf -ac STUFF >/dev/null || start-it`
 
     Bump minor since this adds an important new use case (though, arguably, so
     did nanosecond time stamps).
+
+    Fix bug converting delay TimeSpec from seconds to jiffies
+
+    Fix longstanding environ 'e' masks %cPU 'e' bug
 
 Version: 0.6.5
 --------------
