@@ -1265,7 +1265,7 @@ fAdd('H', {pf_majflt,pf_cmajflt},0,4,"CMJF"   ): fmtSz(p.majflt + p.cmajflt)
 fAdd('g', {pf_pgrp}            ,0,5, "PGID"   ): $p.pgrp
 fAdd('o', {pf_sess}            ,0,5, "SID"    ): $p.sess
 fAdd('G', {pf_pgid}            ,0,5, "TPGID"  ): $p.pgid
-fAdd('e', {pfen_environ}       ,1,5, "ENVIRON"): p.environ.join(" ")
+fAdd('V', {pfen_environ}       ,1,5, "ENVIRON"): p.environ.join(" ")
 fAdd('K', {pf_startstk}        ,1,16,"STACK"  ): $p.startstk
 fAdd('S', {pf_kstk_esp}        ,1,16,"ESP"    ): $p.kstk_esp
 fAdd('I', {pf_kstk_eip}        ,1,16,"EIP"    ): $p.kstk_eip
@@ -1497,7 +1497,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##  u UID      n NI    a AGE    E %CPU  r TRS  H CMJF  S ESP    B BLOCKED
   ##  U USER     y PRI   T START  m %MEM  R RSS  g PGID  I EIP    i IGNORED
   ##  D fmt:depth-in-tree; order:pid-path; BOTH=>forest-indent    x CAUGHT
-  ##  0-6 string values of /proc/PID/fd/0-6 symlinks     O oomSco M PSS
+  ##  0-6 vals of /proc/PID/fd/0-6 symlns b ppBT V eVars O oomSco M PSS
   if cf.cmps.len == 0 and cf.merge.len == 0 and not cf.forest:
     cf.displayASAP(); return
   if cf.header: cf.hdrWrite
