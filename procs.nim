@@ -1241,23 +1241,23 @@ template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
 fAdd('N', {}                   ,0,20,"NOW"    ): cg.nowNs
-fAdd('p', {}                   ,0,5, "PID"    ): p.spid
+fAdd('p', {}                   ,0,5, "  PID"  ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
   let s = if p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
-fAdd('u', {pffs_uid}           ,0,5, "UID"    ): $p.getUid.uint
+fAdd('u', {pffs_uid}           ,0,5, "  UID"  ): $p.getUid.uint
 fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
-fAdd('z', {pffs_usr}           ,0,5, "GID"    ): $p.getGid.uint
+fAdd('z', {pffs_usr}           ,0,5, "  GID"  ): $p.getGid.uint
 fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
-fAdd('P', {pf_ppid0}           ,0,5, "PPID"   ): $p.ppid0
-fAdd('n', {pf_nice}            ,0,7, "NI"     ): $p.nice
-fAdd('y', {pf_prio}            ,0,4, "PRI"    ): $p.prio
+fAdd('P', {pf_ppid0}           ,0,5, " PPID"  ): $p.ppid0
+fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
+fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
 fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
   let wch = if p.wchan.startsWith("__x64_sys_"): p.wchan[10..^1] else: p.wchan
   wch[0 ..< min(9,wch.len)]
@@ -1266,7 +1266,7 @@ fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
         else: "?"                                         #no tty/unknown
-fAdd('a', {pf_t0}              ,0,4, "AGE"    ): fmtJif(cg.uptm - p.t0)
+fAdd('a', {pf_t0}              ,0,4, " AGE"   ): fmtJif(cg.uptm - p.t0)
 fAdd('T', {pf_t0}              ,1,6, "START"  ):
   let ageJ = cg.uptm - p.t0
   var age = Timespec(tv_sec: (ageJ div 100).Time,
@@ -1282,19 +1282,19 @@ fAdd('b', {pf_utime,pf_stime,pfss_sched},0,4, "ppbT"):
   if p.ageD == 0: "?"   #TODO Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(p.rss, cg.totRAM)
-fAdd('L', {pf_flags}           ,1,7, "F"      ): "x"&toHex(p.flags.BiggestInt,6)
-fAdd('v', {pf_vsize}           ,0,4, "VSZ"    ): fmtSz(p.vsize)
+fAdd('L', {pf_flags}           ,1,7, "FLAGS"  ): "x"&toHex(p.flags.BiggestInt,6)
+fAdd('v', {pf_vsize}           ,0,4, " VSZ"   ): fmtSz(p.vsize)
 fAdd('d', {pf_vsize,pf_startcode,pf_endcode},0,4, "DRS"):
   fmtSz(if p.vsize.int != 0: p.vsize.uint64 + p.startcode - p.endcode else: 0)
 fAdd('r', {pf_vsize,pf_startcode,pf_endcode},0,4, "TRS"):
   fmtSz(if p.vsize.int != 0: p.endcode - p.startcode else: 0)
-fAdd('R', {pf_rss}             ,0,4, "RSS"    ): fmtSz(p.rss)
+fAdd('R', {pf_rss}             ,0,4, " RSS"   ): fmtSz(p.rss)
 fAdd('f', {pf_minflt}          ,0,4, "MNFL"   ): fmtSz(p.minflt)
 fAdd('F', {pf_majflt}          ,0,4, "MJFL"   ): fmtSz(p.majflt)
 fAdd('h', {pf_minflt,pf_cminflt},0,4,"CMNF"   ): fmtSz(p.minflt + p.cminflt)
 fAdd('H', {pf_majflt,pf_cmajflt},0,4,"CMJF"   ): fmtSz(p.majflt + p.cmajflt)
-fAdd('g', {pf_pgrp}            ,0,5, "PGID"   ): $p.pgrp
-fAdd('o', {pf_sess}            ,0,5, "SID"    ): $p.sess
+fAdd('g', {pf_pgrp}            ,0,5, " PGID"  ): $p.pgrp
+fAdd('o', {pf_sess}            ,0,5, "  SID"  ): $p.sess
 fAdd('G', {pf_pgid}            ,0,5, "TPGID"  ): $p.pgid
 fAdd('V', {pfen_environ}       ,1,5, "ENVIRON"): p.environ.join(" ")
 fAdd('K', {pf_startstk}        ,1,16,"STACK"  ): $p.startstk
@@ -1316,7 +1316,7 @@ fAdd('6', {pfd_6}              ,1,3, "FD6"    ): p.fd6
 fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
-fAdd('M', {pfsr_pss}           ,0,4, "PSS"    ): fmtSz(p.pss)
+fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
