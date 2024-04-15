@@ -1262,7 +1262,7 @@ fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
   let wch = if p.wchan.startsWith("__x64_sys_"): p.wchan[10..^1] else: p.wchan
   wch[0 ..< min(9,wch.len)]
 fAdd('s', {pf_state}           ,0,4, "STAT"   ): $p.state
-fAdd('t', {pf_tty}             ,1,3, "TTY"    ):
+fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
         else: "?"                                         #no tty/unknown
@@ -1524,7 +1524,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##1-letter codes work for BOTH format AND order specs:
   ##  p PID      z GID   w WCHAN  j TIME  L FLG  f MNFL  o SID    Q SIGQ
   ##  c CMD      Z GRP   s STAT   J CTIM  v VSZ  F MJFL  G TPGID  q PENDING
-  ##  C COMMAND  P PPID  t TTY    e %cPU  d DRS  h CMNF  K STACK  X SHDPND
+  ##  C COMMAND  P PPID  t TT(y)  e %cPU  d DRS  h CMNF  K STACK  X SHDPND
   ##  u UID      n NI    a AGE    E %CPU  r TRS  H CMJF  S ESP    B BLOCKED
   ##  U USER     y PRI   T START  m %MEM  R RSS  g PGID  I EIP    i IGNORED
   ##  D fmt:depth-in-tree; order:pid-path; BOTH=>forest-indent    x CAUGHT
