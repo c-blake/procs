@@ -1,6 +1,14 @@
 RELEASE NOTES
 =============
 
+Version: 0.7.1
+--------------
+    Right align headers for right aligned fields
+
+    Rename NI -> NICE; F -> FLAGS; Abbreviation unhelpful
+
+    TTY -> TT & 2-column format to save a terminal column in the common case.
+
 Version: 0.7.0
 --------------
     Add new parts per billion CPU time usage as %b; Update
