@@ -3,6 +3,8 @@ RELEASE NOTES
 
 Version: 0.7.1
 --------------
+    Add one flavor of mUsed for `scrollsy` - total-complement to mAvl.
+
     Right align headers for right aligned fields
 
     Rename NI -> NICE; F -> FLAGS; Abbreviation unhelpful
