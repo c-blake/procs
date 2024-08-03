@@ -23,3 +23,6 @@ ageFmt =       "+1000@/100      <s fhue1"   #10s..16m seconds in blue
 ageFmt =          "+0@/1        <j fhue0"   #<10s     jiffies in purple
 #'+' series is used both for accumulated real time (aka age) & cpu time.  It's a
 #bit wonky since old procs seem "cold" while heavy CPU use seem "hot". Oh well.
+
+# The '^' family, if given, is for pre-header timestamps of output tables.
+ageFmt = "^@TIME: %y/%m/%d-%H:%M:%S.%9"     #ns-accurate sample time stamps

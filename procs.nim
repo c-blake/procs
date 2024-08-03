@@ -913,7 +913,7 @@ type
     uptm: culong
     totRAM: uint64
     nowNs: string
-    tmFmtL, tmFmtU, tmFmtP: seq[tuple[age:int, fmt:string]] #(age,tFmt)lo/up/pln
+    tmFmtL, tmFmtU, tmFmtP, tmFmtS: seq[tuple[age:int,fmt:string]] #lo/up/p/stmp
     uAbb, gAbb: Abbrev
     a0, attrDiff: string                                    #if plain: ""
     attrSize: array[0..25, string]  #CAP letter-indexed with ord(x) - ord('A')
@@ -1187,6 +1187,9 @@ proc parseAge(cf: var DpCf) =
     elif aF[0].startsWith('-'): #plain mode formats
      try      :cf.tmFmtP.add((-aF[0].parseInt,hl(aF[1],strftimeCodes,cf.plain)))
      except Ce:cf.tmFmtP.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
+    elif aF[0].startsWith('^'): #stamp mode formats (i.e. pre-headers in -d1)
+     try      :cf.tmFmtS.add((-aF[0].parseInt,hl(aF[1],strftimeCodes,cf.plain)))
+     except Ce:cf.tmFmtS.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
     else:
      try      :cf.tmFmtL.add((aF[0].parseInt, hl(aF[1],strftimeCodes,cf.plain)))
      except Ce:cf.tmFmtL.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
@@ -1491,6 +1494,7 @@ proc displayASAP*(cf: var DpCf) =
     if cf.needUptm: cf.uptm = procUptime()  #..is but 1 of many dozen /proc/PIDs
     next.clear                              #..which we are about to process.
     if cf.blanks: stdout.write '\n'         # Clear, delimit, & maybe write hdr
+    if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
     forPid(cf.pids):
@@ -2065,10 +2069,11 @@ BUILTIN: sleep run stop zomb niced MT L kern""",
 NAME=kind nm as above|size{BKMGT}
 KEY=0..255 sort/ord key,SLOT=dimensionNo.
 ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
-               "ageFmt":"""Syntax: PROCAGE'@'[-+]STRFTIMEFMT where:
+               "ageFmt":"""Syntax: PROCAGE'@'[-+^]STRFTIMEFMT where:
   PROCAGE in {seconds, 'ANYTIME'},
   + means Duration, - means plain mode,
-  %CODEs are any strftime + %<DIGIT>.""",
+  %CODEs are any strftime + %<DIGIT>;
+  ^@strftime gives pre-headers -d fmt.""",
                "format" : "\"%[-]a %[-]b\" l/r aligned fields to display",
                "order"  : "[-]x[-]y[-]z.. keys to sort procs by",
                "diffCmp": "[-]x[-]y[-]z.. keys to diff by w/delay",
