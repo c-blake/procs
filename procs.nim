@@ -1575,6 +1575,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
     if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
     next.clear; procs.setLen 0; parent.clear
     if cf.blanks: stdout.write '\n'
+    if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
     cmpsG = cf.diffCmps.addr
