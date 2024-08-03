@@ -937,6 +937,8 @@ tAdd("niced", {pf_nice}  ): p.nice != 0
 tAdd("MT"   , {pf_nThr}  ): p.nThr > 1
 tAdd("L"    , {pfs_vmLck}): p.vmLck > 0'u64
 tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
+let selfPid = getPid()
+tAdd("self" , {}         ): p.pid == selfPid
 
 proc cmdClean(cmd: string): string =
   result.setLen cmd.len
@@ -1655,7 +1657,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   let selfPgrp = if exclPPID: getpgid(0) else: 0
   var exclPIDs = initHashSet[string](min(1, exclude.len))
   for p in exclude: exclPIDs.incl (if p == "PPID": $getppid() else: p)
-  exclPIDs.incl $getpid()               #always exclude self
+  exclPIDs.incl $selfPid                #always exclude self
   var pList: seq[Pid]
   var fill: ProcFields                  #field needs
   var rxes: seq[Regex]
@@ -2062,7 +2064,7 @@ where <RELATION> says processes match:
   *uid|gid*      numeric uids|gids (or Uid|Gid)
   *usr|grp*      exact string users or groups
   *any|all|none* earlier defd kind test names
-BUILTIN: sleep run stop zomb niced MT L kern""",
+BltIn: sleep run stop zomb niced MT L kern self""",
                "colors" : "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color"  : """text attrs for proc kind/fields. Syntax:
   NAME[[:KEY][:SLOT]]<WS>ATTR<WS>ATTR..
