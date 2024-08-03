@@ -3,33 +3,33 @@
 #0..255 overall order for that kind.  3rd :-separated field is DIMENSION NUMBER.
 #Attributes add across dimensions.
 
-#      nm:ord:dim        attrs           #overall test number for reference
-color = "kern:0x0:0      underline"      #0x00
-color = "sleep:0x2:0     NONE"           #0x01
-color = "zomb:0x3:0      struck"         #0x02
-color = "stop:0x4:0      blink"          #0x03
-color = "run:0x5:0       bold"           #0x04
+#      nm:ord:dim        attrs          #overall test number for reference
+color = "kern:0x0:0      underline"     #0x00
+color = "sleep:0x2:0     NONE"          #0x01
+color = "zomb:0x3:0      struck"        #0x02
+color = "stop:0x4:0      blink"         #0x03
+color = "run:0x5:0       bold"          #0x04
 
-color = "MT:0x6:1        italic"         #0x05
+color = "MT:0x6:1        italic"        #0x05
+color = "self:0x6:1      blink"         #0x06
+color = "niced:0x7:2     inverse"       #0x07
 
-#color = "niced:0x7:2     inverse"        #0x06
-
-color = "kworker:0x0:3   WHITE on_blue" #0x07
-color = "cpuhp:0x0:3     WHITE on_blue" #0x08
-color = "irq:0x0:3       WHITE on_blue" #0x09
-color = "ksoftirqd:0x0:3 WHITE on_blue" #0x0A
-color = "migration:0x0:3 WHITE on_blue" #0x0B
-color = "xfs:0x0:3       WHITE on_blue" #0x0C
-color = "kcryptd:0x0:3   WHITE on_blue" #0x0D
-color = "dmcrypt:0x0:3   WHITE on_blue" #0x0E
-color = "scsi_eh:0x0:3   WHITE on_blue" #0x0F
-color = "scsi_tmf:0x0:3  WHITE on_blue" #0x10
-color = "wq:0x0:3        WHITE on_blue" #0x11
-color = "rcu_*:0x0:3     WHITE on_blue" #0x12
-color = "*iod:0x0:3      WHITE on_blue" #0x13
-color = "kdmflush:0x0:3  WHITE on_blue" #0x14
-color = "iprtVBox:0x0:3  WHITE on_blue" #0x15
-color = "nvidia:0x0:3    WHITE on_blue" #0x16
+color = "kworker:0x0:3   WHITE on_blue" #0x08 
+color = "cpuhp:0x0:3     WHITE on_blue" #0x09
+color = "irq:0x0:3       WHITE on_blue" #0x0A
+color = "ksoftirqd:0x0:3 WHITE on_blue" #0x0B
+color = "migration:0x0:3 WHITE on_blue" #0x0C
+color = "xfs:0x0:3       WHITE on_blue" #0x0D
+color = "kcryptd:0x0:3   WHITE on_blue" #0x0E
+color = "dmcrypt:0x0:3   WHITE on_blue" #0x0F
+color = "scsi_eh:0x0:3   WHITE on_blue" #0x10
+color = "scsi_tmf:0x0:3  WHITE on_blue" #0x11
+color = "wq:0x0:3        WHITE on_blue" #0x12
+color = "rcu_*:0x0:3     WHITE on_blue" #0x13
+color = "*iod:0x0:3      WHITE on_blue" #0x14
+color = "kdmflush:0x0:3  WHITE on_blue" #0x15
+color = "iprtVBox:0x0:3  WHITE on_blue" #0x16
+color = "nvidia:0x0:3    WHITE on_blue" #0x17
 color = "firefox:0x0:3   inverse"       #0x18
 color = "chrome:0x0:3    inverse"       #0x19
 color = "vbox:0x0:3      inverse"       #0x1A
