@@ -1118,7 +1118,7 @@ cAdd('e', {pf_utime,pf_stime}  , cmp, culong  ): p.utime + p.stime
 cAdd('E', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
 proc totCPUns(p: Proc): float =
-  if cg.schedstat: p.pSched.float else: float(p.utime + p.stime)*1e7
+  if cg.schedStat: p.pSched.float else: float(p.utime + p.stime)*1e7
 cAdd('b', {pf_utime,pf_stime,pfss_sched}, cmp, uint64):
                                  uint64(p.totCPUns*1e2/max(1.0, p.ageD.float))
 cAdd('L', {pf_flags}           , cmp, culong  ): p.flags
