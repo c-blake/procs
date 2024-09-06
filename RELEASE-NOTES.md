@@ -1,6 +1,21 @@
 RELEASE NOTES
 =============
 
+Version: 0.7.2
+--------------
+    Fix `schedStat` spelling (hitherto undetected since `styleCheck=usages styleCheck=error` does not work unless `hint[Name]=on` is also set).
+
+    Add option to preface each sample in differential-delay mode with time.
+
+    Add a built-in type "self" for the procs display process itself.
+    This can be nice either to suppress it, say in
+        `procs display --delay=0.001 --excl=self`
+    or to emphasize it (e.g. to know which tty ran program in tree formats) with
+    special colorization.
+
+    Update example color config, correctly renumbering side-comment slots and
+    default to struck (& probably bold, unlike zombies).
+
 Version: 0.7.1
 --------------
     Add one flavor of mUsed for `scrollsy` - total-complement to mAvl.
