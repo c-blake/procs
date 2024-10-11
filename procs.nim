@@ -937,7 +937,7 @@ tAdd("niced", {pf_nice}  ): p.nice != 0
 tAdd("MT"   , {pf_nThr}  ): p.nThr > 1
 tAdd("L"    , {pfs_vmLck}): p.vmLck > 0'u64
 tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
-let selfPid = getPid()
+let selfPid = getpid()
 tAdd("self" , {}         ): p.pid == selfPid
 
 proc cmdClean(cmd: string): string =
