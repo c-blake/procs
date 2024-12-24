@@ -1,7 +1,7 @@
 ## Linux /proc data/display/query interfaces - both cmdline & library
 #XXX Could port to BSD using libkvm/kvm_getprocs/_getargv/_getenvv/kinfo_proc;
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
-
+{.warning[Uninit]:off, warning[ProveInit]:off.} # Should be verbosity:2, not 1
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
             critbits, parseutils, monotimes],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
