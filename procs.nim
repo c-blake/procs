@@ -1265,7 +1265,7 @@ fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
-fAdd('A', {pf_ppid0}           ,0,5, "  AID"  ): $p.ancestorId
+fAdd('A', {pf_ppid0}           ,0,5, "AID  "  ): $p.ancestorId
 fAdd('P', {pf_ppid0}           ,0,5, " PPID"  ): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
 fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
