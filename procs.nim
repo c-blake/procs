@@ -182,6 +182,10 @@ var gids*: Table[string, Gid]
 proc invert*[T, U](x: Table[T, U]): Table[U, T] =
   for k, v in x.pairs: result[v] = k
 
+# # # # # # # SYNTHETIC FIELDS # # # # # # #
+proc ancestorId(p: Proc): Pid =
+  if p.pidPath.len>1:p.pidPath[^2] elif p.pidPath.len>0:p.pidPath[^1] else:p.pid
+
 # # # # # # # PROCESS SPECIFIC /proc/PID/file PARSING # # # # # # #
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
                   pfi_rbl, pfi_wbl, pfi_wcancel }
@@ -547,7 +551,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## ``foo``.  When there is no natural aggregation the merged value is really
   ## set-valued (eg, ``tty``).  In such cases, by default, the first Proc wins
   ## the field unless ``overwriteSetValued`` is ``true``.
-  if p.pidPath.len > q.pidPath.len: p.pidPath = q.pidPath
+  if p.pidPath.len > q.pidPath.len: p.pidPath = q.pidPath #XXX Shortest? Common?
   p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0
   if pf_minflt              in fill: p.minflt               += q.minflt
   if pf_cminflt             in fill: p.cminflt              += q.cminflt
@@ -1103,6 +1107,7 @@ cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
 cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
 cAdd('Z', {pffs_grp}           , cmp, string  ): p.getGrp
 cAdd('D', {pf_ppid0}           , cmp, seq[Pid]): p.pidPath
+cAdd('A', {pf_ppid0}           , cmp, Pid     ): p.ancestorId
 cAdd('P', {pf_ppid0}           , cmp, Pid     ): p.ppid0
 cAdd('n', {pf_nice}            , cmp, clong   ): p.nice
 cAdd('y', {pf_prio}            , cmp, clong   ): p.prio
@@ -1260,6 +1265,7 @@ fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
+fAdd('A', {pf_ppid0}           ,0,5, "  AID"  ): $(ancestorId(p))
 fAdd('P', {pf_ppid0}           ,0,5, " PPID"  ): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
 fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
@@ -1346,7 +1352,7 @@ proc parseFormat(cf: var DpCf) =
       except Ce: raise newException(ValueError, "unknown format code " & c.repr)
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
-      elif c == 'D': cf.forest = true
+      elif c in {'D', 'A'}: cf.forest = true
       elif c == 'N': cf.needNow = true
       elif c in {'T', 'a', 'e', 'E'}: cf.needUptm = true
       elif c in {'m'}: cf.needTotRAM = true
@@ -1528,7 +1534,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##
   ##For MULTI-LEVEL order specs only +- mean incr(dfl)/decreasing. The following
   ##1-letter codes work for BOTH format AND order specs:
-  ##  p PID      z GID   w WCHAN  j TIME  L FLG  f MNFL  o SID    Q SIGQ
+  ##  p PID      z GID   w WCHAN  j TIME  L FLG  f MNFL  o SID    Q SIGQ   A AID
   ##  c CMD      Z GRP   s STAT   J CTIM  v VSZ  F MJFL  G TPGID  q PENDING
   ##  C COMMAND  P PPID  t TT(y)  e %cPU  d DRS  h CMNF  K STACK  X SHDPND
   ##  u UID      n NI    a AGE    E %CPU  r TRS  H CMJF  S ESP    B BLOCKED
