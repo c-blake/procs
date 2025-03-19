@@ -100,8 +100,8 @@ type
                 nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
                 nsPid4Kids = "pid4kids"
 
-  PfAct* = enum acEcho  = "echo", acKill  = "kill", acNice = "nice",
-                acWait1 = "wait", acWaitA = "Wait", acCount = "count"
+  PfAct* = enum acEcho ="echo", acAid  ="aid" , acKill ="kill", acNice="nice",
+                acWait1="wait", acWaitA="Wait", acCount="count"
 
   # # # # Types for System-wide data # # # #
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
@@ -183,8 +183,8 @@ proc invert*[T, U](x: Table[T, U]): Table[U, T] =
   for k, v in x.pairs: result[v] = k
 
 # # # # # # # SYNTHETIC FIELDS # # # # # # #
-proc ancestorId(p: Proc): Pid =
-  if p.pidPath.len>1: p.pidPath[1] elif p.pidPath.len>0: p.pidPath[0]else:p.ppid
+proc ancestorId(pidPath: seq[Pid], ppid=0.Pid): Pid =
+  if pidPath.len > 1: pidPath[1] elif pidPath.len > 0: pidPath[0] else: ppid
 
 # # # # # # # PROCESS SPECIFIC /proc/PID/file PARSING # # # # # # #
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
@@ -1107,7 +1107,7 @@ cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
 cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
 cAdd('Z', {pffs_grp}           , cmp, string  ): p.getGrp
 cAdd('D', {pf_ppid0}           , cmp, seq[Pid]): p.pidPath
-cAdd('A', {pf_ppid0}           , cmp, Pid     ): p.ancestorId
+cAdd('A', {pf_ppid0}           , cmp, Pid     ): p.pidPath.ancestorId p.ppid
 cAdd('P', {pf_ppid0}           , cmp, Pid     ): p.ppid0
 cAdd('n', {pf_nice}            , cmp, clong   ): p.nice
 cAdd('y', {pf_prio}            , cmp, clong   ): p.prio
@@ -1265,7 +1265,7 @@ fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
-fAdd('A', {pf_ppid0}           ,0,5, "AID  "  ): $p.ancestorId
+fAdd('A', {pf_ppid0}           ,0,5, "AID  "  ): $(p.pidPath.ancestorId p.ppid)
 fAdd('P', {pf_ppid0}           ,0,5, " PPID"  ): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
 fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
@@ -1638,6 +1638,7 @@ proc act(actions: seq[PfAct], pid: Pid, delim: string, sigs: seq[cint],
   for a in actions:
     case a
     of acEcho : stdout.write pid, delim
+    of acAid  : discard         # Must handle after forPid
     of acKill : nErr += (kill(pid, sigs[0]) == -1).int
     of acNice : nErr += (nice(pid, nice.cint) == -1).int
     of acWait1: discard
@@ -1655,9 +1656,9 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n", exist=false,
     signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
     PCREpatterns: seq[string]): int =
-  ## Find subset of procs by various criteria & act upon them ASAP (echo, count,
-  ## kill, nice, wait for any|all).  Unifies pidof, pgrep, pkill, snice, waita
-  ## features in one command with options most similar to pgrep.
+  ## Find subset of procs by various criteria & act upon them ASAP (echo, aid,
+  ## count, kill, nice, wait for any|all).  Unify & generalize pidof, pgrep,
+  ## pkill, snice features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var actions = (if actions.len == 0: @[acEcho] else: actions)
   let exclPPID = "PPID" in exclude
@@ -1690,7 +1691,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     for pattern in PCREpatterns: rxes.add pattern.re
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
-  if parent.len  > 0: fill.incl pf_ppid0
+  var ppids = initTable[Pid, Pid]()
+  if parent.len  > 0 or acAid in actions: fill.incl {pf_pid0, pf_ppid0}
   if pgroup.len  > 0: fill.incl pf_pgrp
   if session.len > 0: fill.incl pf_sess
   if tty.len     > 0: fill.incl pf_tty
@@ -1705,12 +1707,13 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
-  let workAtEnd = sigs.len > 1 or acWait1 in actions or acWaitA in actions
+  let workAtEnd=sigs.len>1 or acWait1 in actions or acWaitA in actions or acAid in actions
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
+    if acAid in actions: ppids[p.pid0] = p.ppid0    #Genealogy of every one
     var match = 1
     if   newest and p.t0.uint < tM                    : match = 0
     elif oldest and p.t0.uint > tM                    : match = 0
@@ -1745,6 +1748,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
+  if acAid in actions:
+    for pid in pList: stdout.write ppids.pidPath(pid).ancestorId, delim
   if newest or oldest and pList.len > 0:
     actions.act(pList[0], delim, sigs, nice, cnt, result)
   if acCount in actions:                      #~Confusable w/PIDs if acEcho BUT
