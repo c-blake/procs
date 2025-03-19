@@ -3,7 +3,7 @@
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes],
+            critbits, parseutils, monotimes, macros],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
@@ -26,7 +26,7 @@ type
     exit_sig*, processor*, exitCode*: cint
     size*, res*, share*, txt*, lib*, dat*, dty*: culong
     environ*, usrs*, grps*: seq[string]
-    cmdLine*, root*, cwd*, exe*: string
+    cmdLine*, argv0*, root*, cwd*, exe*: string
     name*, umask*, stateS*: string
     tgid*, ngid*, pid1*, ppid*, tracerPid*, nStgid*, nSpid*, nSpgid*, nSsid*:Pid
     uids*: array[4, Uid]  #id_real, id_eff, id_set, id_fs
@@ -185,6 +185,13 @@ proc invert*[T, U](x: Table[T, U]): Table[U, T] =
 # # # # # # # SYNTHETIC FIELDS # # # # # # #
 proc ancestorId(pidPath: seq[Pid], ppid=0.Pid): Pid =
   if pidPath.len > 1: pidPath[1] elif pidPath.len > 0: pidPath[0] else: ppid
+
+proc command(p: Proc): string = (if p.cmdLine.len > 0: p.cmdLine else: p.cmd)
+
+proc cmdClean(cmd: string): string = # map non-printing ASCII -> ' '
+  result.setLen cmd.len
+  for i, c in cmd: result[i] = (if ord(c) < 32: ' ' else: c)
+  while result[^1] == ' ': result.setLen result.len - 1 # strip trailing white
 
 # # # # # # # PROCESS SPECIFIC /proc/PID/file PARSING # # # # # # #
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
@@ -504,7 +511,9 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
     (pr & "cmdline").readFile buf
-    p.cmdLine = buf
+    if buf.len > 0:
+      p.argv0   = buf.split('\0')[0] # argv[0]/$0 (~cmd assuming Bourne/Korn)
+      p.cmdLine = buf.cmdClean
   if pfen_environ in fill:
     (pr & "environ").readFile buf
     p.environ = buf.split('\0')
@@ -541,9 +550,30 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if pfd_6 in fill: p.fd6 = readlink(pr & "fd/6", devNull)
   template doInt(x, y, z: untyped) {.dirty.} =
     if x   in fill: (pr & y).readFile buf; z = buf.strip.parseInt.cint
-  doInt(pfo_score    , "oom_score"    , p.oom_score    )
   doInt(pfo_adj      , "oom_adj"      , p.oom_adj      )
   doInt(pfo_score_adj, "oom_score_adj", p.oom_score_adj)
+
+macro save(p: Proc, fs: varargs[untyped]) =
+  result = newStmtList()
+  for f in fs: result.add(quote do: (let `f` = p.`f`))
+macro rest(p: Proc, fs: varargs[untyped]) =
+  result = newStmtList()
+  for f in fs: result.add(quote do: (p.`f` = `f`; p.`f`.setLen 0))
+proc clear(p: var Proc, fill: ProcFields, sneed: ProcSrcs) =
+  # Re-init all that above `read` populates to allow obj/mem re-use. To not leak
+  # (& also re-use) seqs & strings we must save, zeroMem, then restore them.
+  #XXX Can save memory write traffic by replicating tests both before & after.
+  save p, kind, pidPath, environ, usrs, grps # seq[Pid], seq[string], then strings
+  save p, spid,cmd,usr,grp, cmdLine,argv0, root, cwd, exe, name,umask,stateS,
+       sigQ,sigPnd,shdPnd,sigBlk,sigIgn,sigCgt,
+       capInh,capPrm,capEff,capBnd,capAmb, spec_Store_Bypass,
+       cpusAllowedList,memsAllowedList, wchan, fd0,fd1,fd2,fd3,fd4,fd5,fd6
+  zeroMem p.addr, p.sizeof
+  rest p, kind, pidPath, environ, usrs, grps # seq[Pid], seq[string], then strings
+  rest p, spid,cmd,usr,grp, cmdLine,argv0, root, cwd, exe, name,umask,stateS,
+       sigQ,sigPnd,shdPnd,sigBlk,sigIgn,sigCgt,
+       capInh,capPrm,capEff,capBnd,capAmb, spec_Store_Bypass,
+       cpusAllowedList,memsAllowedList, wchan, fd0,fd1,fd2,fd3,fd4,fd5,fd6
 
 proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## Merge ``fill`` fields for ``q`` on to those for ``p``.  Summing makes sense
@@ -944,18 +974,19 @@ tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
 let selfPid = getpid()
 tAdd("self" , {}         ): p.pid == selfPid
 
-proc cmdClean(cmd: string): string =
-  result.setLen cmd.len
-  for i, c in cmd:
-    result[i] = if ord(c) < 32: ' ' else: c
-  while result[^1] == ' ':
-    result.setLen result.len - 1
-
 ###### USER-DEFINED CLASSIFICATION TESTS
-proc testPCRegex(rxes: seq[Regex], p: var Proc): bool =
+type MchKind = enum mchCmd, mchArgv0, mchArgv
+
+proc toMatch(p: var Proc, k: MchKind): string =
+  case k
+  of mchCmd:   p.cmd            # (command) from /proc/*/(stat|status)
+  of mchArgv0: p.argv0          # argv[0]/$0 (assuming Bourne/Korn)
+  of mchArgv:  p.command        # All unprintable ASCII -> ' '
+
+proc testPCRegex(rxes: seq[Regex], p: var Proc, k: MchKind): bool =
   result = false
   for r in rxes:
-    if p.cmd.contains(r): return true
+    if p.toMatch(k).contains(r): return true
 
 proc getUid(p: Proc): Uid    = (if cg.realIds: p.uids[0] else: p.st.st_uid)
 proc getGid(p: Proc): Gid    = (if cg.realIds: p.gids[0] else: p.st.st_gid)
@@ -982,10 +1013,11 @@ proc testNone(tsts: seq[Test], p: var Proc): bool =
   for t in tsts:
     if t.test p: return false
 
-proc addPCRegex(cf: var DpCf; nm, s: string) =      #Q: add flags/modes?
+proc addPCRegex(cf: var DpCf; nm, s: string, k: MchKind) = #Q: add flags/modes?
   var rxes: seq[Regex]
   for pattern in s.splitWhitespace: rxes.add pattern.re
-  cf.tests[nm] = ({pf_cmd}, proc(p: var Proc): bool = rxes.testPCRegex p)
+  let need = if k == mchCmd: {pf_cmd} else: {pfcl_cmdline}
+  cf.tests[nm] = (need, proc(p: var Proc): bool = rxes.testPCRegex(p, k))
 
 proc addOwnId(cf: var DpCf; md: char; nm, s: string) =
   var s: HashSet[Uid] | HashSet[Gid] = if md == 'u': s.splitWhitespace.toUidSet
@@ -1013,7 +1045,9 @@ proc parseKind(cf: var DpCf) =
   for kin in cf.kind:
     let col = kin.splitWhitespace(maxsplit=2)
     if col.len < 3: raise newException(ValueError, "bad kind: \"" & kin & "\"")
-    if   col[1] == "pcr": cf.addPCRegex(col[0], col[2])
+    if   col[1] == "pcr" : cf.addPCRegex(col[0], col[2], mchCmd)
+    elif col[1] == "pcr0": cf.addPCRegex(col[0], col[2], mchArgv0)
+    elif col[1] == "pcrF": cf.addPCRegex(col[0], col[2], mchArgv)
     elif col[1].endsWith("id"):cf.addOwnId(col[1][0].toLowerAscii,col[0],col[2])
     elif col[1] == "usr": cf.addOwner(col[1][0], col[0], col[2])
     elif col[1] == "grp": cf.addOwner(col[1][0], col[0], col[2])
@@ -1100,8 +1134,7 @@ template cAdd(code, pfs, cmpr, T, data: untyped) {.dirty.} =
                    cmpr(get(a[]), get(b[])))
 cAdd('p', {}                   , cmp, Pid     ): p.pid
 cAdd('c', {pf_cmd}             , cmp, string  ): p.cmd
-cAdd('C', {pfcl_cmdline,pf_cmd}, cmp, string  ):
-  if p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
+cAdd('C', {pfcl_cmdline,pf_cmd}, cmp, string  ): p.command
 cAdd('u', {pffs_uid}           , cmp, Uid     ): p.getUid
 cAdd('U', {pffs_gid}           , cmp, string  ): p.getUsr
 cAdd('z', {pffs_usr}           , cmp, Gid     ): p.getGid
@@ -1255,7 +1288,7 @@ fAdd('p', {}                   ,0,5, "  PID"  ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
-  let s = if p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
+  let s = p.command
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
 fAdd('u', {pffs_uid}           ,0,5, "  UID"  ): $p.getUid.uint
 fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
@@ -1487,6 +1520,7 @@ proc displayASAP*(cf: var DpCf) =
   var p: Proc
   if cf.needNow: cf.nowNs = $getTime()
   forPid(cf.pids):
+    p.clear cf.need, cf.sneed
     if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
       stdout.flushFile    #..a cost < O(5%): well worth it whenever it matters.
@@ -1506,6 +1540,7 @@ proc displayASAP*(cf: var DpCf) =
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
     forPid(cf.pids):
+      p.clear cf.need, cf.sneed
       if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
         next[p.pid] = p                              #Not done now,but wchan
         p.minusEq(last.getOrDefault(p.pid), cf.diff) #..diff is reasonable
@@ -1616,8 +1651,8 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
 #Redundant upon `display` with some non-display action, but its simpler filter
 #language (syntax&impl) can be much more efficient (for user&system) sometimes.
 proc contains(rxes: seq[Regex], p: Proc, full=false): bool =
-  let c = if full and p.cmdLine.len > 0: p.cmdLine.cmdClean else: p.cmd
-  for r in rxes:  #Needs to be
+  let c = if full and p.cmdLine.len > 0: p.cmdLine else: p.cmd
+  for r in rxes:
     if c.contains(r): return true
 
 proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
@@ -1712,6 +1747,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var cnt = 0; var t0: Timespec
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
+    p.clear fill, sneed
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
     if acAid in actions: ppids[p.pid0] = p.ppid0    #Genealogy of every one
     var match = 1
