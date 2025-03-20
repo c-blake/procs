@@ -3,7 +3,7 @@
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes, macros],
+            critbits, parseutils, monotimes, macros, math],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
@@ -563,13 +563,13 @@ proc clear(p: var Proc, fill: ProcFields, sneed: ProcSrcs) =
   # Re-init all that above `read` populates to allow obj/mem re-use. To not leak
   # (& also re-use) seqs & strings we must save, zeroMem, then restore them.
   #XXX Can save memory write traffic by replicating tests both before & after.
-  save p, kind, pidPath, environ, usrs, grps # seq[Pid], seq[string], then strings
+  save p, kind, pidPath, environ, usrs, grps # seq[Pid],seq[string],then strings
   save p, spid,cmd,usr,grp, cmdLine,argv0, root, cwd, exe, name,umask,stateS,
        sigQ,sigPnd,shdPnd,sigBlk,sigIgn,sigCgt,
        capInh,capPrm,capEff,capBnd,capAmb, spec_Store_Bypass,
        cpusAllowedList,memsAllowedList, wchan, fd0,fd1,fd2,fd3,fd4,fd5,fd6
   zeroMem p.addr, p.sizeof
-  rest p, kind, pidPath, environ, usrs, grps # seq[Pid], seq[string], then strings
+  rest p, kind, pidPath, environ, usrs, grps # seq[Pid],seq[string],then strings
   rest p, spid,cmd,usr,grp, cmdLine,argv0, root, cwd, exe, name,umask,stateS,
        sigQ,sigPnd,shdPnd,sigBlk,sigIgn,sigCgt,
        capInh,capPrm,capEff,capBnd,capAmb, spec_Store_Bypass,
@@ -670,6 +670,9 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   doInt(pfi_wcancel           , wcancel           )
 
 # # # # # # # NON-PROCESS SPECIFIC /proc PARSING # # # # # # #
+proc procPidMax*(): int = ## Parse & return "/proc/sys/kernel/pid_max".
+  "/proc/sys/kernel/pid_max".readFile buf; buf.strip.parseInt
+
 proc procUptime*(): culong =
   ## System uptime in jiffies (there are 100 jiffies per second)
   "/proc/uptime".readFile buf
@@ -1276,6 +1279,9 @@ proc fmtPct[A,B](n: A, d: B): string =
   let leading = mills div 10
   if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
 
+let nP = ceil(log10(procPidMax().float)).int # Most fmts contain PIDs, but this
+                                             #..can be unwanted ovrhd. Eg `find`
+
 var fmtCodes: set[char]   #left below is just dflt alignment. User can override.
 var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
                  fmt: proc(x: var Proc, wMax=0): string]]
@@ -1284,7 +1290,7 @@ template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
 fAdd('N', {}                   ,0,20,"NOW"    ): cg.nowNs
-fAdd('p', {}                   ,0,5, "  PID"  ): p.spid
+fAdd('p', {}                   ,0,nP, align("PID", nP)): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
@@ -1298,8 +1304,9 @@ fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 fAdd('D', {pf_ppid0}           ,0,-1, ""      ):        #Below - 1 to show init&
   let s = repeat(' ', cg.indent*max(0,p.pidPath.len-2)) #..kthreadd as sep roots
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
-fAdd('A', {pf_ppid0}           ,0,5, "AID  "  ): $(p.pidPath.ancestorId p.ppid)
-fAdd('P', {pf_ppid0}           ,0,5, " PPID"  ): $p.ppid0
+fAdd('A', {pf_ppid0}           ,0,nP, alignLeft("AID",nP)):
+  $(p.pidPath.ancestorId p.ppid)
+fAdd('P', {pf_ppid0}           ,0,nP, align("PPID",nP)): $p.ppid0
 fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
 fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
 fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
@@ -1337,10 +1344,10 @@ fAdd('f', {pf_minflt}          ,0,4, "MNFL"   ): fmtSz(p.minflt)
 fAdd('F', {pf_majflt}          ,0,4, "MJFL"   ): fmtSz(p.majflt)
 fAdd('h', {pf_minflt,pf_cminflt},0,4,"CMNF"   ): fmtSz(p.minflt + p.cminflt)
 fAdd('H', {pf_majflt,pf_cmajflt},0,4,"CMJF"   ): fmtSz(p.majflt + p.cmajflt)
-fAdd('g', {pf_pgrp}            ,0,5, " PGID"  ): $p.pgrp
-fAdd('o', {pf_sess}            ,0,5, "  SID"  ): $p.sess
-fAdd('G', {pf_pgid}            ,0,5, "TPGID"  ): $p.pgid
-fAdd('V', {pfen_environ}       ,1,5, "ENVIRON"): p.environ.join(" ")
+fAdd('g', {pf_pgrp}            ,0,nP, align("PGID" , nP)): $p.pgrp
+fAdd('o', {pf_sess}            ,0,nP, align("SID"  , nP)): $p.sess
+fAdd('G', {pf_pgid}            ,0,nP, align("TPGID", nP)): $p.pgid
+fAdd('V', {pfen_environ}       ,1,7, "ENVIRON"): p.environ.join(" ")
 fAdd('K', {pf_startstk}        ,1,16,"STACK"  ): $p.startstk
 fAdd('S', {pf_kstk_esp}        ,1,16,"ESP"    ): $p.kstk_esp
 fAdd('I', {pf_kstk_eip}        ,1,16,"EIP"    ): $p.kstk_eip
