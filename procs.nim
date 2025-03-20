@@ -243,10 +243,10 @@ template forPid*(pids: seq[string], body) {.dirty.} =
 
 proc toPid(s: string|MSlice): Pid   {.inline.} = parseInt(s).Pid
 proc toDev(s: string|MSlice): Dev   {.inline.} = parseInt(s).Dev
-proc toCul(s: string|MSlice, unit=1): culong{.inline.} = parseInt(s).culong*unit.culong
+proc toCul(s: string|MSlice, unit=1): culong = parseInt(s).culong*unit.culong
 proc toCui(s: string|MSlice): cuint {.inline.} = parseInt(s).cuint
 proc toU16(s: string|MSlice): uint16{.inline.} = parseInt(s).uint16
-proc toU64(s: string|MSlice, unit=1): uint64{.inline.} = parseInt(s).uint64*unit.uint64
+proc toU64(s: string|MSlice, unit=1): uint64 = parseInt(s).uint64*unit.uint64
 proc toCin(s: string|MSlice): cint  {.inline.} = parseInt(s).cint
 proc toInt(s: string|MSlice): int   {.inline.} = parseInt(s)
 proc toMem(s: string|MSlice): uint64{.inline.} = parseInt(s).uint64
@@ -1675,9 +1675,9 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsCgroup:   (if q.nCgroup   != p.nCgroup  : return false)
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
-proc act(actions: seq[PfAct], pid: Pid, delim: string, sigs: seq[cint],
+proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
          nice: int, cnt: var int, nErr: var int) =
-  for a in actions:
+  for a in acts:
     case a
     of acEcho : stdout.write pid, delim
     of acAid  : discard         # Must handle after forPid
@@ -1702,7 +1702,9 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   ## count, kill, nice, wait for any|all).  Unify & generalize pidof, pgrep,
   ## pkill, snice features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
-  var actions = (if actions.len == 0: @[acEcho] else: actions)
+  var acts: set[PfAct]
+  for a in actions: acts.incl a
+  if acts.len == 0: acts.incl acEcho
   let exclPPID = "PPID" in exclude
   let selfPgrp = if exclPPID: getpgid(0) else: 0
   var exclPIDs = initHashSet[string](min(1, exclude.len))
@@ -1714,9 +1716,9 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var sigs: seq[cint]
   var p, q: Proc
   for sig in signals: sigs.add sig.parseUnixSignal
-  if nice != 0 and acNice notin actions: actions.add acNice
-  if sigs.len > 0 and acKill notin actions: actions.add acKill
-  if sigs.len == 0 and acKill in actions: sigs.add 15 #default to SIGTERM=15
+  if nice != 0 and acNice notin acts: acts.incl acNice
+  if sigs.len > 0 and acKill notin acts: acts.incl acKill
+  if sigs.len == 0 and acKill in acts: sigs.add 15 #default to SIGTERM=15
   if PCREpatterns.len > 0:
     fill.incl pf_cmd
     if full: fill.incl pfcl_cmdline
@@ -1734,7 +1736,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
   var ppids = initTable[Pid, Pid]()
-  if parent.len  > 0 or acAid in actions: fill.incl {pf_pid0, pf_ppid0}
+  if parent.len  > 0 or acAid in acts: fill.incl {pf_pid0, pf_ppid0}
   if pgroup.len  > 0: fill.incl pf_pgrp
   if session.len > 0: fill.incl pf_sess
   if tty.len     > 0: fill.incl pf_tty
@@ -1749,14 +1751,14 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
-  let workAtEnd=sigs.len>1 or acWait1 in actions or acWaitA in actions or acAid in actions
+  let workAtEnd = sigs.len>1 or len({acWait1, acWaitA, acAid}*acts) > 0
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
     p.clear fill, sneed
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
-    if acAid in actions: ppids[p.pid0] = p.ppid0    #Genealogy of every one
+    if acAid in acts: ppids[p.pid0] = p.ppid0 #Genealogy of every one
     var match = 1
     if   newest and p.t0.uint < tM                    : match = 0
     elif oldest and p.t0.uint > tM                    : match = 0
@@ -1785,28 +1787,28 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
         tM = p.t0; pList[0] = p.pid           #update min start time
       continue
-    if not exist: actions.act(p.pid, delim, sigs, nice, cnt, result)
-    if acKill in actions and sigs.len > 1 and delay > ts0:
+    if not exist: acts.act(p.pid, delim, sigs, nice, cnt, result)
+    if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
       t0 = getTime()
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
-  if acAid in actions:
+  if acAid in acts:
     for pid in pList: stdout.write ppids.pidPath(pid).ancestorId, delim
   if newest or oldest and pList.len > 0:
-    actions.act(pList[0], delim, sigs, nice, cnt, result)
-  if acCount in actions:                      #~Confusable w/PIDs if acEcho BUT
+    acts.act(pList[0], delim, sigs, nice, cnt, result)
+  if acCount in acts:                      #~Confusable w/PIDs if acEcho BUT
     stdout.write cnt, delim                   #..always@end&Doing both acts rare
     if cnt == 0 and result == 0: inc result   #Exit false on no match
-  if acKill in actions and sigs.len > 1:      #send any remaining signals
+  if acKill in acts and sigs.len > 1:      #send any remaining signals
     var dt = delay - (getTime() - t0)
     if dt < delay: dt.nanosleep
     for i, sig in sigs[1..^1]:
       for pid in pList: result += (kill(pid, sig) == -1).int
       if i < sigs.len - 2: delay.nanosleep
   if pList.len > 0:                           #wait for condition if requested
-    if   acWait1 in actions: discard waitAny(pList, delay, limit)
-    elif acWaitA in actions: waitAll(pList, delay, limit)
+    if   acWait1 in acts: discard waitAny(pList, delay, limit)
+    elif acWaitA in acts: waitAll(pList, delay, limit)
 
 # # # # COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats # # # #
 type
@@ -2142,7 +2144,8 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
                "blanks" : "add blank rows after each delay report",
-               "maxUnm" : "abbreviation specification for user names:\n" & parseAbbrevHelp,
+               "maxUnm" : "abbreviation specification for user names:\n" &
+                           parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
