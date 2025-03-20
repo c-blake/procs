@@ -238,7 +238,10 @@ proc pidsIt*(pids: seq[string]): auto =
       for pid in allPids(): yield pid
 
 template forPid*(pids: seq[string], body) {.dirty.} =
-  if pids.len > 0: (for pid in pids: body)
+  var did: HashSet[string]
+  if pids.len > 0: 
+    for pid in pids:
+      if pid notin did: (did.incl pid; body)
   else: (for pid in allPids(): body)
 
 proc toPid(s: string|MSlice): Pid   {.inline.} = parseInt(s).Pid
