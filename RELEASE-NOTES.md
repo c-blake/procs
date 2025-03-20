@@ -1,6 +1,24 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.0
+--------------
+  Big bug fix for `procs find` aka `pf` where a reused object had stale data.
+
+  More reliable "tabular shape" across Linux setups via the file
+  `/proc/sys/kernel/pid_max` telling us how many decimals PIDs can be.
+
+  Add pcr0 & pcrF kind matcher operators to match against either $argv[0]
+  or the fully joined $argv for purposes of user-defined roll-ups.
+
+  New actions for `pf`:
+    - aid for ancestor id / whole family tree selection and
+    - path { parent(parent(...())) reversed } for more focused ancestry.
+
+Version: 0.7.3 & 0.7.4
+--------------
+    Just pretty minor/dumb edits & .nimble dependency updates
+
 Version: 0.7.2
 --------------
     Fix `schedStat` spelling (hitherto undetected since `styleCheck=usages styleCheck=error` does not work unless `hint[Name]=on` is also set).
