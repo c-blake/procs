@@ -670,8 +670,8 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   doInt(pfi_wcancel           , wcancel           )
 
 # # # # # # # NON-PROCESS SPECIFIC /proc PARSING # # # # # # #
-proc procPidMax*(): int = ## Parse & return "/proc/sys/kernel/pid_max".
-  "/proc/sys/kernel/pid_max".readFile buf; buf.strip.parseInt
+proc procPidMax*(): int = ## Parse & return len("/proc/sys/kernel/pid_max").
+  "/proc/sys/kernel/pid_max".readFile buf; buf.strip.len
 
 proc procUptime*(): culong =
   ## System uptime in jiffies (there are 100 jiffies per second)
@@ -1279,8 +1279,7 @@ proc fmtPct[A,B](n: A, d: B): string =
   let leading = mills div 10
   if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
 
-let nP = ceil(log10(procPidMax().float)).int # Most fmts contain PIDs, but this
-                                             #..can be unwanted ovrhd. Eg `find`
+let nP = procPidMax() # Most fmts have PIDs,but this can be silly ovrhd for find
 
 var fmtCodes: set[char]   #left below is just dflt alignment. User can override.
 var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
