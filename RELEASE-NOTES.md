@@ -15,6 +15,8 @@ Version: 0.8.0
     - aid for ancestor id / whole family tree selection and
     - path { parent(parent(...())) reversed } for more focused ancestry.
 
+  Explicit lists of PIDs with duplicates no longer duplicate output rows.
+
 Version: 0.7.3 & 0.7.4
 --------------
     Just pretty minor/dumb edits & .nimble dependency updates
