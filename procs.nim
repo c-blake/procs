@@ -101,7 +101,7 @@ type
                 nsPid4Kids = "pid4kids"
 
   PfAct* = enum acEcho ="echo", acAid  ="aid" , acKill ="kill", acNice="nice",
-                acWait1="wait", acWaitA="Wait", acCount="count"
+                acWait1="wait", acWaitA="Wait", acCount="count",acPath="path"
 
   # # # # Types for System-wide data # # # #
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
@@ -1681,6 +1681,7 @@ proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
     case a
     of acEcho : stdout.write pid, delim
     of acAid  : discard         # Must handle after forPid
+    of acPath : discard         # Must handle after forPid
     of acKill : nErr += (kill(pid, sigs[0]) == -1).int
     of acNice : nErr += (nice(pid, nice.cint) == -1).int
     of acWait1: discard
@@ -1735,8 +1736,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     for pattern in PCREpatterns: rxes.add pattern.re
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
-  var ppids = initTable[Pid, Pid]()
-  if parent.len  > 0 or acAid in acts: fill.incl {pf_pid0, pf_ppid0}
+  var ppids = initTable[Pid, Pid](); let doTree = card({acAid, acPath}*acts) > 0
+  if parent.len  > 0 or doTree: fill.incl {pf_pid0,pf_ppid0}
   if pgroup.len  > 0: fill.incl pf_pgrp
   if session.len > 0: fill.incl pf_sess
   if tty.len     > 0: fill.incl pf_tty
@@ -1751,14 +1752,14 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
-  let workAtEnd = sigs.len>1 or len({acWait1, acWaitA, acAid}*acts) > 0
+  let workAtEnd = sigs.len>1 or card({acWait1, acWaitA, acAid, acPath}*acts) > 0
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
     p.clear fill, sneed
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
-    if acAid in acts: ppids[p.pid0] = p.ppid0 #Genealogy of every one
+    if doTree: ppids[p.pid0] = p.ppid0              #Genealogy of every one
     var match = 1
     if   newest and p.t0.uint < tM                    : match = 0
     elif oldest and p.t0.uint > tM                    : match = 0
@@ -1795,6 +1796,10 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if exist: return 1
   if acAid in acts:
     for pid in pList: stdout.write ppids.pidPath(pid).ancestorId, delim
+  if acPath in acts:
+    for leaf in pList:
+      for pid in ppids.pidPath(leaf):
+        if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
   if newest or oldest and pList.len > 0:
     acts.act(pList[0], delim, sigs, nice, cnt, result)
   if acCount in acts:                      #~Confusable w/PIDs if acEcho BUT
