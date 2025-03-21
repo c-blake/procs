@@ -24,12 +24,13 @@ Version: 0.8.0
   wrapper of the second, assuming style `A*` begins with the new %A, reports
   whole family trees for all commands with the grep pattern in $1:
 ```sh
-: "${pf=-f}"                            # E.g. `pf=` drops this
-: "${g:=grep --color=always}"           # grep with any extra flags
-: "${digits:=`wc -c </proc/sys/kernel/pid_max`}"
-COLUMNS=$((COLUMNS + digits)) pd -sA |  # Assume style A* starts with %A
+# NOTE: \\bPAT will NOT match itself; E.g. puf \\bsh
+: "${pf=-f}"                    # E.g.s: `pf=`, `pf="-f -x$$"`
+: "${g:=grep --color=always}"   # grep with any extra flags
+: "${d:=`wc -c </proc/sys/kernel/pid_max`}" # PID digs + 1colSep space
+COLUMNS=$((COLUMNS+d)) pd -sA | # Assume style A* starts with %A
   $g '^\(^[\[[0-9;]*m\)*\<\('$(pf -aa -d'\|' $pf $1)AID'\)\>\|'"$1" |
-  tslice $digits:                       # New `bu/tslice` utility
+  tslice $d:                    # New `bu/tslice` utility
 ```
 
 Version: 0.7.3 & 0.7.4
