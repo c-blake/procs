@@ -3,7 +3,7 @@
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes, macros, math],
+            critbits, parseutils, monotimes, macros],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
