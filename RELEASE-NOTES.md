@@ -4,18 +4,33 @@ RELEASE NOTES
 Version: 0.8.0
 --------------
   Big bug fix for `procs find` aka `pf` where a reused object had stale data.
+  At the library level, add & export `Proc.clear` if others want to use this.
 
-  More reliable "tabular shape" across Linux setups via the file
-  `/proc/sys/kernel/pid_max` telling us how many decimals PIDs can be.
+  Use `/proc/sys/kernel/pid_max` to tell how many decimals PIDs can be & yield
+  more reliable "tabular shape" across Linux setups.
 
-  Add pcr0 & pcrF kind matcher operators to match against either $argv[0]
-  or the fully joined $argv for purposes of user-defined roll-ups.
-
-  New actions for `pf`:
-    - aid for ancestor id / whole family tree selection and
-    - path { parent(parent(...())) reversed } for more focused ancestry.
+  Add `pcr0` & `pcrF` kind match operators to match against either $argv[0] or
+  the fully joined $argv for purposes of user-defined roll-ups.
 
   Explicit lists of PIDs with duplicates no longer duplicate output rows.
+
+  New %A = AncestorID format specifier.
+
+  Two new actions for `pf` to help restrict the report:
+    - path { parent(parent(...())) reversed } for more focused ancestry.
+    - aid for ancestor id / whole family tree selection
+  An e.g. of the first - report on the PPID(PPID(..)) "path" of any proc whose
+  (command) contains "nvim": `pd -sb $(pf -ap '\bnvim\b')`. A more involved
+  wrapper of the second, assuming style `A*` begins with the new %A, reports
+  whole family trees for all commands with the grep pattern in $1:
+```sh
+: "${pf=-f}"                            # E.g. `pf=` drops this
+: "${g:=grep --color=always}"           # grep with any extra flags
+: "${digits:=`wc -c </proc/sys/kernel/pid_max`}"
+COLUMNS=$((COLUMNS + digits)) pd -sA |  # Assume style A* starts with %A
+  $g '^\(^[\[[0-9;]*m\)*\<\('$(pf -aa -d'\|' $pf $1)AID'\)\>\|'"$1" |
+  tslice $digits:                       # New `bu/tslice` utility
+```
 
 Version: 0.7.3 & 0.7.4
 --------------
