@@ -2125,6 +2125,7 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
 where <RELATION> says processes match:
   *pcr*          WhiteSep Perl-Compatible Regexes
                that match lower-c/CMD (program)
+  *pcr0|pcrF*    Same as *pcr*, but $0|full command
   *uid|gid*      numeric uids|gids (or Uid|Gid)
   *usr|grp*      exact string users or groups
   *any|all|none* earlier defd kind test names
@@ -2191,7 +2192,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "exist":     "exit w/status 0 at FIRST match;NO actions",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
-               "actions":   "echo/count/kill/nice/wait/Wait" },
+               "actions":   "echo/count/kill/nice/wait/Wait/aid/path" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
              "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A'} ],
