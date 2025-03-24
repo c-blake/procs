@@ -975,7 +975,7 @@ tAdd("stop" , {pf_state} ): p.state in { 'T', 't' }
 tAdd("zomb" , {pf_state} ): p.state == 'Z'
 tAdd("niced", {pf_nice}  ): p.nice != 0
 tAdd("MT"   , {pf_nThr}  ): p.nThr > 1
-tAdd("L"    , {pfs_vmLck}): p.vmLck > 0'u64
+tAdd("Lcked", {pfs_vmLck}): p.vmLck > 0'u64
 tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
 let selfPid = getpid()
 tAdd("self" , {}         ): p.pid == selfPid
@@ -2122,24 +2122,25 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
       help = { "version": "Emit Version & *HELP SETTING COLORS*",
                "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
-where <RELATION> says processes match:
-  *pcr*          WhiteSep Perl-Compatible Regexes
-               that match lower-c/CMD (program)
-  *pcr0|pcrF*    Same as *pcr*, but $0|full command
-  *uid|gid*      numeric uids|gids (or Uid|Gid)
-  *usr|grp*      exact string users or groups
-  *any|all|none* earlier defd kind test names
-BltIn: sleep run stop zomb niced MT L kern self""",
+where <RELATION> applies to PARAMS:
+  *pcr*          WhiteSep PerlCompat Rxs
+               applyTo lower-c/CMD(prog)
+  *pcr0|pcrF*    Like pcr BUT $0|FullCmd
+  *uid|gid*      numeric ids (|Uid|Gid)
+  *usr|grp*      exact string user|group
+  *any|all|none* earlier defd kind names
+Built-in: sleep run stop zomb niced
+          MT kern Lcked self""",
                "colors" : "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color"  : """text attrs for proc kind/fields. Syntax:
   NAME[[:KEY][:SLOT]]<WS>ATTR<WS>ATTR..
 NAME=kind nm as above|size{BKMGT}
-KEY=0..255 sort/ord key,SLOT=dimensionNo.
+KEY=0..255 sort/ord key,SLOT=dimensionNo
 ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
-               "ageFmt":"""Syntax: PROCAGE'@'[-+^]STRFTIMEFMT where:
-  PROCAGE in {seconds, 'ANYTIME'},
+               "ageFmt":"""Syntax: ProcAge@[-+^]StrFTimeFmt where:
+  ProcAge in {seconds, 'ANYTIME'},
   + means Duration, - means plain mode,
-  %CODEs are any strftime + %<DIGIT>;
+  %CODEs are any strftime & %<DIGIT>;
   ^@strftime gives pre-headers -d fmt.""",
                "format" : "\"%[-]a %[-]b\" l/r aligned fields to display",
                "order"  : "[-]x[-]y[-]z.. keys to sort procs by",
@@ -2152,7 +2153,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
                "blanks" : "add blank rows after each delay report",
-               "maxUnm" : "abbreviation specification for user names:\n" &
+               "maxUnm" : "abbreviation specification for user nms:\n" &
                            parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
                "excl"   : "kinds to exclude",

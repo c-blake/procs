@@ -1,4 +1,4 @@
-#File kinds; Built-in kinds are: sleep run stop zomb niced MT L kern
+#File kinds; Built-in: unknown sleep run stop zomb niced MT Lcked kern self
 
 #To support non-exclusive kinding, most all tests are run on most all processes.
 kind = "root      uid 0"
