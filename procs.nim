@@ -1715,6 +1715,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var acts: set[PfAct]; var wrote = false
   for a in actions: acts.incl a
   if acts.len == 0: acts.incl acEcho
+  let delim = if acts=={acEcho} and first or newest or oldest: "" else: delim
   let exclPPID = "PPID" in exclude
   let selfPgrp = if exclPPID: getpgid(0) else: 0
   var exclPIDs = initHashSet[string](min(1, exclude.len))
