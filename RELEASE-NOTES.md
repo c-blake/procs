@@ -1,6 +1,17 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.1
+--------------
+  Add `procs find --otrTerm` (aka `pf -O`) to terminate PID lists.
+
+  Use `delim` & `otrTerm` more consistently so that output is better framed /
+  separable even without labeling. This is ~BREAKING.  E.g. `/proc/$(pf foo)/X`
+  now gets a space breaking the path, since `pf` does know how many PIDs will be
+  printed in advance.  However, special cases like `--first|--oldest|--newest`
+  turn `delim` to `""` so `/proc/$(pf -o foo)/X` works as before.  Further, as
+  before in Zsh, this still works: `ls -ld /proc/($(pf -d\| zsh))/cwd`.
+
 Version: 0.8.0
 --------------
   Big bug fix for `procs find` aka `pf` where a reused object had stale data.
