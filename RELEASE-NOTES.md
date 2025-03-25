@@ -10,7 +10,7 @@ Version: 0.8.1
   now gets a space breaking the path, since `pf` does know how many PIDs will be
   printed in advance.  However, special cases like `--first|--oldest|--newest`
   turn `delim` to `""` so `/proc/$(pf -o foo)/X` works as before.  Further, as
-  before in Zsh, this still works: `ls -ld /proc/($(pf -d\| zsh))/cwd`.
+  before in Zsh, this still works: `ls -ld /proc/$(pf -d\| zsh)/cwd`.
 
 Version: 0.8.0
 --------------
