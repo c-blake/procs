@@ -202,6 +202,13 @@ const needsSMapsR = { pfsr_pss, pfsr_pss_dirty, pfsr_pss_anon, pfsr_pss_file,
   pfsr_anon, pfsr_lazyFree, pfsr_thpAnon, pfsr_thpShm, pfsr_thpFile,
   pfsr_thpShr, pfsr_thpPvt, pfsr_pss_swap, pfsr_pss_lock }
 
+proc any[T](s: set[T], es: varargs[T]): bool =
+  for e in es: (if e in s: return true)
+
+proc all[T](s: set[T], es: varargs[T]): bool =
+  for e in es: (if e notin s: return)
+  true
+
 proc needs*(fill: var ProcFields): ProcSrcs =
   ## Compute the ``ProcDatas`` argument for ``read(var Proc)`` based on
   ## all the requested fields in ``fill``.
@@ -451,7 +458,7 @@ proc readSchedStat*(p: var Proc; pr: string, fill: ProcFields): bool =
   result = true
   (pr & "schedstat").readFile buf
   if buf.len == 0:
-    if card({pfss_sched, pf_utime, pf_stime}*fill) == 3:
+    if fill.all(pfss_sched, pf_utime, pf_stime):
       p.pSched = int64(p.utime + p.stime)*10_000_000i64
     if pfss_wait   in fill: p.pWait   = 0
     if pfss_NOnCPU in fill: p.pNOnCPU = 0
@@ -1510,12 +1517,12 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cg = cf.addr                                    #Init global ptr
   cmpsG = cf.cmps.addr                            #Init global ptr
 
-proc pidPath(parent: Table[Pid, Pid], pid: Pid): seq[Pid] =
+proc pidPath(parent: Table[Pid, Pid], pid: Pid, rev=true): seq[Pid] =
   var pid = pid
   result.add pid
   while (pid := parent.getOrDefault(pid)) != 0:
     result.add pid
-  result.reverse
+  if rev: result.reverse
   if result[0] == 2: result[0] = 0  #So kernel threads come first
 
 #XXX display,displayASAP should grow a threads mode like '/bin/ps H' etc.
@@ -1678,10 +1685,10 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
 proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
-         nice: int, cnt: var int, nErr: var int) =
+         nice: int, cnt: var int, wrote: var bool, nErr: var int) =
   for a in acts:
     case a
-    of acEcho : stdout.write pid, delim
+    of acEcho : stdout.write pid, delim; wrote = true
     of acAid  : discard         # Must handle after forPid
     of acPath : discard         # Must handle after forPid
     of acKill : nErr += (kill(pid, sigs[0]) == -1).int
@@ -1698,14 +1705,14 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
     oldest=false, age=0, exclude: seq[string] = @[], invert=false,
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
-    limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim="\n", exist=false,
-    signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
+    limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim=" ", otrTerm="\n",
+    exist=false, signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, aid,
   ## count, kill, nice, wait for any|all).  Unify & generalize pidof, pgrep,
   ## pkill, snice features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
-  var acts: set[PfAct]
+  var acts: set[PfAct]; var wrote = false
   for a in actions: acts.incl a
   if acts.len == 0: acts.incl acEcho
   let exclPPID = "PPID" in exclude
@@ -1738,7 +1745,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     for pattern in PCREpatterns: rxes.add pattern.re
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
-  var ppids = initTable[Pid, Pid](); let doTree = card({acAid, acPath}*acts) > 0
+  var ppids = initTable[Pid, Pid](); let doTree = acts.any(acAid, acPath)
   if parent.len  > 0 or doTree: fill.incl {pf_pid0,pf_ppid0}
   if pgroup.len  > 0: fill.incl pf_pgrp
   if session.len > 0: fill.incl pf_sess
@@ -1754,7 +1761,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
-  let workAtEnd = sigs.len>1 or card({acWait1, acWaitA, acAid, acPath}*acts) > 0
+  let workAtEnd = sigs.len>1 or acts.any(acWait1, acWaitA, acAid, acPath)
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
   forPid(pids):
@@ -1790,23 +1797,29 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
         tM = p.t0; pList[0] = p.pid           #update min start time
       continue
-    if not exist: acts.act(p.pid, delim, sigs, nice, cnt, result)
+    if not exist: acts.act(p.pid, delim, sigs, nice, cnt, wrote, result)
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
       t0 = getTime()
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
   if acAid in acts:
-    for pid in pList: stdout.write ppids.pidPath(pid).ancestorId, delim
+    if wrote and pList.len > 0: stdout.write otrTerm
+    for pid in pList:stdout.write ppids.pidPath(pid).ancestorId,delim;wrote=true
   if acPath in acts:
+    if wrote and pList.len > 0: stdout.write otrTerm
     for leaf in pList:
-      for pid in ppids.pidPath(leaf):
+      for pid in ppids.pidPath(leaf, rev=false):
         if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
+      stdout.write otrTerm; wrote = false   # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
-    acts.act(pList[0], delim, sigs, nice, cnt, result)
-  if acCount in acts:                      #~Confusable w/PIDs if acEcho BUT
-    stdout.write cnt, delim                   #..always@end&Doing both acts rare
+    acts.act(pList[0], delim, sigs, nice, cnt, wrote, result)
+  if acCount in acts:                         # PIDs end in delim & otrTerm,
+    if wrote: stdout.write otrTerm          #..but cnt ends ONLY in otrTerm.
+    stdout.write cnt, delim; wrote = true
     if cnt == 0 and result == 0: inc result   #Exit false on no match
+  if wrote and acts.any(acEcho, acAid, acCount):
+    stdout.write otrTerm                    #^acPath already does otrTerm
   if acKill in acts and sigs.len > 1:      #send any remaining signals
     var dt = delay - (getTime() - t0)
     if dt < delay: dt.nanosleep
@@ -2187,7 +2200,8 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "age":       ">0 older than age jiff; <0 =>younger than",
                "exclude":   "omit these PIDs {PPID=>par&pgrp(this)}",
                "inVert":    "inVert/negate the matching (like grep -v)",
-               "delim":     "put after each output PID",
+               "delim":     "terminates each output PID",
+               "otrTerm":   "terminates internal boundaries(PID paths)",
                "delay":     "seconds between signals/existence chks",
                "limit":     "seconds after which exist check times out",
                "exist":     "exit w/status 0 at FIRST match;NO actions",
@@ -2196,7 +2210,8 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "actions":   "echo/count/kill/nice/wait/Wait/aid/path" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
-             "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A'} ],
+             "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A',
+             "otrTerm": 'O'} ],
     [ scrollC, cmdName="scrollsy", doc=docFromProc(procs.scrollSys),
       help = { "colors": "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color" : """attrs for size/load fields.  Syntax:
