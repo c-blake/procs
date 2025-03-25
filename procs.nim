@@ -1811,22 +1811,22 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     for leaf in pList:
       for pid in ppids.pidPath(leaf, rev=false):
         if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
-      stdout.write otrTerm; wrote = false   # Opt-out of wrote/need-otrTerm
+      stdout.write otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
     acts.act(pList[0], delim, sigs, nice, cnt, wrote, result)
   if acCount in acts:                         # PIDs end in delim & otrTerm,
-    if wrote: stdout.write otrTerm          #..but cnt ends ONLY in otrTerm.
+    if wrote: stdout.write otrTerm            #..but cnt ends ONLY in otrTerm.
     stdout.write cnt, delim; wrote = true
-    if cnt == 0 and result == 0: inc result   #Exit false on no match
+    if cnt == 0 and result == 0: inc result   # Exit false on no match
   if wrote and acts.any(acEcho, acAid, acCount):
-    stdout.write otrTerm                    #^acPath already does otrTerm
-  if acKill in acts and sigs.len > 1:      #send any remaining signals
+    stdout.write otrTerm                      #^acPath already does otrTerm
+  if acKill in acts and sigs.len > 1:         # Send any remaining signals
     var dt = delay - (getTime() - t0)
     if dt < delay: dt.nanosleep
     for i, sig in sigs[1..^1]:
       for pid in pList: result += (kill(pid, sig) == -1).int
       if i < sigs.len - 2: delay.nanosleep
-  if pList.len > 0:                           #wait for condition if requested
+  if pList.len > 0:                             #wait for condition if requested
     if   acWait1 in acts: discard waitAny(pList, delay, limit)
     elif acWaitA in acts: waitAll(pList, delay, limit)
 
