@@ -1587,12 +1587,12 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
 proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##Display running processes `pids` (all passing filter if empty) in a tabular,
   ##colorful, maybe sorted way.  Cmd params/cfg files are very similar to `lc`.
-  ##Each `pid` can be prefixed with an optional label, matchable by *pcr[l]*.
+  ##Each `pid` can be prefixed with an optional label, matchable by *pcr_l*.
   ##
   ##For MULTI-LEVEL order specs only +- mean incr(dfl)/decreasing. The following
   ##1-letter codes work for BOTH format AND order specs:
   ##  p PID     z GID   w WCHAN j TIME  L FLG f MNFL  o SID   Q SIGQ     A AID
-  ##  c CMD     Z GRP   s STAT  J CTIM  v VSZ F MJFL  G TPGID q PENDING  l Label
+  ##  c CMD     Z GRP   s STAT  J CTIM  v VSZ F MJFL  G TPGID q PENDING  l label
   ##  C COMMAND P PPID  t TT(y) e %cPU  d DRS h CMNF  K STACK X SHDPND   @ /exe
   ##  u UID     n NI    a AGE   E %CPU  r TRS H CMJF  S ESP   B BLOCKED  O oomSco
   ##  U USER    y PRI   T START m %MEM  R RSS g PGID  I EIP   i IGNORED
@@ -2143,8 +2143,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       help = { "version": "Emit Version & *HELP SETTING COLORS*",
                "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
 where <RELATION> applies to PARAMS:
-  *pcr[CODE]*    WhiteSep PerlCompat Rxs
-               applyTo %CODE
+  *pcr_?*        WhiteSep PerlCompatRxs
+               applyTo fmt code ? (pcr_C)
   *uid|gid*      numeric ids (|Uid|Gid)
   *usr|grp*      exact string user|group
   *any|all|none* earlier defd kind names
