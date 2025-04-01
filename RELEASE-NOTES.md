@@ -24,6 +24,15 @@ Version: 0.8.2
       the process by your external algorithm.  This import can be useful for
       either colorization or merges/roll-ups, as per usual typology here.
 
+  Add a simple `bench.sh` script showing both relevant results for this design &
+  another eg. of [bu/tim.md](https://github.com/c-blake/bu/blob/main/doc/tim.md)
+  delivering time measurements with low single digit microsecond errors (which
+  reproduce within error bars for me, re-running bench.sh on the same machine).
+  { Of course, when `pk` (aka `procs find -ak`) speed matters most, "scheduler
+  time dilation" can stretch milliseconds out to seconds and beyond.  So, this
+  has actually made a real difference in my life with, e.g. rogue `nimsuggest`
+  instances trying to use all RAM past the point of swapping and so on. }
+
 Version: 0.8.1
 --------------
   Add `procs find --otrTerm` (aka `pf -O`) to terminate PID lists.
