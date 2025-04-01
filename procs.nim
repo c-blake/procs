@@ -246,7 +246,7 @@ proc pidsIt*(pids: seq[string]): auto =
 
 template forPid*(pids: seq[string], body) {.dirty.} =
   var did: HashSet[string]
-  if pids.len > 0: 
+  if pids.len > 0:
     for pid in pids:
       if pid notin did: (did.incl pid; body)
   else: (for pid in allPids(): body)
@@ -1443,7 +1443,7 @@ proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
   let ats = p.kattr
   for i, f in cf.fields:
     var fld: string
-    let pfx  = f.prefix 
+    let pfx  = f.prefix
     let nPfx = pfx.printedLen
     if f.wid < 0:               # Only clip at end of line
       let fp = f.fmt(p, max(1, cf.width - used - nPfx))
