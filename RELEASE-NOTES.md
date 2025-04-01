@@ -5,10 +5,11 @@ Version: 0.8.2
 --------------
   Reconceive `pcr0`/`pcrF` feature of version 0.8.0 more generally.  Now the
   syntax `pcr_?` means "apply the perl-compatible regexes" to the "wide version"
-  formatted output of any of basic format code (from procs display help table).
-  The old "bare `pcr`" remains as a backward compatible shorthand for `pcr_c`.
-  `pcr_C` replaces weeks old `pcrF` and `pcr0` is retired (one can probably do
-  a good enough regex with a '^' anchor in `pcr_C` to handle it, anyway).
+  formatted output of any of basic format code `?` (from procs display help
+  table, like 'c' or 'C' or etc.).  The old "bare `pcr`" remains as a backward
+  compatible shorthand for `pcr_c`.  `pcr_C` replaces weeks old `pcrF` and
+  `pcr0` is retired (one can probably do a good enough regex with a '^' anchor
+  in `pcr_C` to handle it, anyway).
 
   Add 2 new codes:
 
