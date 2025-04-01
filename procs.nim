@@ -995,7 +995,7 @@ var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
 
 proc testPCRegex(rxes: seq[Regex], p: var Proc, code: char): bool =
   for r in rxes:                        # result defaults to false
-    if fmtOf[code].fmt(p, 256).contains(r): return true
+    if fmtOf[code].fmt(p, 1024).contains(r): return true
 proc getUid(p: Proc): Uid    = (if cg.realIds: p.uids[0] else: p.st.st_uid)
 proc getGid(p: Proc): Gid    = (if cg.realIds: p.gids[0] else: p.st.st_gid)
 proc getUsr(p: Proc): string = (if cg.realIds: p.usrs[0] else: p.usr      )
