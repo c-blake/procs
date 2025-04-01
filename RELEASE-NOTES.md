@@ -1,6 +1,28 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.2
+--------------
+  Reconceive `pcr0`/`pcrF` feature of version 0.8.0 more generally.  Now the
+  syntax `pcr_?` means "apply the perl-compatible regexes" to the "wide version"
+  formatted output of any of basic format code (from procs display help table).
+  The old "bare `pcr`" remains as a backward compatible shorthand for `pcr_c`.
+  `pcr_C` replaces weeks old `pcrF` and `pcr0` is retired (one can probably do
+  a good enough regex with a '^' anchor in `pcr_C` to handle it, anyway).
+
+  Add 2 new codes:
+
+    - '@' for the `/proc/*/exe` symlink which may be the most reliable way to
+      group some process families but needs permissions (ie., normal user cannot
+      `readlink` root-owned `/proc/*/exe`).
+
+    - 'l' that emits newly "passed through" prefixes given by the user on the
+      command-line.  Together with the newly ignore prefixes to pids, this
+      allows "fully external" proc classifying to be "imported" into the procs
+      "type system" for display by `pcr_l` matching whatever label/tag you gave
+      the process by your external algorithm.  This import can be useful for
+      either colorization or merges/roll-ups, as per usual typology here.
+
 Version: 0.8.1
 --------------
   Add `procs find --otrTerm` (aka `pf -O`) to terminate PID lists.
