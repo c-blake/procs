@@ -967,6 +967,7 @@ type
     tests: CritBitTree[Test]
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
     kslotNm: seq[string]                                    #Inverse of above
+    labels: Table[string, string]
 
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
@@ -988,19 +989,13 @@ let selfPid = getpid()
 tAdd("self" , {}         ): p.pid == selfPid
 
 ###### USER-DEFINED CLASSIFICATION TESTS
-type MchKind = enum mchCmd, mchArgv0, mchArgv
+var fmtCodes: set[char]                 # Declared early so, e.g., pcr_C works
+var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
+                 fmt: proc(x: var Proc, wMax=0): string]]
 
-proc toMatch(p: var Proc, k: MchKind): string =
-  case k
-  of mchCmd:   p.cmd            # (command) from /proc/*/(stat|status)
-  of mchArgv0: p.argv0          # argv[0]/$0 (assuming Bourne/Korn)
-  of mchArgv:  p.command        # All unprintable ASCII -> ' '
-
-proc testPCRegex(rxes: seq[Regex], p: var Proc, k: MchKind): bool =
-  result = false
-  for r in rxes:
-    if p.toMatch(k).contains(r): return true
-
+proc testPCRegex(rxes: seq[Regex], p: var Proc, code: char): bool =
+  for r in rxes:                        # result defaults to false
+    if fmtOf[code].fmt(p, 256).contains(r): return true
 proc getUid(p: Proc): Uid    = (if cg.realIds: p.uids[0] else: p.st.st_uid)
 proc getGid(p: Proc): Gid    = (if cg.realIds: p.gids[0] else: p.st.st_gid)
 proc getUsr(p: Proc): string = (if cg.realIds: p.usrs[0] else: p.usr      )
@@ -1026,11 +1021,12 @@ proc testNone(tsts: seq[Test], p: var Proc): bool =
   for t in tsts:
     if t.test p: return false
 
-proc addPCRegex(cf: var DpCf; nm, s: string, k: MchKind) = #Q: add flags/modes?
+proc addPCRegex(cf: var DpCf; nm, s: string, code: char) =
   var rxes: seq[Regex]
   for pattern in s.splitWhitespace: rxes.add pattern.re
-  let need = if k == mchCmd: {pf_cmd} else: {pfcl_cmdline}
-  cf.tests[nm] = (need, proc(p: var Proc): bool = rxes.testPCRegex(p, k))
+  if code notin fmtCodes: raise newException(IOError,"bad pcr_CODE: '"&code&"'")
+  let need = fmtOf[code].pfs
+  cf.tests[nm] = (need, proc(p: var Proc): bool = rxes.testPCRegex(p, code))
 
 proc addOwnId(cf: var DpCf; md: char; nm, s: string) =
   var s: HashSet[Uid] | HashSet[Gid] = if md == 'u': s.splitWhitespace.toUidSet
@@ -1056,17 +1052,16 @@ proc addCombo(cf: var DpCf; tester: auto; nm, s: string) =
 
 proc parseKind(cf: var DpCf) =
   for kin in cf.kind:
-    let col = kin.splitWhitespace(maxsplit=2)
-    if col.len < 3: raise newException(ValueError, "bad kind: \"" & kin & "\"")
-    if   col[1] == "pcr" : cf.addPCRegex(col[0], col[2], mchCmd)
-    elif col[1] == "pcr0": cf.addPCRegex(col[0], col[2], mchArgv0)
-    elif col[1] == "pcrF": cf.addPCRegex(col[0], col[2], mchArgv)
-    elif col[1].endsWith("id"):cf.addOwnId(col[1][0].toLowerAscii,col[0],col[2])
-    elif col[1] == "usr": cf.addOwner(col[1][0], col[0], col[2])
-    elif col[1] == "grp": cf.addOwner(col[1][0], col[0], col[2])
-    elif col[1] == "any": cf.addCombo(testAny, col[0], col[2])
-    elif col[1] == "all": cf.addCombo(testAll, col[0], col[2])
-    elif col[1] == "none": cf.addCombo(testNone, col[0], col[2])
+    let c = kin.splitWhitespace(maxsplit=2)
+    if c.len < 3: raise newException(ValueError, "bad kind: \"" & kin & "\"")
+    if   c[1] == "pcr" : cf.addPCRegex(c[0], c[2], 'c')
+    elif c[1].startsWith("pcr_")and c[1].len==5:cf.addPCRegex(c[0],c[2],c[1][4])
+    elif c[1] == "usr": cf.addOwner(c[1][0], c[0], c[2])
+    elif c[1] == "grp": cf.addOwner(c[1][0], c[0], c[2])
+    elif c[1].endsWith("id"):cf.addOwnId(c[1][0].toLowerAscii,c[0],c[2])
+    elif c[1] == "any": cf.addCombo(testAny, c[0], c[2])    # Aka OR
+    elif c[1] == "all": cf.addCombo(testAll, c[0], c[2])    # .. AND
+    elif c[1] == "none": cf.addCombo(testNone, c[0], c[2])  # .. NOT
     else: raise newException(ValueError, "bad kind: \"" & kin & "\"")
 
 proc parseColor(cf: var DpCf) =
@@ -1291,17 +1286,16 @@ proc fmtPct[A,B](n: A, d: B): string =
 
 let nP = procPidMax() # Most fmts have PIDs,but this can be silly ovrhd for find
 
-var fmtCodes: set[char]   #left below is just dflt alignment. User can override.
-var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
-                 fmt: proc(x: var Proc, wMax=0): string]]
 template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
-  fmtCodes.incl(code)
+  fmtCodes.incl(code) # Left below is just dflt alignment. User %- can override.
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
 fAdd('N', {}                   ,0,20,"NOW"    ): cg.nowNs
 fAdd('p', {}                   ,0,nP, align("PID", nP)): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
+fAdd('@', {pfe_exe}            ,1,-1,"EXE"):
+  if cg.wide: p.exe else: p.exe[0 ..< min(p.exe.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
   let s = p.command
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
@@ -1339,7 +1333,7 @@ fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
 fAdd('b', {pf_utime,pf_stime,pfss_sched},0,4, "ppbT"):
-  if p.ageD == 0: "?"   #TODO Better data for pd itself; Re-set p.t0,uptm here?
+  if p.ageD == 0: "?"   #XXX Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "FLAGS"  ): "x"&toHex(p.flags.BiggestInt,6)
@@ -1377,6 +1371,7 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
+fAdd('l', {}                   ,0,3, "LAB"    ): cg.labels.getOrDefault p.spid,""
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
@@ -1486,11 +1481,21 @@ proc setRealIDs*(cf: var DpCf; realIds=false) =
   fmtOf['u'].pfs = cf.uidNeeds; fmtOf['z'].pfs = cf.gidNeeds
   fmtOf['U'].pfs = cf.usrNeeds; fmtOf['Z'].pfs = cf.grpNeeds
 
+proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
+  for i, pid in mpairs cf.pids:
+    var lab, dec = ""           # parse non-digit label prefix & decimal suffix
+    for j, c in pid:
+      if c in {'0'..'9'}: dec = pid[j..^1]; break
+      else: lab.add c
+    if lab.len > 0 and dec.len > 0:
+      cf.labels[dec] = lab; cf.pids[i] = dec
+
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``display`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
   cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
+  cf.setLabels
   cf.a0 = if cf.plain: "" else: textAttrOff
   cf.needKin = not cf.plain
   if cf.width == 0: cf.width = terminalWidth()
@@ -1582,16 +1587,17 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
 proc display*(cf: var DpCf) = # [AMOVWYbkl] free
   ##Display running processes `pids` (all passing filter if empty) in a tabular,
   ##colorful, maybe sorted way.  Cmd params/cfg files are very similar to `lc`.
+  ##Each `pid` can be prefixed with an optional label, matchable by *pcr[l]*.
   ##
   ##For MULTI-LEVEL order specs only +- mean incr(dfl)/decreasing. The following
   ##1-letter codes work for BOTH format AND order specs:
-  ##  p PID      z GID   w WCHAN  j TIME  L FLG  f MNFL  o SID    Q SIGQ   A AID
-  ##  c CMD      Z GRP   s STAT   J CTIM  v VSZ  F MJFL  G TPGID  q PENDING
-  ##  C COMMAND  P PPID  t TT(y)  e %cPU  d DRS  h CMNF  K STACK  X SHDPND
-  ##  u UID      n NI    a AGE    E %CPU  r TRS  H CMJF  S ESP    B BLOCKED
-  ##  U USER     y PRI   T START  m %MEM  R RSS  g PGID  I EIP    i IGNORED
-  ##  D fmt:depth-in-tree; order:pid-path; BOTH=>forest-indent    x CAUGHT
-  ##  0-6 vals of /proc/PID/fd/0-6 symlns b ppBT V eVars O oomSco M PSS
+  ##  p PID     z GID   w WCHAN j TIME  L FLG f MNFL  o SID   Q SIGQ     A AID
+  ##  c CMD     Z GRP   s STAT  J CTIM  v VSZ F MJFL  G TPGID q PENDING  l Label
+  ##  C COMMAND P PPID  t TT(y) e %cPU  d DRS h CMNF  K STACK X SHDPND   @ /exe
+  ##  u UID     n NI    a AGE   E %CPU  r TRS H CMJF  S ESP   B BLOCKED  O oomSco
+  ##  U USER    y PRI   T START m %MEM  R RSS g PGID  I EIP   i IGNORED
+  ##  0-6 vals(/proc/\*/fd/N symlns);    M PSS b ppBT V eVars x CAUGHT
+  ##  D fmt:depthInTree; order:pidPath; BOTH=>forest-indent
   if cf.cmps.len == 0 and cf.merge.len == 0 and not cf.forest:
     cf.displayASAP(); return
   if cf.header: cf.hdrWrite
@@ -1698,7 +1704,7 @@ proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
     of acCount: cnt.inc
 
 proc ctrlC() {.noconv.} = echo ""; quit 130
-setControlCHook(ctrlC)
+setControlCHook(ctrlC)  #XXX Take -F=,--format= MacroCall string below
 proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty: seq[string] = @[],
     group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
@@ -2137,9 +2143,8 @@ when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
       help = { "version": "Emit Version & *HELP SETTING COLORS*",
                "kind":  """proc kinds: NAME<WS>RELATION<WS>PARAMS
 where <RELATION> applies to PARAMS:
-  *pcr*          WhiteSep PerlCompat Rxs
-               applyTo lower-c/CMD(prog)
-  *pcr0|pcrF*    Like pcr BUT $0|FullCmd
+  *pcr[CODE]*    WhiteSep PerlCompat Rxs
+               applyTo %CODE
   *uid|gid*      numeric ids (|Uid|Gid)
   *usr|grp*      exact string user|group
   *any|all|none* earlier defd kind names
