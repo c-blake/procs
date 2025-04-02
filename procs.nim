@@ -1009,8 +1009,8 @@ proc testGrp(nms: HashSet[string], p: var Proc): bool = p.grp in nms
 
 proc testAll(tsts: seq[Test], p: var Proc): bool =
   result = true
-  for i, t in tsts:
-    if not(t.test p): return false
+  for t in tsts:
+    if not t.test(p): return false
 
 proc testAny(tsts: seq[Test], p: var Proc): bool =
   for t in tsts:
