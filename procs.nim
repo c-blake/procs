@@ -1371,7 +1371,7 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
-fAdd('l', {}                   ,0,3, "LAB"    ): cg.labels.getOrDefault p.spid,""
+fAdd('l', {}                   ,0,3, "LAB"   ): cg.labels.getOrDefault p.spid,""
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
@@ -1492,8 +1492,8 @@ proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
       if not cf.labels.hasKey dec:
         cf.labels[dec] = ""
       for l in lab:
-          if not cf.labels[dec].contains(l):
-            cf.labels[dec] = cf.labels[dec] & l
+        if not cf.labels[dec].contains(l):
+          cf.labels[dec] = cf.labels[dec] & l
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
