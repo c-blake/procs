@@ -1488,7 +1488,12 @@ proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
       if c in {'0'..'9'}: dec = pid[j..^1]; break
       else: lab.add c
     if lab.len > 0 and dec.len > 0:
-      cf.labels[dec] = lab; cf.pids[i] = dec
+      cf.pids[i] = dec
+      if not cf.labels.hasKey dec:
+        cf.labels[dec] = ""
+      for l in lab:
+          if not cf.labels[dec].contains(l):
+            cf.labels[dec] = cf.labels[dec] & l
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
