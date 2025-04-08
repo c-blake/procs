@@ -1371,7 +1371,7 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
-fAdd('l', {}                   ,0,6, "LABELS" ):
+fAdd('l', {}                   ,0,30,"LABELS" ):
   cg.labels.getOrDefault(p.spid).join(":") & ":"
 
 proc parseFormat(cf: var DpCf) =
