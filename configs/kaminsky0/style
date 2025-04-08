@@ -1,0 +1,36 @@
+#LISTING STYLES/ALIASES.  These styles support workflows like:
+#  pd -s (basic|long|user|mem|jobs) -- most filtered/aggregated
+#  pd -s kX -- less aggregated kernel formats
+#  pd -s aX -- all/unaggregated; Add on CL -sKm -ikern for partial kthread agg
+
+Style = "nkern  = -mkern"
+Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush -miprtVBox -mnvidia"
+#Style = "Bmerge = -mfirefox -mchrome -mvbox"
+Style = "Bmerge = -mfirefox_work -mfirefox_home -mcode -mchrome -mzulip -mpgadmin -msignal -mvbox"
+
+#First define unfiltered styles
+Style = "abasic =   -DJ><R -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
+Style = "along  = -U4       -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
+Style = "auser  = -U4 -tDbJ -oDT   \"-f%U %p %m %v %R %t %a %b %j %J %D%C\""
+Style = "amem   =           -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
+Style = "ajobs  = -U4       -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
+#Style = "asig   = -U4       -oDT   \"-f..."""
+#Style = "areg   = -U4       -oDT   \"-f..."""
+
+#Then only kernel thread group merged aggregation
+Style = "kbasic = -sKm -s abasic"
+Style = "klong  = -sKm -s along"
+Style = "kuser  = -sKm -s auser"
+Style = "kmem   = -sKm -s amem"
+Style = "kjobs  = -sKm -s ajobs"
+
+#Then all kernel thread groups aggregated
+Style = "basic = -sBm -snk -s abasic"
+Style = "long  = -sBm -snk -s along"
+Style = "user  = -sBm -snk -s auser"
+Style = "mem   = -sBm -snk -s amem"
+Style = "jobs  = -sBm -snk -s ajobs"
+
+Style = "2 = -W160"
+Style = "3 = -W240"
+Style = "4 = -W320"

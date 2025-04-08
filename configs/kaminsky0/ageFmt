@@ -1,0 +1,28 @@
+#TIME STYLES (6 char fmts w/heatmap color scheme for variable radix).
+#Syntax: [tag]SecondsOld@highlightableStrftimeFormat (augmented with %<DIGIT>)
+#     OR [tag]SecondsOld@/divisor[/digits] [<]unitString attributes
+#        where tag=='+' => alt/caps Fmt (%A%M etc); tag=='-' => plain format
+
+#colorful format 6 columns (for start time)
+ageFmt = "86400@%{fhue0}y%{fhue1}m%{fhue2}d"  #older procs lower res in cool
+ageFmt = "0@%{fhue3}H%{fhue4}M%{fhue5}S"      #<1 day old procs higher res fhue
+#ageFmt = "3600@%{fhue3}H%{fhue4}M%{fhue5}S" #<1 day old procs higher res fhue
+#ageFmt = "0@%{fhue4}M%{fhue5}S.%{PURPLE}1"  #<1 hr old procs v.high res fhue
+ageFmt = "FUTURE@%{red}Y%{white}m"          #future times ugly;Clock shenanigans
+
+#'-' => plain mode formats; 6 columns (for start time)
+ageFmt = "-86400@%b %d"                     #procs older than 1 day=>the date
+ageFmt = "-0@%H%M%S"                        #younger procs time of day
+
+#A 4 column format from jiffies to weeks; < throughout makes unit flush w/number
+ageFmt = "+2678400000@/60480000 <w fhue5"   #31 days+ weeks in red
+ageFmt =   "+86400000@/8640000  <d fhue4"   #10d..31d days in yellow
+ageFmt =    "+6000000@/360000   <h fhue3"   #16h..10d hours in green
+ageFmt =     "+100000@/6000     <m fhue2"   #16m..16h minutes in cyan
+ageFmt =       "+1000@/100      <s fhue1"   #10s..16m seconds in blue
+ageFmt =          "+0@/1        <j fhue0"   #<10s     jiffies in purple
+#'+' series is used both for accumulated real time (aka age) & cpu time.  It's a
+#bit wonky since old procs seem "cold" while heavy CPU use seem "hot". Oh well.
+
+# The '^' family, if given, is for pre-header timestamps of output tables.
+ageFmt = "^@TIME: %y/%m/%d-%H:%M:%S.%9"     #ns-accurate sample time stamps

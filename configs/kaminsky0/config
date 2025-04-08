@@ -1,0 +1,40 @@
+#cligen/cfUt.cfToCL include syntax is [include__NotAllUpper] => include file
+#while [include__ALL_UP] instead includes the file pointed to by "$ALL_UP".
+
+[display]
+[include__kind]     #Define our process typology
+
+[include__lightBG]  #Default to lightBG [fg][hue|HUE] defs but clobber if..
+[include__LC_THEME] #..LC_THEME set.  Defs used by color, ageFmt, maybe style.
+
+[include__color]    #Decide test order,colors,sort order,dimension of kind tests
+[include__ageFmt]   #Define various proc age/timestamp formats & colors
+[include__style]    #Define a bunch of styles/aliases for use with `-s`
+
+#Just some global default overrides.  All easily overridden on cmd line.
+#order  = toPpu     #Default: uid,tty,sess,ppid,pid
+format = "%p %t %J %c"  #Default; easily overridden on cmd-line or by style
+indent = 2
+
+#format = "%p %t %o %u %J %D%c"
+
+
+[find]
+#Nothing right now.  Could maybe speed startup by skipping all this parsing?
+
+
+[scrollsy]
+[include__lightBG]  #Default to lightBG [fg][hue|HUE] defs but clobber if..
+[include__LC_THEME] #..LC_THEME set
+[include__sizeColors]
+color = "load4   fhue0"   #[0,  4]  jiffies/sec => purple
+color = "load14  fhue1"   #[5,  14] jiffies/sec => blue
+color = "load24  fhue2"   #[15, 24] jiffies/sec => cyan
+color = "load49  fhue3"   #[25, 49] jiffies/sec => green
+color = "load74  fhue4"   #[50, 74] jiffies/sec => yellow
+color = "load89  fhue5"   #[75, 89) jiffies/sec => red
+color = "load99  fhue+"   #[90, *)  jiffies/sec => white hot!
+ifaces = "eth[0-3]"       #I boot with net.ifnames=0; Don't want loopback
+disks  = "sd[a-g]"           #Include SATA whole devices in disk IO totals
+disks  = "nvme[0-9]n1p[0-9]" #Include NVMe partitions in disk IO totals
+Style = "disk = dbrd dbwr dbcn dnrd dnwr dncn"
