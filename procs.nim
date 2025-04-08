@@ -3,13 +3,10 @@
 #Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes, macros, sequtils],
+            critbits, parseutils, monotimes, macros],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
-
-let EMPTY_HASHSET = initHashSet[string]()
-
 type
   Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
@@ -970,7 +967,7 @@ type
     tests: CritBitTree[Test]
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
     kslotNm: seq[string]                                    #Inverse of above
-    labels: Table[string, HashSet[string]]
+    labels: Table[string, string]
 
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
@@ -1374,7 +1371,8 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
-fAdd('l', {}                   ,0,3, "LAB"   ):  cg.labels.getOrDefault(p.spid, EMPTY_HASHSET).toSeq().join(":") & ":"
+fAdd('l', {}                   ,0,3, "LAB"   ): cg.labels.getOrDefault p.spid,""
+
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
                else: "%{bold}p %{italic}s %{inverse}R %{underline}J %c"
@@ -1485,13 +1483,17 @@ proc setRealIDs*(cf: var DpCf; realIds=false) =
 
 proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
   for i, pid in mpairs cf.pids:
-    var arr = pid.split(':')
-    var dec = arr[^1]
-    var labels = arr[0 ..< ^1]
-    
-    if dec.len > 0 and labels.len > 0:
+    var lab, dec = ""           # parse non-digit label prefix & decimal suffix
+    for j, c in pid:
+      if c in {'0'..'9'}: dec = pid[j..^1]; break
+      else: lab.add c
+    if lab.len > 0 and dec.len > 0:
       cf.pids[i] = dec
-      cf.labels[dec] = cf.labels.mgetOrPut(dec, EMPTY_HASHSET) + labels.toHashSet
+      if not cf.labels.hasKey dec:
+        cf.labels[dec] = ""
+      for l in lab:
+        if not cf.labels[dec].contains(l):
+          cf.labels[dec] = cf.labels[dec] & l
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
