@@ -1371,8 +1371,8 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
-fAdd('l', {}                   ,0,5, "LABEL"  ):
-  cg.labels.getOrDefault(p.spid).join(":")
+fAdd('l', {}                   ,0,6, "LABELS" ):
+  cg.labels.getOrDefault(p.spid).join(":") & ":"
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
@@ -1484,16 +1484,13 @@ proc setRealIDs*(cf: var DpCf; realIds=false) =
 
 proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
   for i, pid in mpairs cf.pids:
-    var lab, dec = ""           # parse non-digit label prefix & decimal suffix
-    for j, c in pid:
-      if c in {'0'..'9'}: dec = pid[j..^1]; break
-      else: lab.add c
-    if lab.len > 0 and dec.len > 0:
-      cf.pids[i] = dec
-      if dec notin cf.labels:
-        cf.labels[dec] = @[]
-      if lab notin cf.labels[dec]:
-        cf.labels[dec].add lab
+    let labs = pid.split(':')   # Optional :-delim non-numeric prefixes
+    let dec = labs[^1]          # We don't check that this is decimal, but could
+    cf.pids[i] = dec
+    for lab in labs[0 ..< ^1]:
+      if lab.len > 0 and dec.len > 0:
+        if dec notin cf.labels     : cf.labels[dec] = @[]
+        if lab notin cf.labels[dec]: cf.labels[dec].add lab
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
