@@ -967,7 +967,7 @@ type
     tests: CritBitTree[Test]
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
     kslotNm: seq[string]                                    #Inverse of above
-    labels: Table[string, string]
+    labels: Table[string, seq[string]]
 
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
@@ -1371,7 +1371,8 @@ fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
 fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
-fAdd('l', {}                   ,0,3, "LAB"   ): cg.labels.getOrDefault p.spid,""
+fAdd('l', {}                   ,0,5, "LABEL"  ):
+  cg.labels.getOrDefault(p.spid).join(":")
 
 proc parseFormat(cf: var DpCf) =
   let format = if cf.format.len > 0: cf.format
@@ -1490,10 +1491,9 @@ proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
     if lab.len > 0 and dec.len > 0:
       cf.pids[i] = dec
       if dec notin cf.labels:
-        cf.labels[dec] = ""
-      for l in lab:
-        if l notin cf.labels[dec]:
-          cf.labels[dec] = cf.labels[dec] & l
+        cf.labels[dec] = @[]
+      if lab notin cf.labels[dec]:
+        cf.labels[dec].add lab
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
