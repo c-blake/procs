@@ -1489,10 +1489,10 @@ proc setLabels*(cf: var DpCf) = # extract from .pids,make .pids be decimal sfxes
       else: lab.add c
     if lab.len > 0 and dec.len > 0:
       cf.pids[i] = dec
-      if not cf.labels.hasKey dec:
+      if dec notin cf.labels:
         cf.labels[dec] = ""
       for l in lab:
-        if not cf.labels[dec].contains(l):
+        if l notin cf.labels[dec]:
           cf.labels[dec] = cf.labels[dec] & l
 
 const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
