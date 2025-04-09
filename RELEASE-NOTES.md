@@ -1,6 +1,20 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.3
+--------------
+  - In the last release `pcr_X` would truncate formatted strings to 256 to match
+    against the regexes.  This release enlarges that to 2048 (~25 rows on an 80
+    column terminal!).  Some limit seems prudent since command-lines can be much
+    longer than this (e.g. `**.c`), yet proc types seem (to me) unlikely to be
+    distinguished beyond a "small" prefix.  We can enlarge a bit more or if no
+    modest limit works for everyone add a CLI option to be user set.)
+
+  - Single-\>multi-char labels with ':' delimiter in labA:labB:PID on input & in
+    output LABELS field.  Field width here is a generous 30 so users can say,
+    e.g.  `pd -W$((COLUMNS+30) -f '%l..' ...| tslice:30` to get nice text tables
+    without losing any important external typing information.
+
 Version: 0.8.2
 --------------
   Reconceive `pcr0`/`pcrF` feature of version 0.8.0 more generally.  Now the
