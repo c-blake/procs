@@ -511,12 +511,11 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   ## Omnibus entry point.  Fill ``Proc p`` with fields requested in ``fill`` via
   ## all required ``/proc`` files.  Returns false upon missing/corrupt file (eg.
   ## stale ``pid`` | not Linux).
-  result = true                         #Ok unless early exit says elsewise
+  result = true                         # Ok unless early exit says elsewise
   let pr = "/proc/" & pid & "/"
-  if psFStat in sneed:                  #Must happen before p.st gets used below
+  if psFStat in sneed:                  # Must happen before p.st gets used @end
     if stat(pr.cstring, p.st) == -1: return false
-  p.spid = pid
-  p.pid = toPid(pid)
+  p.spid = pid; p.pid = toPid(pid)      # Set pid fields themselves
   p.pidPath.setLen 0
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
@@ -524,44 +523,42 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
     if buf.len > 0:
       p.argv0   = buf.split('\0')[0] # argv[0]/$0 (~cmd assuming Bourne/Korn)
       p.cmdLine = buf.cmdClean
-  if pfen_environ in fill:
-    (pr & "environ").readFile buf
-    p.environ = buf.split('\0')
-  if pfr_root in fill: p.root = readlink(pr & "root", devNull)
-  if pfc_cwd  in fill: p.cwd  = readlink(pr & "cwd" , devNull)
-  if pfe_exe  in fill: p.exe  = readlink(pr & "exe" , devNull)
-  if psStatm  in sneed and not p.readStatm( pr, fill): return false
-  if psStatus in sneed and not p.readStatus(pr, fill): return false
-  if pfw_wchan in fill: (pr & "wchan").readFile buf; p.wchan = buf
-  if psIO in sneed and not p.readIO(pr, fill): return false
-  if psSchedSt in sneed: discard p.readSchedStat(pr, fill)
-  if psSMapsR in sneed and not p.readSMapsR(pr, fill): return false
+  if pfen_environ in fill: (pr&"environ").readFile buf; p.environ=buf.split '\0'
+  if pfr_root     in fill: p.root = readlink(pr & "root", devNull)
+  if pfc_cwd      in fill: p.cwd  = readlink(pr & "cwd" , devNull)
+  if pfe_exe      in fill: p.exe  = readlink(pr & "exe" , devNull)
+  if psStatm      in sneed and not p.readStatm( pr, fill): return false
+  if psStatus     in sneed and not p.readStatus(pr, fill): return false
+  if pfw_wchan    in fill: (pr & "wchan").readFile buf; p.wchan = buf
+  if psIO         in sneed and not p.readIO(pr, fill): return false
+  if psSchedSt    in sneed: discard p.readSchedStat(pr, fill)
+  if psSMapsR     in sneed and not p.readSMapsR(pr, fill): return false
+  #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
+  if pfn_ipc      in fill: p.nIpc    =st_inode(pr&"ns/ipc",    devNull)
+  if pfn_mnt      in fill: p.nMnt    =st_inode(pr&"ns/mnt",    devNull)
+  if pfn_net      in fill: p.nNet    =st_inode(pr&"ns/net",    devNull)
+  if pfn_pid      in fill: p.nPid    =st_inode(pr&"ns/pid",    devNull)
+  if pfn_user     in fill: p.nUser   =st_inode(pr&"ns/user",   devNull)
+  if pfn_uts      in fill: p.nUts    =st_inode(pr&"ns/uts",    devNull)
+  if pfn_cgroup   in fill: p.nCgroup =st_inode(pr&"ns/cgroup", devNull)
+  if pfn_pid4Kids in fill:p.nPid4Kids=st_inode(pr&"ns/pid_for_children",devNull)
+  if pfd_0        in fill: p.fd0 = readlink(pr & "fd/0", devNull)
+  if pfd_1        in fill: p.fd1 = readlink(pr & "fd/1", devNull)
+  if pfd_2        in fill: p.fd2 = readlink(pr & "fd/2", devNull)
+  if pfd_3        in fill: p.fd3 = readlink(pr & "fd/3", devNull)
+  if pfd_4        in fill: p.fd4 = readlink(pr & "fd/4", devNull)
+  if pfd_5        in fill: p.fd5 = readlink(pr & "fd/5", devNull)
+  if pfd_6        in fill: p.fd6 = readlink(pr & "fd/6", devNull)
+  template doInt(x, y, z: untyped) {.dirty.} =
+    if x in fill: (pr & y).readFile buf; z = buf.strip.parseInt.cint
+  doInt(pfo_adj      , "oom_adj"      , p.oom_adj      )
+  doInt(pfo_score_adj, "oom_score_adj", p.oom_score_adj)
   if pffs_usr in fill: p.usr = usrs.getOrDefault(p.st.st_uid, $p.st.st_uid)
   if pffs_grp in fill: p.grp = grps.getOrDefault(p.st.st_gid, $p.st.st_gid)
   if pfs_usrs in fill:
     for ui in p.uids: p.usrs.add usrs.getOrDefault(ui, $ui)
   if pfs_grps in fill:
     for gi in p.gids: p.grps.add grps.getOrDefault(gi, $gi)
-  #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
-  if pfn_ipc      in fill: p.nIpc      = st_inode(pr & "ns/ipc",    devNull)
-  if pfn_mnt      in fill: p.nMnt      = st_inode(pr & "ns/mnt",    devNull)
-  if pfn_net      in fill: p.nNet      = st_inode(pr & "ns/net",    devNull)
-  if pfn_pid      in fill: p.nPid      = st_inode(pr & "ns/pid",    devNull)
-  if pfn_user     in fill: p.nUser     = st_inode(pr & "ns/user",   devNull)
-  if pfn_uts      in fill: p.nUts      = st_inode(pr & "ns/uts",    devNull)
-  if pfn_cgroup   in fill: p.nCgroup   = st_inode(pr & "ns/cgroup", devNull)
-  if pfn_pid4Kids in fill:p.nPid4Kids=st_inode(pr&"ns/pid_for_children",devNull)
-  if pfd_0 in fill: p.fd0 = readlink(pr & "fd/0", devNull)
-  if pfd_1 in fill: p.fd1 = readlink(pr & "fd/1", devNull)
-  if pfd_2 in fill: p.fd2 = readlink(pr & "fd/2", devNull)
-  if pfd_3 in fill: p.fd3 = readlink(pr & "fd/3", devNull)
-  if pfd_4 in fill: p.fd4 = readlink(pr & "fd/4", devNull)
-  if pfd_5 in fill: p.fd5 = readlink(pr & "fd/5", devNull)
-  if pfd_6 in fill: p.fd6 = readlink(pr & "fd/6", devNull)
-  template doInt(x, y, z: untyped) {.dirty.} =
-    if x   in fill: (pr & y).readFile buf; z = buf.strip.parseInt.cint
-  doInt(pfo_adj      , "oom_adj"      , p.oom_adj      )
-  doInt(pfo_score_adj, "oom_score_adj", p.oom_score_adj)
 
 macro save(p: Proc, fs: varargs[untyped]) =
   result = newStmtList()
