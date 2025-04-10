@@ -34,10 +34,10 @@ color = "nvidia:0x0:3    WHITE on_blue" #0x17
 #color = "chrome:0x0:3    inverse"       #0x19
 #color = "vbox:0x0:3      inverse"       #0x1A
 
-color = "firefox_work:0x0:3   inverse"
-color = "firefox_home:0x0:3   inverse"
-color = "code:0x0:3           inverse"
-color = "chrome:0x0:3         inverse"
+#color = "firefox_work:0x0:3   inverse"
+#color = "firefox_home:0x0:3   inverse"
+#color = "code:0x0:3           inverse"
+#color = "chrome:0x0:3         inverse"
 color = "zulip:0x0:3          inverse"
 color = "pgadmin:0x0:3        inverse"
 color = "signal:0x0:3         inverse"

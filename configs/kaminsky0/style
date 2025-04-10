@@ -6,7 +6,8 @@
 Style = "nkern  = -mkern"
 Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush -miprtVBox -mnvidia"
 #Style = "Bmerge = -mfirefox -mchrome -mvbox"
-Style = "Bmerge = -mfirefox_work -mfirefox_home -mcode -mchrome -mzulip -mpgadmin -msignal -mvbox"
+#Style = "Bmerge = -mfirefox_work -mfirefox_home -mcode -mchrome -mzulip -mpgadmin -msignal -mvbox"
+Style = "Bmerge = -mzulip -mpgadmin -msignal -mvbox"
 
 #First define unfiltered styles
 Style = "abasic =   -DJ><R -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
