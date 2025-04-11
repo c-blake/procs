@@ -100,8 +100,8 @@ type
                 nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
                 nsPid4Kids = "pid4kids"
 
-  PfAct* = enum acEcho ="echo", acAid  ="aid" , acKill ="kill", acNice="nice",
-                acWait1="wait", acWaitA="Wait", acCount="count",acPath="path"
+  PfAct* = enum acEcho="echo", acPath="path", acAid  ="aid" , acCount="count",
+                acKill="kill", acNice="nice", acWait1="wait", acWaitA="Wait"
 
   # # # # Types for System-wide data # # # #
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
@@ -1694,13 +1694,13 @@ proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
   for a in acts:
     case a
     of acEcho : stdout.write pid, delim; wrote = true
-    of acAid  : discard         # Must handle after forPid
     of acPath : discard         # Must handle after forPid
+    of acAid  : discard         # Must handle after forPid
+    of acCount: cnt.inc
     of acKill : nErr += (kill(pid, sigs[0]) == -1).int
     of acNice : nErr += (nice(pid, nice.cint) == -1).int
     of acWait1: discard
     of acWaitA: discard
-    of acCount: cnt.inc
 
 proc ctrlC() {.noconv.} = echo ""; quit 130
 setControlCHook(ctrlC)  #XXX Take -F=,--format= MacroCall string below
@@ -1713,8 +1713,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim=" ", otrTerm="\n",
     exist=false, signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
     PCREpatterns: seq[string]): int =
-  ## Find subset of procs by various criteria & act upon them ASAP (echo, aid,
-  ## count, kill, nice, wait for any|all).  Unify & generalize pidof, pgrep,
+  ## Find subset of procs by various criteria & act upon them ASAP (echo, path,
+  ## aid, count, kill, nice, wait for any|all). Unify & generalize pidof, pgrep,
   ## pkill, snice features in one command with options most similar to pgrep.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var acts: set[PfAct]; var wrote = false
@@ -2212,7 +2212,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "exist":     "exit w/status 0 at FIRST match;NO actions",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
-               "actions":   "echo/count/kill/nice/wait/Wait/aid/path" },
+               "actions":   "echo/path/aid/count/kill/nice/wait/Wait" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
              "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A',
