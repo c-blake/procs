@@ -1021,7 +1021,7 @@ proc testNone(tsts: seq[Test], p: var Proc): bool =
 proc addPCRegex(cf: var DpCf; nm, s: string, code: char) =
   var rxes: seq[Regex]
   for pattern in s.splitWhitespace: rxes.add pattern.re
-  if code notin fmtCodes: raise newException(IOError,"bad pcr_CODE: '"&code&"'")
+  if code notin fmtCodes: IO !! "bad pcr_CODE: '"&code&"'"
   let need = fmtOf[code].pfs
   cf.tests[nm] = (need, proc(p: var Proc): bool = rxes.testPCRegex(p, code))
 
@@ -1044,13 +1044,13 @@ proc addCombo(cf: var DpCf; tester: auto; nm, s: string) =
   for t in s.splitWhitespace:
     try:
       let tt = cf.tests[t]; tsts.add tt; pfs = pfs + tt.pfs
-    except Ce: raise newException(ValueError, "bad kind: \"" & t & "\"")
+    except Ce: Value !! "bad kind: \"" & t & "\""
   cf.tests[nm] = (pfs, proc(p: var Proc): bool = tester(tsts, p))
 
 proc parseKind(cf: var DpCf) =
   for kin in cf.kind:
     let c = kin.splitWhitespace(maxsplit=2)
-    if c.len < 3: raise newException(ValueError, "bad kind: \"" & kin & "\"")
+    if c.len < 3: Value !! "bad kind: \"" & kin & "\""
     if   c[1] == "pcr" : cf.addPCRegex(c[0], c[2], 'c')
     elif c[1].startsWith("pcr_")and c[1].len==5:cf.addPCRegex(c[0],c[2],c[1][4])
     elif c[1] == "usr": cf.addOwner(c[1][0], c[0], c[2])
@@ -1059,13 +1059,13 @@ proc parseKind(cf: var DpCf) =
     elif c[1] == "any": cf.addCombo(testAny, c[0], c[2])    # Aka OR
     elif c[1] == "all": cf.addCombo(testAll, c[0], c[2])    # .. AND
     elif c[1] == "none": cf.addCombo(testNone, c[0], c[2])  # .. NOT
-    else: raise newException(ValueError, "bad kind: \"" & kin & "\"")
+    else: Value !! "bad kind: \"" & kin & "\""
 
 proc parseColor(cf: var DpCf) =
   var unknown = 255.uint8
   for spec in cf.color:
     let cols = spec.splitWhitespace()
-    if cols.len<2: raise newException(ValueError, "bad color: \"" & spec & "\"")
+    if cols.len<2: Value !! "bad color: \"" & spec & "\""
     let nmKoD = cols[0].split(':')
     let nm    = nmKoD[0].strip()
     let ko    = (if nmKoD.len>1: parseHexInt(nmKoD[1].strip()) else: 255).uint8
@@ -1087,8 +1087,7 @@ proc parseColor(cf: var DpCf) =
           cf.attrSize[ord(nm[4]) - ord('A')] = attrs
         elif nm == "delta":
           cf.attrDiff = attrs
-      else:
-        raise newException(ValueError, "unknown color key: \"" & nm & "\"")
+      else: Value !! "unknown color key: \"" & nm & "\""
   if unknown == 255:  #Terminate .kinds if usr did not specify attrs for unknown
    cf.kinds.add ("", 255.uint8, proc(f: var Proc): bool {.closure.} = true)
   cf.kslotNm.setLen cf.kslot.len                 #Build inverse table:
@@ -1103,7 +1102,7 @@ proc compileFilter(cf: var DpCf, spec: seq[string], msg: string): set[uint8] =
       result.incl(k.slot)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #must fully classify if any kind is used as a filter
-    except Ce: raise newException(ValueError, msg & " name \"" & nm & "\"")
+    except Ce: Value !! msg & " name \"" & nm & "\""
 
 proc parseFilters(cf: var DpCf) =
   cf.sin = cf.compileFilter(cf.incl, "incl filter"); cf.nin = cf.sin.card
@@ -1210,7 +1209,7 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
       let cmpE = cmpOf[c]
       cmps.add (sgn, cmpE.cmp)
       need = need + cmpE.pfs
-    except Ce: raise newException(ValueError, "unknown sort key code " & c.repr)
+    except Ce: Value !! "unknown sort key code " & c.repr
     if c == 'a': result = true
     sgn = +1
 
@@ -1225,7 +1224,7 @@ proc parseAge(cf: var DpCf) =
   template hl(sp, co, pl): auto {.dirty.} = specifierHighlight(sp, co, pl)
   for aFs in cf.ageFmt:
     let aF = aFs.split('@')
-    if aF.len != 2: raise newException(ValueError, "bad ageFmt:\"" & aFs & "\"")
+    if aF.len != 2: Value !! "bad ageFmt:\"" & aFs & "\""
     if aF[0].startsWith('+'):   #2**31 =~ 68 yrs in future from when fin is run.
      try      :cf.tmFmtU.add((aF[0].parseInt, hl(aF[1],strftimeCodes,cf.plain)))
      except Ce:cf.tmFmtU.add((-2147483648.int,hl(aF[1],strftimeCodes,cf.plain)))
@@ -1391,7 +1390,7 @@ proc parseFormat(cf: var DpCf) =
         cf.fields.add (prefix[0..^1], lA, fmtE.wid, c, fmtE.hdr[0..^1],fmtE.fmt)
         cf.need = cf.need + fmtE.pfs
         frst = false; algn = '\0'; prefix.setLen 0
-      except Ce: raise newException(ValueError, "unknown format code " & c.repr)
+      except Ce: Value !! "unknown format code " & c.repr
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
       elif c in {'D', 'A'}: cf.forest = true
@@ -1409,14 +1408,12 @@ proc parseMerge(cf: var DpCf) =
       cf.mergeKDs.incl (k.slot, k.dim.uint8)
       cf.need = cf.need + k.pfs
       cf.needKin = true   #classify all if any kind is used as a merge
-    except Ce:
-      raise newException(ValueError, " name \"" & nm & "\"")
+    except Ce: Value !! " name \"" & nm & "\""
 
 proc parseHdrs(cf: var DpCf) =
   for chHdr in cf.hdrs:
     let cols = chHdr.split(':')
-    if cols.len != 2:
-      raise newException(ValueError, "No ':' separator in " & chHdr)
+    if cols.len != 2: Value !! "No ':' separator in " & chHdr
     for i, f in cf.fields:    #Just ignore unknown char codes since format
       if f.c == cols[0][0]:   #..may or may not include them anyway.
         cf.fields[i].hdr = cols[1]
@@ -2007,7 +2004,7 @@ proc parseFormat(cf: var ScCf) =
   var hdrMap: Table[string, string]
   for h in cf.hdrs:
     let cols = h.split(':')
-    if cols.len != 2: raise newException(ValueError, "Bad hdrs: \"" & h & "\"")
+    if cols.len != 2: Value !! "Bad hdrs: \"" & h & "\""
     hdrMap[cols[0]] = cols[1]
   cf.fields.setLen 0
   for i, f in format:
@@ -2018,25 +2015,24 @@ proc parseFormat(cf: var ScCf) =
       if i != 0: cf.headers.add ' '
       cf.headers.add align(hdr, cf.fields[^1].wid)
       cf.need = cf.need + cf.fields[^1].ss
-    except Ce: raise newException(ValueError, "unknown format code \""&f&"\"")
+    except Ce: Value !! "unknown format code \""&f&"\""
   cf.headers.add '\n'
 
 proc parseColor(cf: var ScCf) =
   for spec in cf.color:
     let cols = spec.splitWhitespace()
-    if cols.len < 2:
-      raise newException(ValueError, "bad color format: \"" & spec & "\"")
+    if cols.len < 2: Value !! "bad color format: \"" & spec & "\""
     let nm = cols[0]
     if nm.startsWith("size") and nm.len == 5:
       if nm[4] in { 'B', 'K', 'M', 'G', 'T' }:
         cf.attrSize[ord(nm[4]) - ord('A')] = textAttrOn(cols[1..^1], cf.plain)
-      else: raise newException(ValueError, "bad color metric: \"" & spec & "\"")
+      else: Value !! "bad color metric: \"" & spec & "\""
     elif nm.startsWith("load") and nm.len > 4:
       var level: int
       if parseInt(nm, level, 4) > 0:
         cf.loadFmts.add (level.uint, textAttrOn(cols[1..^1], cf.plain))
-      else: raise newException(ValueError, "bad color metric: \"" & spec & "\"")
-    else: raise newException(ValueError, "bad color name: \"" & spec & "\"")
+      else: Value !! "bad color metric: \"" & spec & "\""
+    else: Value !! "bad color name: \"" & spec & "\""
 
 proc fin*(cf: var ScCf) =
   ##Finalize cf ob post-user sets/updates, pre-``scrollSys`` calls.
