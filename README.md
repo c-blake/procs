@@ -127,6 +127,10 @@ many bugs.
 & closes both /proc/PID/stat and /proc/PID/status.  This makes `procs display`
 aka `pd` roughly 2X faster.  Using a `/n -> /dev/null` symlink, `PROCS_CONFIG=/n
 tim 'pd -f%p\ %c>/n' '/bin/ps ax>/n'` gives `(2.8576 +- 0.0070)e-03  pd -f%p\
-%c>/n` & `(5.0281 +- 0.0063)e-03  /bin/ps ax>/n`.  Adding process typology &
-highlights back (not using `PROCS_CONFIG=/n`) slows `pd` down to `3.9739 +-
-0.0044 ms`, still 1.27X faster than stock Linux `ps`.
+%c>/n` & `(5.0281±0.0063)e-03  /bin/ps ax>/n`.  Adding process typology &
+highlights back (not using `PROCS_CONFIG=/n`) slows `pd` to `3.9739±0.0044
+ms`, still 1.27X faster than stock Linux `ps`.  Also, things like `pgrep` and
+`pkill` are (5.025±0.015)X & (5.745±0.016)X slower than `pf` / `pk` for an
+"average process" on a 4-core/20-core CPU, respectively.  `bench.sh` has more
+details and is something you can run on your own systems if you install
+[bu/](https://github.com/c-blake/bu).
