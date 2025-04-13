@@ -1,7 +1,8 @@
 #!/bin/sh
 : "${r=chrt 99 taskset -c 2}" # r= bench.sh works else need root2shrink meas.err
-. "$HOME/.config/nimble/nimble.ini" # MUST USE A="B" SYNTAX TO ASSIGN
-: "${u=$HOME/bin:$nimbleDir/bin}"
+[ -r "$HOME/.config/nimble/nimble.ini" ] &&
+   . "$HOME/.config/nimble/nimble.ini" # MUST USE A="B" SYNTAX TO ASSIGN
+: "${u=$HOME/bin:${nimbleDir-$HOME/.nimble}/bin}"
 : "${e=env -i HOME=$HOME CLIGEN=/n PATH=/usr/local/bin:/usr/bin:$u}"
 : "${t=-k2 -o14 -n14 -m14 -uμs}" # These yield ~0.2..0.3% errors for me
 N="/dev/null"                 # This uses both bu/tails and bu/tim
