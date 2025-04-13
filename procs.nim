@@ -7,7 +7,7 @@ import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
-type
+type    #------------ TYPES FOR PER-PROCESS DATA
   Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
     kind*: seq[uint8]             ##kind nums for independent format dimensions
@@ -100,10 +100,11 @@ type
                 nsUser = "user", nsUts = "uts", nsCgroup = "cgroup",
                 nsPid4Kids = "pid4kids"
 
+  #------------ TYPE FOR procs.find ACTIONS
   PfAct* = enum acEcho="echo", acPath="path", acAid  ="aid" , acCount="count",
                 acKill="kill", acNice="nice", acWait1="wait", acWaitA="Wait"
 
-  # # # # Types for System-wide data # # # #
+  #------------ TYPES FOR SYSTEM-WIDE DATA
   MemInfo* = tuple[MemTotal, MemFree, MemAvailable, Buffers, Cached,
     SwapCached, Active, Inactive, ActiveAnon, InactiveAnon, ActiveFile,
     InactiveFile, Unevictable, Mlocked, SwapTotal, SwapFree, Dirty, Writeback,
@@ -182,7 +183,7 @@ var gids*: Table[string, Gid]
 proc invert*[T, U](x: Table[T, U]): Table[U, T] =
   for k, v in x.pairs: result[v] = k
 
-# # # # # # # SYNTHETIC FIELDS # # # # # # #
+#------------ SYNTHETIC FIELDS
 proc ancestorId(pidPath: seq[Pid], ppid=0.Pid): Pid =
   if pidPath.len > 1: pidPath[1] elif pidPath.len > 0: pidPath[0] else: ppid
 
@@ -193,7 +194,7 @@ proc cmdClean(cmd: string): string = # map non-printing ASCII -> ' '
   for i, c in cmd: result[i] = (if ord(c) < 32: ' ' else: c)
   while result[^1] == ' ': result.setLen result.len - 1 # strip trailing white
 
-# # # # # # # PROCESS SPECIFIC /proc/PID/file PARSING # # # # # # #
+#------------ PROCESS SPECIFIC /proc/PID/file PARSING
 const needsIO = { pfi_rch, pfi_wch, pfi_syscr, pfi_syscw,
                   pfi_rbl, pfi_wbl, pfi_wcancel }
 
@@ -676,7 +677,7 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   doInt(pfi_wbl               , wbl               )
   doInt(pfi_wcancel           , wcancel           )
 
-# # # # # # # NON-PROCESS SPECIFIC /proc PARSING # # # # # # #
+#------------ NON-PROCESS SPECIFIC /proc PARSING
 proc procPidMax*(): int = ## Parse & return len("/proc/sys/kernel/pid_max").
   "/proc/sys/kernel/pid_max".readFile buf; buf.strip.len
 
@@ -860,7 +861,7 @@ proc procLoadAvg*(): LoadAvg =
   result.runnable   = parseInt(runTotal[0])
   result.total      = parseInt(runTotal[1])
 
-# # # # # # # RELATED PROCESS MGMT APIs # # # # # # #
+#------------ RELATED PROCESS MGMT APIs
 proc usrToUid*(usr: string): Uid =
   ## Convert string|numeric user designations to Uids via usrs
   if usr.len == 0: return 999.Uid
@@ -925,7 +926,7 @@ proc waitAll*(pList: seq[Pid]; delay, limit: Timespec) =
           count.inc
     if count == failed.len: return
 
-# # # # # # # COMMAND-LINE INTERFACE: display # # # # # # #
+#------------ COMMAND-LINE INTERFACE: display
 type
   Test  = tuple[pfs: ProcFields, test: proc(p:var Proc):bool]      #unattributed
   Kind  = tuple[attr:string, kord:uint8, test:proc(p:var Proc):bool]
@@ -969,7 +970,7 @@ type
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
 
-###### BUILT-IN CLASSIFICATION TESTS
+#------------ BUILT-IN CLASSIFICATION TESTS
 var builtin: CritBitTree[Test]
 template tAdd(name, pfs, t: untyped) {.dirty.} =
   builtin[name] = (pfs, proc(p: var Proc): bool {.closure.} = t)
@@ -985,7 +986,7 @@ tAdd("kern" , {pf_ppid0} ): p.pid == 2 or p.ppid0 == 2
 let selfPid = getpid()
 tAdd("self" , {}         ): p.pid == selfPid
 
-###### USER-DEFINED CLASSIFICATION TESTS
+#------------ USER-DEFINED CLASSIFICATION TESTS
 var fmtCodes: set[char]                 # Declared early so, e.g., pcr_C works
 var fmtOf: Table[char, tuple[pfs: ProcFields; left: bool; wid: int; hdr: string;
                  fmt: proc(x: var Proc, wMax=0): string]]
@@ -1094,7 +1095,7 @@ proc parseColor(cf: var DpCf) =
   for nm,val in cf.kslot:                        #  kind slots -> names
     cf.kslotNm[val.slot] = nm
 
-###### FILTERING
+#------------ FILTERING
 proc compileFilter(cf: var DpCf, spec: seq[string], msg: string): set[uint8] =
   for nm in spec:
     try:
@@ -1124,7 +1125,7 @@ proc failsFilters(cf: DpCf; p: var Proc): bool =
       p.kind[d] = cf.classify(p, d)
   (cf.nex > 0 and p.kind in cf.sex) or (cf.nin > 0 and p.kind notin cf.sin)
 
-###### SORTING
+#------------ SORTING
 proc cmp[T](x, y: seq[T]): int {.procvar.} =
   let n = min(x.len, y.len)
   for i in 0 ..< n:
@@ -1219,7 +1220,7 @@ proc multiLevelCmp(a, b: ptr Proc): int {.procvar.} =
     if val != 0: return cmpsG[][i].sgn * val
   return 0
 
-###### FORMATTING ENGINE
+#------------ FORMATTING ENGINE
 proc parseAge(cf: var DpCf) =
   template hl(sp, co, pl): auto {.dirty.} = specifierHighlight(sp, co, pl)
   for aFs in cf.ageFmt:
@@ -1580,7 +1581,7 @@ proc maybeMerge(cf: var DpCf, procs2: var seq[Proc], p: Proc, need: ProcFields,
         procs2[^1].cmdLine = procs2[^1].cmd
       return true
 
-proc display*(cf: var DpCf) = # [AMOVWYbkl] free
+proc display*(cf: var DpCf) = # free letters: N W Y k
   ##Display running processes `pids` (all passing filter if empty) in a tabular,
   ##colorful, maybe sorted way.  Cmd params/cfg files are very similar to `lc`.
   ##Each `pid` can be prefixed with an optional label, matchable by *pcr_l*.
@@ -1665,7 +1666,7 @@ proc display*(cf: var DpCf) = # [AMOVWYbkl] free
       for p in procs: cf.fmtWrite p.unsafeAddr[], dJiffies
     last = next
 
-# # # # # # # COMMAND-LINE INTERFACE: find # # # # # # #
+#------------ COMMAND-LINE INTERFACE: find
 #Redundant upon `display` with some non-display action, but its simpler filter
 #language (syntax&impl) can be much more efficient (for user&system) sometimes.
 proc contains(rxes: seq[Regex], p: Proc, full=false): bool =
@@ -1833,7 +1834,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     if   acWait1 in acts: discard waitAny(pList, delay, limit)
     elif acWaitA in acts: waitAll(pList, delay, limit)
 
-# # # # COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats # # # #
+#------------ COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats
 type
   ScField = tuple[ss: SysSrcs; wid: int; hdr: string;
                   fmt: proc(dtI: float; w: int; last,curr: Sys): string]
@@ -2081,7 +2082,7 @@ proc scrollSys*(cf: var ScCf) =
       last = curr
       nanosleep(cf.delay)
 
-when isMainModule:                      ### DRIVE COMMAND-LINE INTERFACE
+when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
   import cligen, cligen/cfUt
   const procsEtc {.strdefine.} = ""   # Allow -d:procsEtc= override of auto etc/
   let argv {.importc: "cmdLine".}: cstringArray   #NOTE MUST be in main module
@@ -2143,8 +2144,8 @@ where <RELATION> applies to PARAMS:
   *uid|gid*      numeric ids (|Uid|Gid)
   *usr|grp*      exact string user|group
   *any|all|none* earlier defd kind names
-Built-in: sleep run stop zomb niced
-          MT kern Lcked self""",
+Built-in: unknown sleep run stop zomb
+          niced MT kern Lcked self""",
                "colors" : "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color"  : """text attrs for proc kind/fields. Syntax:
   NAME[[:KEY][:SLOT]]<WS>ATTR<WS>ATTR..
