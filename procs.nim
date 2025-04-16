@@ -7,6 +7,7 @@ import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
+const ess: seq[string] = @[]
 type    #------------ TYPES FOR PER-PROCESS DATA
   Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
@@ -1669,10 +1670,10 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
 #------------ COMMAND-LINE INTERFACE: find
 #Redundant upon `display` with some non-display action, but its simpler filter
 #language (syntax&impl) can be much more efficient (for user&system) sometimes.
-proc contains(rxes: seq[Regex], p: Proc, full=false): bool =
+proc idx(rxes: seq[Regex], p: Proc, full=false): int =
   let c = if full and p.cmdLine.len > 0: p.cmdLine else: p.cmd
-  for r in rxes:
-    if c.contains(r): return true
+  for j, r in rxes: (if c.contains(r): return j)
+  -1
 
 proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
   result = true
@@ -1687,11 +1688,13 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsCgroup:   (if q.nCgroup   != p.nCgroup  : return false)
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
-proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
+proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
          nice: int, cnt: var int, wrote: var bool, nErr: var int) =
   for a in acts:
     case a
-    of acEcho : stdout.write pid, delim; wrote = true
+    of acEcho :
+      if lab.len > 0: stdout.write lab, ":", pid, delim; wrote = true
+      else          : stdout.write pid, delim; wrote = true
     of acPath : discard         # Must handle after forPid
     of acAid  : discard         # Must handle after forPid
     of acCount: cnt.inc
@@ -1700,16 +1703,17 @@ proc act(acts: set[PfAct], pid: Pid, delim: string, sigs: seq[cint],
     of acWait1: discard
     of acWaitA: discard
 
+const labUse=["","A","B","C","D","E","F","G","H","I","J","K","L","M",
+              "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]
 proc ctrlC() {.noconv.} = echo ""; quit 130
 setControlCHook(ctrlC)  #XXX Take -F=,--format= MacroCall string below
 proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
-    pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty: seq[string] = @[],
-    group: seq[string] = @[], euid: seq[string] = @[], uid: seq[string] = @[],
-    root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[], first=false, newest=false,
-    oldest=false, age=0, exclude: seq[string] = @[], invert=false,
+    pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty=ess, group=ess,
+    euid=ess, uid=ess, root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[],
+    first=false, newest=false, oldest=false, age=0, exclude=ess, invert=false,
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim=" ", otrTerm="\n",
-    exist=false, signals: seq[string] = @[], nice=0, actions: seq[PfAct] = @[],
+    Labels=ess, exist=false, signals=ess, nice=0, actions: seq[PfAct] = @[],
     PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, path,
   ## aid, count, kill, nice, wait for any|all). Unify & generalize pidof, pgrep,
@@ -1727,6 +1731,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var pList: seq[Pid]
   var fill: ProcFields                  #field needs
   var rxes: seq[Regex]
+  var j = -1
   var sigs: seq[cint]
   var p, q: Proc
   for sig in signals: sigs.add sig.parseUnixSignal
@@ -1768,6 +1773,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   let workAtEnd = sigs.len>1 or acts.any(acWait1, acWaitA, acAid, acPath)
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
+  var lab = ""; var used = newSeq[int](Labels.len)
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
     p.clear fill, sneed
@@ -1786,7 +1792,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     elif uid.len     > 0 and p.uids[0]   notin uid    : match = 0
     elif ns != 0         and p.nsNotEq(q, nsList)     : match = 0
     elif root != 0       and p.root != q.root         : match = 0
-    elif rxes.len    > 0 and not rxes.contains(p,full): match = 0
+    elif rxes.len > 0 and (j = rxes.idx(p, full); j<0): match = 0
     elif age         > 0 and uptm - p.t0 <= age.uint  : match = 0
     elif age         < 0 and uptm - p.t0 >= uint(-age): match = 0
     if (match xor invert.int) == 0: continue  #-v messes up newest/oldest logic
@@ -1801,7 +1807,11 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
         tM = p.t0; pList[0] = p.pid           #update min start time
       continue
-    if not exist: acts.act(p.pid, delim, sigs, nice, cnt, wrote, result)
+    if not exist:                 # Do any "immediate"/ASAP actions as we go
+      if rxes.len > 0:
+        if Labels[j].len>0: lab = Labels[j] & "_" & labUse[used[j]]; inc used[j]
+      acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
+      lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
       t0 = getTime()
     if workAtEnd: pList.add p.pid
@@ -1817,7 +1827,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
         if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
       stdout.write otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
-    acts.act(pList[0], delim, sigs, nice, cnt, wrote, result)
+    acts.act("", pList[0], delim, sigs, nice, cnt, wrote, result)
   if acCount in acts:                         # PIDs end in delim & otrTerm,
     if wrote: stdout.write otrTerm            #..but cnt ends ONLY in otrTerm.
     stdout.write cnt, delim; wrote = true
@@ -2133,7 +2143,6 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
     cf.scrollSys()
     quit(0)
 
-  const ess: seq[string] = @[]
   dispatchMulti(
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
       help = { "version": "Emit Version & *HELP SETTING COLORS*",
@@ -2204,6 +2213,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "inVert":    "inVert/negate the matching (~ grep -v)",
                "delim":     "terminates each output PID",
                "otrTerm":   "terminates internal boundaries(PID paths)",
+               "Labels":    "seq of counted labels for each pattern",
                "delay":     "seconds between signals/existence chks",
                "limit":     "seconds after which exist check times out",
                "exist":     "exit w/status 0 at FIRST match;NO actions",
