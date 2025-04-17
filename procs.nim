@@ -1731,7 +1731,6 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   var pList: seq[Pid]
   var fill: ProcFields                  #field needs
   var rxes: seq[Regex]
-  var j = -1
   var sigs: seq[cint]
   var p, q: Proc
   for sig in signals: sigs.add sig.parseUnixSignal
@@ -1779,7 +1778,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     p.clear fill, sneed
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
     if doTree: ppids[p.pid0] = p.ppid0              #Genealogy of every one
-    var match = 1
+    var match = 1; var j = -1
     if   newest and p.t0.uint < tM                    : match = 0
     elif oldest and p.t0.uint > tM                    : match = 0
     elif parent.len  > 0 and p.ppid0     notin parent : match = 0
@@ -1809,7 +1808,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       continue
     if not exist:                 # Do any "immediate"/ASAP actions as we go
       if rxes.len > 0:
-        if Labels[j].len>0: lab = Labels[j] & "_" & labUse[used[j]]; inc used[j]
+        if Labels.len > 0 and Labels[j].len > 0:
+          lab = Labels[j] & "_" & labUse[used[j]]; inc used[j]
       acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
       lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
