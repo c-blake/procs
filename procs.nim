@@ -1703,8 +1703,6 @@ proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
     of acWait1: discard
     of acWaitA: discard
 
-const labUse=["","A","B","C","D","E","F","G","H","I","J","K","L","M",
-              "N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]
 proc ctrlC() {.noconv.} = echo ""; quit 130
 setControlCHook(ctrlC)  #XXX Take -F=,--format= MacroCall string below
 proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
@@ -1809,7 +1807,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     if not exist:                 # Do any "immediate"/ASAP actions as we go
       if rxes.len > 0:
         if Labels.len > 0 and Labels[j].len > 0:
-          lab = Labels[j] & "_" & labUse[used[j]]; inc used[j]
+          lab = Labels[j] & "_" & $used[j]; inc used[j]
       acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
       lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
