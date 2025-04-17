@@ -1815,6 +1815,9 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
+  for j, c in used:                                     # Be explicit about miss
+    if c == 0 and j < Labels.len and Labels[j].len > 0: #..if given a label.
+      stdout.write Labels[j],":None",delim; wrote = true
   if acAid in acts:
     if wrote and pList.len > 0: stdout.write otrTerm
     for pid in pList:stdout.write ppids.pidPath(pid).ancestorId,delim;wrote=true
