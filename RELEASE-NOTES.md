@@ -1,6 +1,14 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.4
+--------------
+  - Add batch labeling to `procs.find`/`pf` via `--Labels=` which correspond,
+    in-order to listed `PCREpatterns`.  Eg., `pf -Lzs -Lpf -Lab zsh fix foo ba`
+    gives me: `zs_0:705 zs_1:707 zs_2:710 zs_3:713 pf:None huh:None`
+
+  - Make `bench.sh` more portable
+
 Version: 0.8.3
 --------------
   - In the last release `pcr_X` would truncate formatted strings to 256 to match
