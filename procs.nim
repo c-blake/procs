@@ -1805,8 +1805,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
         tM = p.t0; pList[0] = p.pid           #update min start time
       continue
     if not exist:                 # Do any "immediate"/ASAP actions as we go
-      if rxes.len > 0:
-        if Labels.len > 0 and Labels[j].len > 0:
+      if rxes.len > 0:                           # j<L.len should suffice for..
+        if j < Labels.len and Labels[j].len > 0: #..either no | too few Labels.
           lab = Labels[j] & "_" & $used[j]; inc used[j]
       acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
       lab.setLen 0
