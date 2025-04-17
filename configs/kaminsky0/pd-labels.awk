@@ -1,3 +1,5 @@
+# This script is written for mawk; the gawk version was much slower.
+
 BEGIN {
   sep = ":"
 }
@@ -8,14 +10,11 @@ BEGIN {
   }
 
   for (pid in map) {
-    if ($0 ~ "\\<" pid "\\>") {
-      f = 0;
+    if ($0 ~ "(^| )" pid "( |$)") {
       for (i = 1; i <= NF; i++) {
-        if (f == 0) {
-          $i = gensub(/\<[0-9]+\>/, map[pid] sep "&", "g", $i);
-        }
+        gsub(/[0-9]+$/, map[pid] sep "&", $i);
         if ($i == map[pid] sep pid) {
-          f = 1;
+          break;
         };
       }
     }

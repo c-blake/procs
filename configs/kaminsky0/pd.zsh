@@ -1,9 +1,10 @@
 function pd() {
-    local PD_LABELS_AWK="$HOME/.zsh/pd-labels.awk"
-    local PD_LABELS_ROLLUPS="$HOME/.zsh/pd-rollups"
+    local PD_LABELS_AWK="$ZDOTDIR/pd-labels.awk"
+    local PD_LABELS_ROLLUPS="$ZDOTDIR/pd-rollups"
 
     local input
     declare -a flags
+
     for arg in "$@"; do
         if [[ ${arg:0:1} == "-" ]]; then
             flags+=$arg
@@ -12,50 +13,46 @@ function pd() {
         fi
     done
 
-    #date --iso=ns
     eval "declare -A rollups=($(< $PD_LABELS_ROLLUPS))"
     declare -a maplist=()
     declare -a arglist=()
-    for ru_k ru_v in ${(kv)rollups}; do
-        #echo $ru_k " -> " $ru_v
-        declare -a letters=( "" A B C D E F G H I J K L M N O P Q R S T U V W X Y Z )
-        local ru_pids=($(pf -f $ru_v))
-        for ru_pid in $ru_pids; do
-            local letter="${letters[1]}"
-            shift letters
+    declare -a labels=("${(k)rollups[@]/#/-L }")
+    declare -a patterns=("${(v)rollups[@]}")
+    declare -a ru_pids=($(pf -f "$labels[@]" "${patterns[@]}"))
 
-            #echo $letter
+    for ru_pid in $ru_pids; do
+        declare -a parts=(${(@s/:/)ru_pid}) 
+        local ru_lab="${parts[1]}"
+        local ru_pid="${parts[2]}"
 
-            local ll="${ru_k}_${letter}"
-
-            maplist+=("map[$ru_pid] = \"${ll}\";\n")
+        if [[ "$ru_pid" == "None" ]]; then
             arglist+=(
-                -k\^="${ll} all ${ll}_1 notexplicit"
-                -k\^="${ll}_1 pcr_l ${ll}:"
-                -m\^="${ll}"
-                -c\^="${ll}:0x0:3 inverse"
+                -k\^="${ru_lab}_ any unknown"
             )
-        done
+        else
+            maplist+=("map[$ru_pid] = \"${ru_lab}\";\n")
+            arglist+=(
+                -k\^="${ru_lab} all ${ru_lab}_1 notexplicit"
+                -k\^="${ru_lab}_1 pcr_l ${ru_lab}:"
+                -m\^="${ru_lab}"
+                -c\^="${ru_lab}:0x0:3 inverse"
+            )
+        fi
     done
+
     local map="BEGIN { $maplist }"
     arglist+=(
         -k\^="notexplicit none explicit"
         -k\^="explicit pcr_l explicit:"
     )
-    #date --iso=ns
-
-    #echo $arglist
-    #echo $map
 
     if [[ -z $input ]]; then
         declare -a pids=(
-            $(pf -ifap "" | \
-                awk -f <(echo $map) -f $PD_LABELS_AWK
+            $(pf -ap "" | \
+                mawk -f <(echo $map) -f $PD_LABELS_AWK
             )
         )
         command pd -s user ${arglist[@]} $flags ${pids[@]}
-    #date --iso=ns
-
     else
         local process scope scope_pids
 
@@ -75,7 +72,7 @@ function pd() {
         declare -a pids=(
             $(pf -ifap $process | \
                 grep -Ew "${scope_pids}" | \
-                awk -f <(echo $map) -v prefix=explicit -f $PD_LABELS_AWK
+                mawk -f <(echo $map) -v prefix=explicit -f $PD_LABELS_AWK
             )
         )
 
@@ -84,11 +81,11 @@ function pd() {
             return 1
         fi
 
-        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} $flags $pids |\
-        sed -E \
-            -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|)m//g" \
-            -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
-            -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
-            -e "s/@@.+@@//"
+        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} $flags $pids | \
+            sed -E \
+                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|)m//g" \
+                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
+                -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
+                -e "s/@@.+@@//"
     fi
 }
