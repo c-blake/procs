@@ -20,6 +20,11 @@ PFS=/dev/shm/proc pd whatever
     files you need depends upon your pf flags/pd --format and you will need to
     be root if you want root/other-UID preservations.
 
+    NOTE: procs may move to an optionally hash-indexed tar-ball as a /proc cache
+    and interchange format.  If so it may make sense to interpret a $PFS ending
+    in ".tar" as a single file, not a directory, and making it (with whatever
+    files were needed) may be as simple as running `PFS=some/where/foo.tar pd`.
+
   - Make `bench.sh` more portable
 
 Version: 0.8.3
