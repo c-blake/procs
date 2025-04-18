@@ -8,6 +8,7 @@ import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
+let PFS = getEnv("PFS","/proc")&"/" # Alt Root; Repro runs @other times/machines
 type    #------------ TYPES FOR PER-PROCESS DATA
   Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
@@ -234,7 +235,7 @@ proc nonDecimal(s: string): bool =
 
 iterator allPids*(): string =
   ## Yield all pids as strings on a running Linux system via /proc entries
-  for pcKind, pid in walkDir("/proc", relative=true):
+  for pcKind, pid in walkDir(PFS, relative=true):
     if pcKind != pcDir or pid.nonDecimal: continue
     yield pid
 
@@ -514,7 +515,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   ## all required ``/proc`` files.  Returns false upon missing/corrupt file (eg.
   ## stale ``pid`` | not Linux).
   result = true                         # Ok unless early exit says elsewise
-  let pr = "/proc/" & pid & "/"
+  let pr = PFS & pid & "/"
   if psFStat in sneed:                  # Must happen before p.st gets used @end
     if stat(pr.cstring, p.st) == -1: return false
   p.spid = pid; p.pid = toPid(pid)      # Set pid fields themselves
@@ -680,11 +681,11 @@ proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
 
 #------------ NON-PROCESS SPECIFIC /proc PARSING
 proc procPidMax*(): int = ## Parse & return len("/proc/sys/kernel/pid_max").
-  "/proc/sys/kernel/pid_max".readFile buf; buf.strip.len
+  (PFS & "sys/kernel/pid_max").readFile buf; buf.strip.len
 
 proc procUptime*(): culong =
   ## System uptime in jiffies (there are 100 jiffies per second)
-  "/proc/uptime".readFile buf
+  (PFS & "uptime").readFile buf
   let decimal = buf.find('.')
   if decimal == -1: return
   buf[decimal..decimal+1] = buf[decimal+1..decimal+2]
@@ -695,7 +696,7 @@ proc procUptime*(): culong =
 
 proc procMemInfo*(): MemInfo =
   ## /proc/meminfo fields (in bytes or pages if specified).
-  "/proc/meminfo".readFile buf
+  (PFS & "meminfo").readFile buf
   proc toU(s: string, unit=1): uint {.inline.} = toU64(s, unit).uint
   var nm = ""
   for line in buf.split('\n'):
@@ -784,7 +785,7 @@ proc parseSoftIRQs*(rest: string): SoftIRQs =
   result.rcu      = parseInt(col[10])
 
 proc procSysStat*(): SysStat =
-  for line in lines("/proc/stat"):
+  for line in lines(PFS & "stat"):
     let cols = line.splitWhitespace(maxSplit=1)
     if cols.len != 2: continue
     let nm   = cols[0]
@@ -812,12 +813,12 @@ proc parseNetStat*(cols: seq[string]): NetStat =
 proc procNetDevStats*(): seq[NetDevStat] =
   var i = 0
   var row: NetDevStat
-  for line in lines("/proc/net/dev"):
+  for line in lines(PFS & "net/dev"):
     i.inc
     if i < 3: continue
     let cols = line.splitWhitespace
     if cols.len < 17:
-      stderr.write "unexpected format in /proc/net/dev\n"
+      stderr.write "unexpected format in " & PFS & "net/dev\n"
       return
     row.name = cols[0]
     if row.name.len > 0 and row.name[^1] == ':':
@@ -834,10 +835,10 @@ proc parseIOStat*(cols: seq[string]): DiskIOStat =
 
 proc procDiskStats*(): seq[DiskStat] =
   var row: DiskStat
-  for line in lines("/proc/diskstats"):
+  for line in lines(PFS & "diskstats"):
     let cols = line.splitWhitespace
     if cols.len < 18:
-      stderr.write "unexpected format in /proc/diskstats\n"
+      stderr.write "unexpected format in " & PFS & "diskstats\n"
       return
     row.major    = parseInt(cols[0])
     row.minor    = parseInt(cols[1])
@@ -851,7 +852,7 @@ proc procDiskStats*(): seq[DiskStat] =
     result.add row.move
 
 proc procLoadAvg*(): LoadAvg =
-  let cols = readFile("/proc/loadavg").splitWhitespace()
+  let cols = readFile(PFS & "loadavg").splitWhitespace()
   if cols.len != 5: return
   result.m1         = cols[0]
   result.m5         = cols[1]
@@ -1765,7 +1766,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if newest or oldest or age != 0: fill.incl pf_t0
   let sneed = needs(fill)               #source needs
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
-  if root!=0 and root!=ns: q.root=readlink("/proc/" & $root & "/root", devNull)
+  if root != 0 and root != ns: q.root = readlink(PFS & $root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
   let workAtEnd = sigs.len>1 or acts.any(acWait1, acWaitA, acAid, acPath)
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0

@@ -7,6 +7,19 @@ Version: 0.8.4
     in-order to listed `PCREpatterns`.  Eg., `pf -Lzs -Lpf -Lab zsh fix foo ba`
     gives me: `zs_0:705 zs_1:707 zs_2:710 zs_3:713 pf:None huh:None`
 
+  - Allow users to re-direct `/proc` inquiries to `$PFS`.  This helps debug &|
+    analyze performance of snapshots &| use non-standard mount points.  E.g.:
+```sh
+rm -rf /dev/shm/proc; cp -a --parents /proc/[0-9]*/(stat|cmdline|exe) \
+       /proc/sys/kernel/pid_max /proc/uptime /dev/shm
+PFS=/dev/shm/proc pd whatever
+```
+    At least when I tried, both `tar` and `cpio` failed, but all utilities work
+    on the ordinary files created by the `cp`.  `proc scroll` needs top-level
+    /meminfo /stat /net/dev /diskstats /loadavg entries.  Which per-PID dirs &|
+    files you need depends upon your pf flags/pd --format and you will need to
+    be root if you want root/other-UID preservations.
+
   - Make `bench.sh` more portable
 
 Version: 0.8.3
