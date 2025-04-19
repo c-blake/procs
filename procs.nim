@@ -884,18 +884,18 @@ proc grpToGid*(grp: string): Gid =
 proc grpToGid*(grps: seq[string]): seq[Gid] =
   for grp in grps: result.add grpToGid(grp)
 
-proc ttyToDev*(tty: string): Dev = #tty string names -> nums
+proc ttyToDev*(t: string): Dev = #tty string names -> nums
   ## Convert /dev/ttx or ttx to a (Linux) device number
   var st: Stat
-  if tty.startsWith('/'): return (if stat(tty, st)==0: st.st_rdev else: 0xFFFF)
-  if stat(cstring("/dev/" & tty), st)==0: return st.st_rdev
-  if tty.len>1 and tty[0]=='t' and stat(cstring("/dev/tty"&tty[1..^1]), st)==0:
+  if t.startsWith('/'): return (if posix.stat(t,st)==0: st.st_rdev else: 0xFFFF)
+  if posix.stat(cstring("/dev/" & t), st)==0: return st.st_rdev
+  if t.len>1 and t[0]=='t' and posix.stat(cstring("/dev/tty"&t[1..^1]),st)==0:
     return st.st_rdev
-  if tty.len>1 and tty[0]=='p' and stat(cstring("/dev/pts/"&tty[1..^1]), st)==0:
+  if t.len>1 and t[0]=='p' and posix.stat(cstring("/dev/pts/"&t[1..^1]), st)==0:
     return st.st_rdev
   return 0xFFFF
 proc ttyToDev*(ttys: seq[string]): seq[Dev] = #tty string names -> nums
-  for tty in ttys: result.add ttyToDev(tty)
+  for t in ttys: result.add ttyToDev(t)
 
 #XXX waitAny & waitAll should obtain pidfds ASAP & use pidfd_send_signal.  pList
 #should maybe even become seq[fd].  procs can still die between classification &
