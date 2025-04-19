@@ -3,8 +3,8 @@
 # This program goes to some effort to save time by collecting only needed data.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes, macros, exitprocs],
-       cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
+            critbits, parseutils, monotimes, macros, exitprocs, strformat],
+     cligen/[posixUt,mfile,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
@@ -18,8 +18,39 @@ type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   nmLen : uint16
   datLen: array[2, uint16]              #26B Hdr; Support readFile stat readlink
 
+proc cpioLoad(path: string): (Table[MSlice, MSlice], seq[string]) =
+  let mf = mopen(path)                  # Lifetime of program on purpose
+  if mf.mslc.mem.isNil: return          # mmap on directories fails
+  result[0] = initTable[MSlice, MSlice](mf.mslc.len div 90) # 90 is <sz> guess
+  let trailBuf = "TRAILER!!!"; let trailer = trailBuf.toMSlice
+  var nm, dat: MSlice
+  var off = 0
+  while off + Rec.sizeof < mf.mslc.len:
+    let h = cast[ptr Rec](mf.mslc.mem +! off)
+    off += Rec.sizeof
+    if h.magic != 0o070707: IO !! &"off:{off}: magic!=0o070707: 0o{h.magic:06o}"
+    nm = MSlice(mem: mf.mslc.mem +! off, len: h.nmLen.int - 1) # Rec includes \0
+    if nm == trailer: break
+    if nm.len>0 and nm[0]in{'0'..'9'}and(let p=cmemchr(nm.mem,'/',nm.len.uint);
+         p != nil):
+      let s = $nm[0 ..< p -! nm.mem]
+      if result[1].len > 0:
+        if result[1][^1] != s: result[1].add $nm[0 ..< p -! nm.mem]
+      else: result[1].add s
+    off += h.nmLen.int + int(h.nmLen mod 2 != 0)
+    let dLen = (h.datLen[0].int shl 16) or h.datLen[1].int
+    dat = MSlice(mem: mf.mslc.mem +! off, len: dLen)
+    off += dLen + int(dLen mod 2 != 0)
+    if (h.mode.cint and S_IFMT)==S_IFLNK and dat.len>0 and dat[dat.len-1]=='\0':
+      dat.len -= 1
+    result[0][nm] = dat
+
+var tab: Table[MSlice, MSlice]
+var apids: seq[string]                  # Archive pids
 if chdir(PFS.cstring) != 0:
-  IO !! "Cannot cd into " & PFS   #XXX This will become a mopen(PFS)
+  (tab, apids) = cpioLoad(PFS)
+  if tab.len == 0: IO !! "Cannot cd into " & PFS & " & it seems not to be cpio"
+  discard chdir("/proc/")               # For fall back querying
 
 var rec = Rec(magic: 0o070707)
 var pad0: array[512, char]
@@ -37,15 +68,35 @@ proc writeRecHdr(path: cstring; pLen, datLen: int) =
   if pLen mod 2 == 0: discard outp.writeBuffer(pad0.addr, 1)
 
 proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
-  posixUt.readFile path, buf, st, perRead
+  if tab.len > 0:
+    try:
+      let s = tab[path.toMSlice]
+      buf.setLen s.len
+      copyMem buf.cstring, s.mem, s.len
+    except: discard
+  else: posixUt.readFile path, buf, nil, perRead
   if PFA.len > 0:
     rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
     writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
     discard outp.writeBuffer(buf.cstring, buf.len)
     if buf.len mod 2 == 1: discard outp.writeBuffer(pad0.addr, 1)
 
+proc cstrlen(s: pointer): int {.importc: "strlen", header:"string.h".}
 proc stat(a1: cstring, a2: var Stat): cint =
-  discard posix.stat(a1, a2)
+  if tab.len > 0:
+    try:
+      let key = MSlice(mem: a1, len: a1.cstrlen)
+      let s = tab[key]
+      let kLen = if key.len mod 2 == 0: key.len + 2 else: key.len + 1
+      let r = cast[ptr Rec](cast[uint](s.mem) - uint(Rec.sizeof + kLen))
+#     if r.magic != 0o070707: echo a1, &" mag: {r.magic:o}"
+#     a2.st_dev  = Dev(r.dev); a2.st_ino = Ino(r.ino); a2.st_mode = Mode(r.mode)
+      a2.st_uid  = Uid(r.uid)
+      a2.st_gid  = Gid(r.gid)
+#     a2.st_nlink=Nlink(r.nlink); a2.st_rdev  = Dev(r.rdev)
+#     a2.st_mtim =Timespec(tv_sec:Time(r.mtime[0].int shl 16 or r.mtime[1].int))
+    except: discard
+  else: discard posix.stat(a1, a2)
   if PFA.len > 0:
     rec.dev      = uint16(a2.st_dev)    # Dev should neither change nor matter..
     rec.ino      = uint16(a2.st_ino)    #..so can fold into above for 4B inode.
@@ -59,13 +110,18 @@ proc stat(a1: cstring, a2: var Stat): cint =
     writeRecHdr a1, a1.len, 0
 
 proc readlink(path: string, err=stderr): string =
-  let tgt = posixUt.readlink(path, err)
-  if PFA.len > 0 and tgt.len > 0:       #Mark as SymLn;MUST BE KNOWN to be SymLn
+  if tab.len > 0:
+    try:
+      let s = tab[path.toMSlice]
+      result.setLen s.len
+      copyMem result.cstring, s.mem, s.len
+    except: discard
+  else: result = posixUt.readlink(path, err)
+  if PFA.len > 0 and result.len > 0:    #Mark as SymLn;MUST BE KNOWN to be SymLn
     rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from probable last stat.
-    writeRecHdr path.cstring, path.len, tgt.len + 1
-    discard outp.writeBuffer(tgt.cstring, tgt.len + 1)
-    if tgt.len mod 2 == 0: discard outp.writeBuffer(pad0.addr, 1)
-  tgt
+    writeRecHdr path.cstring, path.len, result.len + 1
+    discard outp.writeBuffer(result.cstring, result.len + 1)
+    if result.len mod 2 == 0: discard outp.writeBuffer(pad0.addr, 1)
 
 proc writeTrailer() =
   if PFA.len == 0 or outp.isNil: return
@@ -301,9 +357,12 @@ proc nonDecimal(s: string): bool =
 
 iterator allPids*(): string =
   ## Yield all pids as strings on a running Linux system via /proc entries
-  for pcKind, pid in walkDir(".", relative=true):
-    if pcKind != pcDir or pid.nonDecimal: continue
-    yield pid
+  if apids.len > 0:
+    for pid in apids: yield pid
+  else:
+    for pcKind, pid in walkDir(".", relative=true):
+      if pcKind != pcDir or pid.nonDecimal: continue
+      yield pid
 
 proc pidsIt*(pids: seq[string]): auto =
   ## Yield pids as strings from provided ``seq`` if non-empty or ``/proc``.
