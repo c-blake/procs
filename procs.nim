@@ -1,14 +1,77 @@
 ## Linux /proc data/display/query interfaces - both cmdline & library
 #XXX Could port to BSD using libkvm/kvm_getprocs/_getargv/_getenvv/kinfo_proc;
-#Requirement analysis just tri-source.  Field presence/semantics may vary a lot.
+# This program goes to some effort to save time by collecting only needed data.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
-            critbits, parseutils, monotimes, macros],
+            critbits, parseutils, monotimes, macros, exitprocs],
        cligen/[posixUt,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
+
+#------------ SAVE SYSTEM: Avoid FS calls; Can be stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")&"/" # Alt Root; Repro runs @other times/machines
+let PFA = getEnv("PFA", "")         # Nm of cpio -Hbin Proc File Archive to make
+type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
+  magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
+  mtime : array[2, uint16]
+  nmLen : uint16
+  datLen: array[2, uint16]              #26B Hdr; Support readFile stat readlink
+
+var rec = Rec(magic: 0o070707)
+var pad0: array[512, char]
+var outp: File
+if PFA.len > 0: outp = open(PFA, fmWrite)
+
+proc writeRecHdr(path: cstring; pLen, datLen: int) =
+  let path = if path.isNil: nil else: cast[pointer](path) +! PFS.len
+  let pLen = if path.isNil: 0   else: pLen - PFS.len
+  rec.nmLen     = uint16(pLen + 1)      # Include NUL terminator
+  rec.datLen[0] = uint16(datLen shr 16)
+  rec.datLen[1] = uint16(datLen and 0xFFFF)
+  discard outp.writeBuffer(rec.addr, rec.sizeof)
+  discard outp.writeBuffer(path    , pLen + 1)
+  if pLen mod 2 == 0: discard outp.writeBuffer(pad0.addr, 1)
+
+proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
+  posixUt.readFile path, buf, st, perRead
+  if PFA.len > 0:
+    rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
+    writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
+    discard outp.writeBuffer(buf.cstring, buf.len)
+    if buf.len mod 2 == 1: discard outp.writeBuffer(pad0.addr, 1)
+
+proc stat(a1: cstring, a2: var Stat): cint =
+  discard posix.stat(a1, a2)
+  if PFA.len > 0:
+    rec.dev      = uint16(a2.st_dev)    # Dev should neither change nor matter..
+    rec.ino      = uint16(a2.st_ino)    #..so can fold into above for 4B inode.
+    rec.mode     = uint16(a2.st_mode)
+    rec.uid      = uint16(a2.st_uid)
+    rec.gid      = uint16(a2.st_gid)
+    rec.nlink    = uint16(a2.st_nlink)  # Generally 1|number of sub-dirs
+    rec.rdev     = uint16(a2.st_rdev)   # Dev Specials are very rare
+    rec.mtime[0] = uint16(a2.st_mtime.int shr 16)
+    rec.mtime[1] = uint16(a2.st_mtime.int and 0xFFFF)
+    writeRecHdr a1, a1.len, 0
+
+proc readlink(path: string, err=stderr): string =
+  let tgt = posixUt.readlink(path, err)
+  if PFA.len > 0 and tgt.len > 0:       #Mark as SymLn;MUST BE KNOWN to be SymLn
+    rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from probable last stat.
+    writeRecHdr path.cstring, path.len, tgt.len + 1
+    discard outp.writeBuffer(tgt.cstring, tgt.len + 1)
+    if tgt.len mod 2 == 0: discard outp.writeBuffer(pad0.addr, 1)
+  tgt
+
+proc writeTrailer() =
+  if PFA.len == 0 or outp.isNil: return
+  rec.nlink = 1                 # At least GNU cpio does this
+  writeRecHdr cstring(PFS & "TRAILER!!!"), PFS.len + 10, 0
+  let sz = outp.getFilePos      # Traditionally, cpio pads to 512B block size
+  if sz mod 512!=0:discard outp.writeBuffer(pad0.addr,(sz div 512 + 1)*512 - sz)
+addExitProc writeTrailer
+
 type    #------------ TYPES FOR PER-PROCESS DATA
   Ce = CatchableError
   Proc* = object                ##Abstract proc data (including a kind vector)
