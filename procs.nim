@@ -580,11 +580,12 @@ proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
     if pfi_wcancel in fill and nm == "cancelled_write_bytes:":
       p.wcancel = toU64(cols[1])
 
-proc readSchedStat*(p: var Proc; pr: string, fill: ProcFields): bool =
+proc readSchedStat*(p:var Proc; pr:string, fill:ProcFields, schedSt=false):bool=
   ## Fill `Proc p` pfss_ fields requested in `fill` via /proc/PID/schedstat.  If
   ## (stale `pid`, not Linux, CONFIG_SCHEDSTATS=n, etc.) return false.
   result = true
-  (pr & "schedstat").readFile buf
+  buf.setLen 0
+  if schedSt: (pr & "schedstat").readFile buf
   if buf.len == 0:
     if fill.all(pfss_sched, pf_utime, pf_stime):
       p.pSched = int64(p.utime + p.stime)*10_000_000i64
@@ -635,7 +636,8 @@ proc readSMapsR*(p: var Proc; pr: string, fill: ProcFields): bool =
     doF pfsr_pss_lock , "Locked:"         , pss_lock , cols[1].toU64*1024
 
 let devNull* = open("/dev/null", fmWrite)
-proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
+proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs,
+           schedSt=false): bool =
   ## Omnibus entry point.  Fill ``Proc p`` with fields requested in ``fill`` via
   ## all required ``/proc`` files.  Returns false upon missing/corrupt file (eg.
   ## stale ``pid`` | not Linux).
@@ -659,7 +661,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs): bool =
   if psStatus     in sneed and not p.readStatus(pr, fill): return false
   if pfw_wchan    in fill: (pr & "wchan").readFile buf; p.wchan = buf
   if psIO         in sneed and not p.readIO(pr, fill): return false
-  if psSchedSt    in sneed: discard p.readSchedStat(pr, fill)
+  if psSchedSt    in sneed: discard p.readSchedStat(pr, fill, schedSt)
   if psSMapsR     in sneed and not p.readSMapsR(pr, fill): return false
   #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
   if pfn_ipc      in fill: p.nIpc    =st_inode(pr&"ns/ipc",    devNull)
@@ -1073,7 +1075,7 @@ type
     order*, diffCmp*, format*, maxUnm*, maxGnm*: string     ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
-    blanks*, wide*, binary*, plain*, header*, realIds*, schedStat*: bool ##flags
+    blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool ##flags
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     kinds: seq[Kind]                                        #kinds user colors
@@ -1292,8 +1294,7 @@ cAdd('J', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
 cAdd('e', {pf_utime,pf_stime}  , cmp, culong  ): p.utime + p.stime
 cAdd('E', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
-proc totCPUns(p: Proc): float =
-  if cg.schedStat: p.pSched.float else: float(p.utime + p.stime)*1e7
+proc totCPUns(p: Proc): float = p.pSched.float
 cAdd('b', {pf_utime,pf_stime,pfss_sched}, cmp, uint64):
                                  uint64(p.totCPUns*1e2/max(1.0, p.ageD.float))
 cAdd('L', {pf_flags}           , cmp, culong  ): p.flags
@@ -1671,7 +1672,7 @@ proc displayASAP*(cf: var DpCf) =
   if cf.needNow: cf.nowNs = $getTime()
   forPid(cf.pids):
     p.clear cf.need, cf.sneed
-    if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
+    if p.read(pid, cf.need, cf.sneed, cf.schedSt) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
       stdout.flushFile    #..a cost < O(5%): well worth it whenever it matters.
       if cf.delay >= ts0: last[p.pid] = p.move
@@ -1691,7 +1692,7 @@ proc displayASAP*(cf: var DpCf) =
     if cf.needNow: cf.nowNs = $getTime()
     forPid(cf.pids):
       p.clear cf.need, cf.sneed
-      if p.read(pid, cf.need, cf.sneed) and not cf.failsFilters(p):
+      if p.read(pid, cf.need, cf.sneed, cf.schedSt) and not cf.failsFilters(p):
         next[p.pid] = p                              #Not done now,but wchan
         p.minusEq(last.getOrDefault(p.pid), cf.diff) #..diff is reasonable
         if multiLevelCmp(p.addr, zero.addr) != 0:
@@ -1736,7 +1737,8 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
   if cf.needNow: cf.nowNs = $getTime()
   forPid(cf.pids):
     procs.setLen procs.len + 1
-    if not procs[^1].read(pid, cf.need, cf.sneed) or cf.failsFilters(procs[^1]):
+    if not procs[^1].read(pid, cf.need, cf.sneed, cf.schedSt) or
+       cf.failsFilters(procs[^1]):
       zeroMem procs[^1].addr, Proc.sizeof; procs.setLen procs.len - 1
       continue
     if cf.forest: parent[procs[^1].pid0] = procs[^1].ppid0
@@ -1773,7 +1775,8 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
     cmpsG = cf.diffCmps.addr
     forPid(cf.pids):
       procs.setLen procs.len + 1
-      if not procs[^1].read(pid,cf.need,cf.sneed) or cf.failsFilters(procs[^1]):
+      if not procs[^1].read(pid, cf.need, cf.sneed, cf.schedSt) or
+         cf.failsFilters(procs[^1]):
         zeroMem procs[^1].addr, Proc.sizeof
         procs.setLen procs.len - 1
         continue
@@ -2316,10 +2319,11 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "incl"   : "kinds to include",
                "merge"  : "merge rows within these kind:dim",
                "hdrs"   : "<1-ch-code>:<headerOverride> pairs",
-               "realIds": "use real uid/gid from /proc/PID/status" },
+               "realIds": "use real uid/gid from /proc/PID/status",
+               "schedSt": "Use PID/schedStat not coarse PID/stat u+s" },
       short = { "width":'W', "indent":'I', "incl":'i', "excl":'x', "header":'H',
                 "maxUnm":'U', "maxGnm":'G', "version":'v', "colors":'C',
-                "diffcmp":'D', "blanks":'B', "schedstat":'t' },
+                "diffcmp":'D', "blanks":'B', "schedSt":'t' },
       alias = @[ ("Style", 'S', "DEFINE an output style arg bundle", @[
                    @[ "io" , "-DJ><", "-f%p %t %< %> %J %c" ] ]),   #built-ins
                  ("style", 's', "APPLY an output style" , @[ess]) ] ],
