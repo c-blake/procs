@@ -1,6 +1,19 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.5
+--------------
+  - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just
+    write our own cpio archive.  Set `PFA=someFile` in context of any `procs`
+    subcommand & feed "someFile" to `cpio -id` in some dir to unpack.  You will
+    need to be root to create files with ownership replicating /proc.
+
+  - Given that we make our own archive already, the root annoyance & performance
+    considerations of re-scanning /proc, adapt code to run off one of our `cpio`
+    archives if `$PFS` is such an archive (cannot be "cd'd into").  Missing data
+    is not backfilled from the live /proc (to work the same as if you had a
+    mirror file tree or to capture /proc dynamism).
+
 Version: 0.8.4
 --------------
   - Add batch labeling to `procs.find`/`pf` via `--Labels=` which correspond,
