@@ -16,6 +16,10 @@ Version: 0.8.5
     is that if you re-run w/different subcommand/diff formats/sort orders or any
     other perturbation on needed data, that data will just be missing.
 
+  - Rename --schedStat -> --schedSt and document it & make it work in off/false
+    mode as well as on/true mode.  Compare with cb0 configs `pd -su -t=off` to
+    see if this is something that concerns you.
+
 Version: 0.8.4
 --------------
   - Add batch labeling to `procs.find`/`pf` via `--Labels=` which correspond,
