@@ -11,8 +11,10 @@ Version: 0.8.5
   - Given that we make our own archive already, the root annoyance & performance
     considerations of re-scanning /proc, adapt code to run off one of our `cpio`
     archives if `$PFS` is such an archive (cannot be "cd'd into").  Missing data
-    is not backfilled from the live /proc (to work the same as if you had a
-    mirror file tree or to capture /proc dynamism).
+    is NOT backfilled from the live /proc - this is to work the same as if you
+    had a mirror file tree or to capture /proc dynamism.  A consequence, though,
+    is that if you re-run w/different subcommand/diff formats/sort orders or any
+    other perturbation on needed data, that data will just be missing.
 
 Version: 0.8.4
 --------------
