@@ -910,7 +910,8 @@ proc parseSoftIRQs*(rest: string): SoftIRQs =
   result.rcu      = parseInt(col[10])
 
 proc procSysStat*(): SysStat =
-  for line in lines("stat"):
+  "stat".readFile buf
+  for line in buf.split('\n'):
     let cols = line.splitWhitespace(maxSplit=1)
     if cols.len != 2: continue
     let nm   = cols[0]
@@ -938,7 +939,9 @@ proc parseNetStat*(cols: seq[string]): NetStat =
 proc procNetDevStats*(): seq[NetDevStat] =
   var i = 0
   var row: NetDevStat
-  for line in lines("net/dev"):
+  "net/dev".readFile buf
+  for line in buf.split('\n'):
+    if line.len < 1: continue
     i.inc
     if i < 3: continue
     let cols = line.splitWhitespace
@@ -960,7 +963,9 @@ proc parseIOStat*(cols: seq[string]): DiskIOStat =
 
 proc procDiskStats*(): seq[DiskStat] =
   var row: DiskStat
-  for line in lines("diskstats"):
+  "diskstats".readFile buf
+  for line in buf.split('\n'):
+    if line.len < 1: continue
     let cols = line.splitWhitespace
     if cols.len < 18:
       stderr.write "unexpected format in diskstats\n"
