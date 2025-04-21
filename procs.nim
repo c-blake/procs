@@ -652,8 +652,8 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs,
   if psStat in sneed and not p.readStat(pr, fill): return false
   if pfcl_cmdline in fill:
     (pr & "cmdline").readFile buf
-    if buf.len > 0:
-      p.argv0   = buf.split('\0')[0] # argv[0]/$0 (~cmd assuming Bourne/Korn)
+    if buf.len > 0:                     # "exe" is best, but $0 / argv[0] is..
+      p.argv0   = buf.split('\0')[0]    #..usually cmd in Bourne/Korn family.
       p.cmdLine = buf.cmdClean
   if pfen_environ in fill: (pr&"environ").readFile buf; p.environ=buf.split '\0'
   if pfr_root     in fill: p.root = readlink(pr & "root", devNull)
