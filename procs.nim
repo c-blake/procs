@@ -1912,7 +1912,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   let workAtEnd = sigs.len>1 or acts.any(acWait1, acWaitA, acAid, acPath)
   var tM = if newest: 0.uint else: 0x0FFFFFFFFFFFFFFF.uint  #running min/max t0
   var cnt = 0; var t0: Timespec
-  if Labels.len>0 and acEcho notin acts: Value !! "`Labels` but no `echo`!"
+  if Labels.len>0 and acPath in acts:
+    Value !! "`Labels` & `--actions=path` are mutually exclusive!"
   var lab = ""; var used = newSeq[int](Labels.len)
   forPid(pids):
     if pid in exclPIDs: continue                    #skip specifically excluded
