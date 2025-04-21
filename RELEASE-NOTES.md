@@ -34,6 +34,13 @@ Version: 0.8.5
     mode as well as on/true mode.  Compare with cb0 configs `pd -su -t=off` to
     see if this is something that concerns you.
 
+  - A new set of example config files (along with a `zsh` shell function & `awk`
+    helper script) have been merged into `configs/kaminsky0`.  [The README.md
+    there](configs/kaminsky0/README.md) elaborates and has screenshots.  A very
+    high-level description might be "This may be a better starting point if you
+    have a big server or fancy desktop Linux distro with a much more diverse
+    process zoo you'd like to create more organized reports for."
+
 Version: 0.8.4
 --------------
   - Add batch labeling to `procs.find`/`pf` via `--Labels=` which correspond,
