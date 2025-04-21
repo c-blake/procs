@@ -16,6 +16,20 @@ Version: 0.8.5
     is that if you re-run w/different subcommand/diff formats/sort orders or any
     other perturbation on needed data, that data will just be missing.
 
+  - Given the above and the likelihood that a `pf` might precede a `pd` in some
+    kind of external typing situation or just generally otherwise, provide a way
+    for `pf` to populate a cpio archive with any per-pid processed sources.
+    (Could be extended to system-wide `scrollsy` sources, on request/demand.)
+
+    For example, `PFA=/tmp/my pf -F,=,dst,stat,exe,io,sched -A-1000000000 -ac`
+    will populate the cpio archive `/tmp/my` with most basic per-PID data.
+
+    As with any other cligen utility, `pf -F ''` gives a list of all sources,
+    named almost exactly after direntries in /proc/PID/.  This is kind of an
+    optimizer/expert mode and so users need to "just know" what data lives in
+    what per-PID files, but the alternative is knowing the 170 fields procs can
+    currently parse which seems even harder.
+
   - Rename --schedStat -> --schedSt and document it & make it work in off/false
     mode as well as on/true mode.  Compare with cb0 configs `pd -su -t=off` to
     see if this is something that concerns you.
