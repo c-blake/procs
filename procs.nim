@@ -12,6 +12,8 @@ const ess: seq[string] = @[]
 #------------ SAVE SYSTEM: Avoid FS calls; Can be stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")     # Alt Root; Repro runs @other times/machines
 let PFA = getEnv("PFA", "")         # Nm of cpio -Hbin Proc File Archive to make
+if PFS.len > 0 and PFA == PFS: Value !! "Cannot set PFS & PFA to same value"
+
 type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
   mtime : array[2, uint16]
