@@ -45,8 +45,8 @@ kind = "notexplicit      none      explicit"
 
 #kind = "chrome1          pcr_l     chrome:"
 kind = "chrome2          pcr_C     /chrome/chrome_crashpad_handler"
-kind = "chrome3          any       chrome_ chrome2"
-kind = "chrome_          all       chrome3 notexplicit"
+kind = "chrome3          any       chrome chrome2"
+kind = "chrome           all       chrome3 notexplicit"
 
 kind = "zulip1           pcr_@     zulip"
 kind = "zulip2           pcr_C     /Zulip/chrome_crashpad_handler"
