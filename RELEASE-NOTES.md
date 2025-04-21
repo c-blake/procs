@@ -39,7 +39,9 @@ Version: 0.8.5
     there](configs/kaminsky0/README.md) elaborates and has screenshots.  A very
     high-level description might be "This may be a better starting point if you
     have a big server or fancy desktop Linux distro with a much more diverse
-    process zoo you'd like to create more organized reports for."
+    process zoo you'd like to create more organized reports for." @mkaminsky
+    contributed these (& actually made the original 2019 inspiring comment that
+    led to the entire `procs.nim` program).
 
 Version: 0.8.4
 --------------
