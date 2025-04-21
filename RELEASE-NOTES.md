@@ -21,7 +21,7 @@ Version: 0.8.5
     for `pf` to populate a cpio archive with any per-pid processed sources.
     (Could be extended to system-wide `scrollsy` sources, on request/demand.)
 
-    For example, `PFA=/tmp/my pf -F,=,dst,stat,exe,io,sched -A-1000000000 -ac`
+    For example, `PFA=/tmp/my pf -F,=,dst,stat,exe,io,sched -A-99999999900 -ac`
     will populate the cpio archive `/tmp/my` with most basic per-PID data.
 
     As with any other cligen utility, `pf -F ''` gives a list of all sources,
