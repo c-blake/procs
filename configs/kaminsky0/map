@@ -1,0 +1,6 @@
+    BEGIN {
+      map[$ff_w] = "w"
+      map[$ff_h] = "h"
+      map[$code] = "c"
+      map[$chrome] = "C"
+  }
