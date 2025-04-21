@@ -217,7 +217,9 @@ type    #------------ TYPES FOR PER-PROCESS DATA
 
   ProcFields* = set[ProcField]
 
-  ProcSrc = enum psFStat,psStat,psStatm,psStatus,psWChan,psIO,psSMapsR,psSchedSt
+  ProcSrc=enum psDStat="dstat",psStat="stat",psStatm="statm",psStatus="status",
+    psWChan="wchan", psIO="io", psSMapsR="smaps_rollup", psSchedSt="schedstat",
+    psRoot="root", psCwd="cwd", psExe="exe", psFDs="fds"
   ProcSrcs* = set[ProcSrc]
 
   NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
@@ -341,7 +343,7 @@ proc needs*(fill: var ProcFields): ProcSrcs =
   if pffs_grp in fill: fill.incl pffs_gid   #..add the numeric id to fill.
   if pfs_usrs in fill: fill.incl pfs_uids
   if pfs_grps in fill: fill.incl pfs_gids
-  if (needsFstat  * fill).card > 0: result.incl psFStat
+  if (needsFstat  * fill).card > 0: result.incl psDStat
   if (needsStat   * fill).card > 0: result.incl psStat
   if (needsStatm  * fill).card > 0: result.incl psStatm
   if (needsStatus * fill).card > 0: result.incl psStatus
@@ -643,7 +645,7 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs,
   ## stale ``pid`` | not Linux).
   result = true                         # Ok unless early exit says elsewise
   let pr = pid & "/"
-  if psFStat in sneed:                  # Must happen before p.st gets used @end
+  if psDStat in sneed:                  # Must happen before p.st gets used @end
     if stat(pr.cstring, p.st) == -1: return false
   p.spid = pid; p.pid = toPid(pid)      # Set pid fields themselves
   p.pidPath.setLen 0
@@ -1846,7 +1848,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim=" ", otrTerm="\n",
     Labels=ess, exist=false, signals=ess, nice=0, actions: seq[PfAct] = @[],
-    PCREpatterns: seq[string]): int =
+    FileSrc: ProcSrcs={}, PCREpatterns: seq[string]): int =
   ## Find subset of procs by various criteria & act upon them ASAP (echo, path,
   ## aid, count, kill, nice, wait for any|all). Unify & generalize pidof, pgrep,
   ## pkill, snice features in one command with options most similar to pgrep.
@@ -1897,7 +1899,11 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if ns != 0:
     for ns in nsList: fill.incl toPfn(ns)
   if newest or oldest or age != 0: fill.incl pf_t0
-  let sneed = needs(fill)               #source needs
+  if psRoot in FileSrc: fill.incl pfr_root
+  if psCwd  in FileSrc: fill.incl pfc_cwd
+  if psExe  in FileSrc: fill.incl pfe_exe
+  if psFDs  in FileSrc: fill.incl {pfd_0, pfd_1, pfd_2, pfd_3,pfd_4,pfd_5,pfd_6}
+  let sneed = needs(fill) + FileSrc     #source needs unioned w/source requests
   discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
   if root != 0 and root != ns: q.root = readlink($root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
