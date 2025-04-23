@@ -73,7 +73,7 @@ proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
       let s = tab[path.toMSlice]
       buf.setLen s.len
       copyMem buf.cstring, s.mem, s.len
-    except: discard
+    except: buf.setLen 0
   else: posixUt.readFile path, buf, nil, perRead
   if PFA.len > 0:
     rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
