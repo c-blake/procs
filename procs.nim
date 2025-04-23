@@ -2360,7 +2360,11 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "exist":     "exit w/status 0 at FIRST match;NO actions",
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
-               "actions":   "echo/path/aid/count/kill/nice/wait/Wait" },
+               "actions":   "echo/path/aid/count/kill/nice/wait/Wait",
+               "FileSrc": """/proc file sources to include (for PFA):
+  cwd dstat exe fds io root schedstat
+  smaps-rollup stat statm status wchan
+Use -f to include /cmdline""" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
              "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A',
