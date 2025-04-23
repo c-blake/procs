@@ -1907,7 +1907,8 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if psExe  in FileSrc: fill.incl pfe_exe
   if psFDs  in FileSrc: fill.incl {pfd_0, pfd_1, pfd_2, pfd_3,pfd_4,pfd_5,pfd_6}
   let sneed = needs(fill) + FileSrc     #source needs unioned w/source requests
-  discard q.read($ns, fill, sneed)      #XXX pay attn to errors? Eg. non-root
+  if ns != 0.Pid:
+    discard q.read($ns, fill, sneed)    #XXX pay attn to errors? Eg. non-root
   if root != 0 and root != ns: q.root = readlink($root & "/root", devNull)
   let root = if q.root == "": 0 else: root          #ref root unreadable=>cancel
   let workAtEnd = sigs.len>1 or acts.any(acWait1, acWaitA, acAid, acPath)
