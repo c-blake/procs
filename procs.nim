@@ -9,7 +9,7 @@ export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
 
-#------------ SAVE SYSTEM: Avoid FS calls; Can be stale BUT SOMETIMES WANT THAT
+#------------ SAVE-LOAD SYS: Avoid FS calls;Can Be Stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")     # Alt Root; Repro runs @other times/machines
 let PFA = getEnv("PFA", "")         # Nm of cpio -Hbin Proc File Archive to make
 if PFS.len > 0 and PFA == PFS: Value !! "Cannot set PFS & PFA to same value"
@@ -22,26 +22,24 @@ type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
 
 proc cpioLoad(path: string): (Table[MSlice, MSlice], seq[string]) =
   let mf = mopen(path)                  # Lifetime of program on purpose
-  if mf.mslc.mem.isNil: return          # mmap on directories fails
-  result[0] = initTable[MSlice, MSlice](mf.mslc.len div 90) # 90 is <sz> guess
+  if mf.mem.isNil: return               # mmap on directories fails
+  result[0] = initTable[MSlice, MSlice](mf.len div 90)  # 90 is <sz> guess
   let trailBuf = "TRAILER!!!"; let trailer = trailBuf.toMSlice
   var nm, dat: MSlice
   var off = 0
-  while off + Rec.sizeof < mf.mslc.len:
-    let h = cast[ptr Rec](mf.mslc.mem +! off)
+  while off + Rec.sizeof < mf.len:
+    let h = cast[ptr Rec](mf.mem +! off)
     off += Rec.sizeof
     if h.magic != 0o070707: IO !! &"off:{off}: magic!=0o070707: 0o{h.magic:06o}"
-    nm = MSlice(mem: mf.mslc.mem +! off, len: h.nmLen.int - 1) # Rec includes \0
+    nm = MSlice(mem: mf.mem +! off, len: h.nmLen.int - 1) # Rec includes \0
     if nm == trailer: break
-    if nm.len>0 and nm[0]in{'0'..'9'}and(let p=cmemchr(nm.mem,'/',nm.len.uint);
-         p != nil):
-      let s = $nm[0 ..< p -! nm.mem]
-      if result[1].len > 0:
-        if result[1][^1] != s: result[1].add $nm[0 ..< p -! nm.mem]
-      else: result[1].add s
+    if nm.len > 0 and nm[0] in {'1'..'9'} and (let sl = nm.find('/'); sl != -1):
+      let tld = $nm[0..<sl]
+      if result[1].len > 0: (if result[1][^1] != tld: result[1].add $nm[0..<sl])
+      else: result[1].add tld
     off += h.nmLen.int + int(h.nmLen mod 2 != 0)
     let dLen = (h.datLen[0].int shl 16) or h.datLen[1].int
-    dat = MSlice(mem: mf.mslc.mem +! off, len: dLen)
+    dat = MSlice(mem: mf.mem +! off, len: dLen)
     off += dLen + int(dLen mod 2 != 0)
     if (h.mode.cint and S_IFMT)==S_IFLNK and dat.len>0 and dat[dat.len-1]=='\0':
       dat.len -= 1
@@ -91,12 +89,7 @@ proc stat(a1: cstring, a2: var Stat): cint =
       let s = tab[key]
       let kLen = if key.len mod 2 == 0: key.len + 2 else: key.len + 1
       let r = cast[ptr Rec](cast[uint](s.mem) - uint(Rec.sizeof + kLen))
-#     if r.magic != 0o070707: echo a1, &" mag: {r.magic:o}"
-#     a2.st_dev  = Dev(r.dev); a2.st_ino = Ino(r.ino); a2.st_mode = Mode(r.mode)
-      a2.st_uid  = Uid(r.uid)
-      a2.st_gid  = Gid(r.gid)
-#     a2.st_nlink=Nlink(r.nlink); a2.st_rdev  = Dev(r.rdev)
-#     a2.st_mtim =Timespec(tv_sec:Time(r.mtime[0].int shl 16 or r.mtime[1].int))
+      a2.st_uid = r.uid.Uid; a2.st_gid = r.gid.Gid
     except: discard
   else: discard posix.stat(a1, a2)
   if PFA.len > 0:
