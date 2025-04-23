@@ -393,13 +393,13 @@ proc readStat*(p: var Proc; pr: string, fill: ProcFields): bool =
   ## Returns false upon missing/corrupt file (eg. stale ``pid`` | not Linux).
   result = true
   (pr & "stat").readFile buf
-  let cmd0 = buf.find(" (")             #Bracket command.  Works even if cmd has
-  let cmd1 = buf.rfind(") ")            #..parens or whitespace chars in it.
-  if cmd0 == -1 or cmd1 == -1 or p.spid.len < cmd0 or
+  let cmd0 = buf.find('(') + 1          #Bracket command.  Works even if cmd has
+  let cmd1 = buf.rfind(')')             #..parens or whitespace chars in it.
+  if cmd0 < 3 or cmd1 == -1 or p.spid.len < cmd0 - 2 or # 2=" " + error offset
     cmpMem(p.spid[0].addr, buf[0].addr, p.spid.len) != 0: return false
-  let nC = cmd1 - (cmd0 + 2)
-  if pf_pid0 in fill: p.pid0 = MSlice(mem: buf[0].addr, len: cmd0).toPid
-  if pf_cmd  in fill: p.cmd.setLen nC; copyMem p.cmd[0].addr,buf[cmd0+2].addr,nC
+  let nC = cmd1 - cmd0
+  if pf_pid0 in fill: p.pid0 = MSlice(mem: buf[0].addr, len: cmd0 - 2).toPid
+  if pf_cmd  in fill: p.cmd.setLen nC; copyMem p.cmd.cstring, buf[cmd0].addr, nC
   var i = 1
   if buf[^1] == '\n': buf.setLen buf.len - 1
   for s in MSlice(mem: buf[cmd1 + 2].addr, len: buf.len - (cmd1 + 2)).mSlices:
