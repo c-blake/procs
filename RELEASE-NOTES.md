@@ -21,7 +21,7 @@ Version: 0.8.5
     for `pf` to populate a cpio archive with any per-pid processed sources.
     (Could be extended to system-wide `scrollsy` sources, on request/demand.)
 
-    For example, `PFA=/tmp/my pf -fF,=,dst,stat,exe,io,sched,status -ac .`
+    For example, `PFA=/tmp/my pf -fF,=,dst,stat,exe,io,sched,status -A1 -ac .`
     will populate the cpio archive `/tmp/my` with most basic per-PID data (but
     you should only read/save what you actually want).
 
