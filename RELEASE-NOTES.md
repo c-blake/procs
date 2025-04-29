@@ -3,9 +3,18 @@ RELEASE NOTES
 
 Version: 0.8.6
 --------------
-    `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
+  - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
     the new `meminfo` FileSrc type.  So, now a better sample invocation is:
     `PFA=/tmp/my pf -fF,=,dst,stat,exe,io,sched,status,mem -A1 -ac .`
+
+  - Add missing sort-by-label 'l' key
+
+  - `pf` fixed to not read --ns unless given needed (was reading /proc/0).
+
+  - Fix behavior on files missing from archives to match un-openable /proc items
+
+  - Clean up `proc cpioLoad` using a new `cligen/mslice` API.  (Needs a new
+    cligen release).
 
 Version: 0.8.5
 --------------
