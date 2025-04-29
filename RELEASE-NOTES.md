@@ -1,6 +1,12 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.6
+--------------
+    `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
+    the new `meminfo` FileSrc type.  So, now a better sample invocation is:
+    `PFA=/tmp/my pf -fF,=,dst,stat,exe,io,sched,status,mem -A1 -ac .`
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just

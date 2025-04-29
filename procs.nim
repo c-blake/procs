@@ -214,7 +214,7 @@ type    #------------ TYPES FOR PER-PROCESS DATA
 
   ProcSrc=enum psDStat="dstat",psStat="stat",psStatm="statm",psStatus="status",
     psWChan="wchan", psIO="io", psSMapsR="smaps_rollup", psSchedSt="schedstat",
-    psRoot="root", psCwd="cwd", psExe="exe", psFDs="fds"
+    psRoot="root", psCwd="cwd", psExe="exe", psFDs="fds", psMemInf="meminfo"
   ProcSrcs* = set[ProcSrc]
 
   NmSpc* = enum nsIpc  = "ipc" , nsMnt = "mnt", nsNet = "net", nsPid = "pid",
@@ -1895,6 +1895,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if ns != 0:
     for ns in nsList: fill.incl toPfn(ns)
   if newest or oldest or age != 0: fill.incl pf_t0
+  if psMemInf in FileSrc: discard procMemInfo()
   if psRoot in FileSrc: fill.incl pfr_root
   if psCwd  in FileSrc: fill.incl pfc_cwd
   if psExe  in FileSrc: fill.incl pfe_exe
@@ -2362,8 +2363,8 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "nice":      "nice increment (!=0 =>actions.add nice)",
                "actions":   "echo/path/aid/count/kill/nice/wait/Wait",
                "FileSrc": """/proc file sources to include (for PFA):
-  cwd dstat exe fds io root schedstat
-  smaps-rollup stat statm status wchan
+  dstat stat statm status wchan cwd exe io
+  fds root schedstat smaps-rollup meminfo
 Use -f to include /cmdline""" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
