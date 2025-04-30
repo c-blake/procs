@@ -1069,7 +1069,7 @@ type
   DpCf* = object  #User set/cfg fields early; Computed/intern fields after pids.
     kind*, colors*, color*, ageFmt*: seq[string]            ##usrDefd kind/colrs
     incl*, excl*, merge*, hdrs*: seq[string]                ##usrDefd filt,aggr
-    order*, diffCmp*, format*, maxUnm*, maxGnm*: string     ##see help string
+    order*, diffCmp*, format*, maxUnm*, maxGnm*, na*:string ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
     blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool ##flags
@@ -1407,8 +1407,8 @@ proc fmtSz[T](attrSize: array[0..25, string], a0: string, binary: bool, b: T,
 proc fmtSz[T](b: T): string = fmtSz(cg.attrSize, cg.a0, cg.binary, b, 4)
 
 proc fmtPct[A,B](n: A, d: B): string =
-  if d.uint64 == 0: return "?"
-  let mills = (1000.uint64 * n.uint64 + 5) div d.uint64
+  if d.uint64 == 0: return cg.na
+  let mills = (1000.uint64*n.uint64 + 5) div d.uint64
   let leading = mills div 10
   if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
 
@@ -1447,7 +1447,7 @@ fAdd('s', {pf_state}           ,0,4, "STAT"   ): $p.state
 fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
-        else: "."                                         #no tty/unknown
+        else: cg.na                                       #no tty/unknown
 fAdd('a', {pf_t0}              ,0,4, " AGE"   ): fmtJif(cg.uptm - p.t0)
 fAdd('T', {pf_t0}              ,1,6, "START"  ):
   let ageJ = cg.uptm - p.t0
@@ -1461,7 +1461,7 @@ fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
 fAdd('b', {pf_utime,pf_stime,pfss_sched},0,4, "ppbT"):
-  if p.ageD == 0: "?"   #XXX Better data for pd itself; Re-set p.t0,uptm here?
+  if p.ageD == 0: cg.na  #XXX Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "FLAGS"  ): "x"&toHex(p.flags.BiggestInt,6)
@@ -2272,7 +2272,8 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
   let tsM1 = Timespec(tv_sec: (-1).Time)
   let tsP1 = Timespec(tv_sec: (+1).Time)
 
-  let dd = DpCf(header:true, blanks:true, indent:3, plain: noColor, delay:tsM1)
+  let dd = DpCf(na: "?", header: true, blanks: true, indent: 3, plain: noColor,
+                delay: tsM1)
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin()
     cf.display()
@@ -2321,6 +2322,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "maxUnm" : "abbreviation specification for user nms:\n" &
                            parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
+               "na"     : "not available/missing values",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
                "merge"  : "merge rows within these kind:dim",
