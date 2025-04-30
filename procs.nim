@@ -1447,7 +1447,7 @@ fAdd('s', {pf_state}           ,0,4, "STAT"   ): $p.state
 fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
-        else: "?"                                         #no tty/unknown
+        else: "."                                         #no tty/unknown
 fAdd('a', {pf_t0}              ,0,4, " AGE"   ): fmtJif(cg.uptm - p.t0)
 fAdd('T', {pf_t0}              ,1,6, "START"  ):
   let ageJ = cg.uptm - p.t0
