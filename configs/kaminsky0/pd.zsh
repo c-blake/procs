@@ -26,7 +26,7 @@ function pd() {
         declare -a ru_pids=($(pf -f "$labels[@]" "${patterns[@]}"))
     else
         declare -a ru_pids=($(pf \
-            -F,=,dst,stat,exe,io,sched -A-99999999900 \
+            -F,=,dst,stat,exe,io,sched,meminfo -A-99999999900 \
             -f "$labels[@]" "${patterns[@]}"
         ))
         local PFS=$PFA 
@@ -51,7 +51,7 @@ function pd() {
                 -k\^="${ru_lab} all ${ru_lab}__base notexplicit"
                 -k\^="${ru_lab}__base pcr_l ${ru_lab}:"
                 -m\^="${ru_lab}"
-                -c\^="${ru_lab}:0x0:3 inverse"
+                -c\^="${ru_lab}:0x0:3 ru_color"
             )
         fi
     done
@@ -83,7 +83,7 @@ function pd() {
         )
         pids=($(printf "%s\n" "${pids[@]}" | sort | uniq))
 
-        command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+        command pd -s user --na "" "${arglist[@]}" "${flags[@]}" "${pids[@]}"
 
     else
         local process scope scope_pids
@@ -114,9 +114,10 @@ function pd() {
             return 1
         fi
 
-        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} $flags $pids | \
+        command pd -s user --na "" "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+        command pd -s user --na "" --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" | \
             sed -E \
-                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|)m//g" \
+                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|039|38;2;[0-9]+;[0-9]+;0|)m//g" \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
                 -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
                 -e "s/@@.+@@//"

@@ -40,3 +40,6 @@ colors = "BHUE3 = on_GREEN"
 colors = "BHUE4 = on_YELLOW"
 colors = "BHUE5 = on_RED"
 colors = "BHUE+ = on_BLACK"
+
+colors = "ru_color = b242888"
+colors = "kern_color = b950606"

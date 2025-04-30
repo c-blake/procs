@@ -28,38 +28,4 @@ kind = "kiod      pcr iod$"
 kind = "*iod      all kern kiod"
 
 #Some user space bundles
-kind = "explicit         pcr_l     explicit:"
-kind = "notexplicit      none      explicit"
-
-#kind = "firefox_work1    pcr_l     ff_w:"
-#kind = "firefox_work2    any       firefox_work1"
-#kind = "firefox_work     all       firefox_work2 notexplicit"
-#
-#kind = "firefox_home1    pcr_l     ff_h:"
-#kind = "firefox_home2    any       firefox_home1"
-#kind = "firefox_home     all       firefox_home2 notexplicit"
-#
-#kind = "code1            pcr_l     code:"
-#kind = "code2            any       code1"
-#kind = "code             all       code2 notexplicit"
-
-#kind = "chrome1          pcr_l     chrome:"
-kind = "chrome2          pcr_C     /chrome/chrome_crashpad_handler"
-kind = "chrome3          any       chrome chrome2"
-kind = "chrome           all       chrome3 notexplicit"
-
-kind = "zulip1           pcr_@     zulip"
-kind = "zulip2           pcr_C     /Zulip/chrome_crashpad_handler"
-kind = "zulip3           any       zulip1 zulip2"
-kind = "zulip            all       zulip3 notexplicit"
-
-kind = "pgadmin1         pcr_@     /pgadmin4/"
-kind = "pgadmin2         pcr_C     /pgadmin4/"
-kind = "pgadmin3         any       pgadmin1 pgadmin2"
-kind = "pgadmin          all       pgadmin3 notexplicit"
-
-kind = "signal1          pcr_@     /Signal"
-kind = "signal           all       signal1 notexplicit"
-
-kind = "vbox1            pcr       VBox"
-kind = "vbox             all       vbox1 notexplicit"
+#Moved pd-rollups

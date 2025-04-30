@@ -50,3 +50,5 @@ colors = "BHUE3 = on_green"
 colors = "BHUE4 = on_yellow"
 colors = "BHUE5 = on_red"
 colors = "BHUE+ = on_white"
+
+colors = "ru_color = b242888"
