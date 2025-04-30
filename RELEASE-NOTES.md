@@ -16,6 +16,9 @@ Version: 0.8.6
   - Clean up `proc cpioLoad` using a new `cligen/mslice` API.  (Needs a new
     cligen release).
 
+  - New procs display --na=string option for users to adjust how missing values
+    (or Not Available or N/A or --na) are represented.
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just
