@@ -2269,22 +2269,16 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
     "\n\nTEXT ATTRIBUTE SPECIFICATION:\n" & addPrefix("  ", textAttrHelp)
   proc c_getenv(env: cstring): cstring {.importc:"getenv", header:"<stdlib.h>".}
   let noColor = c_getenv("NO_COLOR") != nil
-  let tsM1 = Timespec(tv_sec: (-1).Time)
-  let tsP1 = Timespec(tv_sec: (+1).Time)
 
   let dd = DpCf(na: "?", header: true, blanks: true, indent: 3, plain: noColor,
-                delay: tsM1)
+                delay: Timespec(tv_sec: (-1).Time))         # d)isplay d)efaults
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
-    cf.fin()
-    cf.display()
-    quit(0)
-
-  let sd = ScCf(frqHdr: 15, numIt: -1, plain: noColor, delay: tsP1)
+    cf.fin(); cf.display(); quit(0)
+  let sd = ScCf(frqHdr: 15, numIt: -1, plain: noColor,      # s)croll d)efaults
+                delay: Timespec(tv_sec: (+1).Time))
   initDispatchGen(scrollC, cf, sd, positional="format", @["ALL AFTER format"]):
-    cf.fin()
-    cf.scrollSys()
-    quit(0)
-
+    cf.fin(); cf.scrollSys(); quit(0)
+  # procs.find is a more classic cligen subcommand without a config object
   dispatchMulti(
     [ displayCmd, cmdName="display", doc=docFromProc(procs.display),
       help = { "version": "Emit Version & *HELP SETTING COLORS*",
