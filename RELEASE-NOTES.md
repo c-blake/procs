@@ -26,6 +26,8 @@ Version: 0.8.6
     { but note that besides "w" (for wvLen) scale used there, `pd --version`
       tells you others (e.g., right now: viridis hue[,s,v] gray pm3d). }
 
+  - m/%MEM was the raw fraction not a percentage.
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just
