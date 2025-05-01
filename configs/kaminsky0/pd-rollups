@@ -1,7 +1,21 @@
 [containerd]="/usr/bin/containerd-shim-runc-v2"
 [nginx]="nginx: master"
 [postgres]="/usr/lib/postgresql/16/bin/postgres"
+
 [ff_work]="/firefox$"
 [ff_home]="/firefox -P"
+
 [code]="/code$"
+[_code]="/.choosenim"
+
 [chrome]="chrome --password"
+[_chrome]="/chrome/chrome_crashpad_handler"
+
+[zulip]="zulip$"
+[_zulip]="/Zulip/chrome_crashpad_handler"
+
+[signal]="signal-desktop-beta --no-sandbox$"
+[_signal]="/Signal Beta/chrome_crashpad_handler"
+
+[pgadmin]="pgadmin4$"
+[vbox]="VBox"

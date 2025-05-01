@@ -5,7 +5,7 @@ BEGIN {
 }
 
 {
-  if (prefix) {
+  if (prefix && /[[:space:]]+/) {
     $0 = prefix sep $0;
   }
 
