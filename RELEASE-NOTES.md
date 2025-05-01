@@ -19,6 +19,13 @@ Version: 0.8.6
   - New procs display --na=string option for users to adjust how missing values
     (or Not Available or N/A or --na) are represented.
 
+  - Add "%" value coloring (m/e/E formats) similarly to old system load colors.
+    Update example config cb0.  People liking smooth (but also less "nameable")
+    color schemes should look at:
+        https://github.com/c-blake/bu/blob/main/doc/dfr.md#configuration
+    { but note that besides "w" (for wvLen) scale used there, `pd --version`
+      tells you others (e.g., right now: viridis hue[,s,v] gray pm3d). }
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just

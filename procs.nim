@@ -1097,6 +1097,7 @@ type
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
     kslotNm: seq[string]                                    #Inverse of above
     labels: Table[string, seq[string]]
+    pctFmts: seq[tuple[level: float; attr: string]]
 
 var cg: ptr DpCf            #Lazy way out of making many little procs take DpCf
 var cmpsG: ptr seq[Cmp]
@@ -1204,7 +1205,8 @@ proc parseColor(cf: var DpCf) =
     let dim   = if nmKoD.len>2: parseInt(nmKoD[2].strip()) else: 0
     let attrs = textAttrOn(cols[1..^1], cf.plain)
     try:
-      let ok = nm.len == 5 and (nm.startsWith("size") or nm == "delta")
+      let ok = (nm.len == 5 and (nm.startsWith("size") or nm == "delta")) or
+                 nm.startsWith("ratio")
       let (k, test) = cf.tests.match(nm, "kind", if ok: nil else: stderr)
       let kno  = cf.kinds.len.uint8               #Found test; add to used kinds
       cf.kslot[k] = (kno, test.pfs, dim)          #Record kind num, ProcFields
@@ -1219,6 +1221,12 @@ proc parseColor(cf: var DpCf) =
           cf.attrSize[ord(nm[4]) - ord('A')] = attrs
         elif nm == "delta":
           cf.attrDiff = attrs
+      elif nm.startsWith("ratio") and nm.len > 5:
+        var thr: float
+        if parseFloat(nm, thr, start=5) > 0:
+          if cf.pctFmts.len > 0 and thr < cf.pctFmts[^1][0]: cf.pctFmts.setLen 0
+          cf.pctFmts.add (thr, attrs)
+        else: Value !! "Syntax is \"ratio<FLOAT> attrs\" not \""&nm&"\""
       else: Value !! "unknown color key: \"" & nm & "\""
   if unknown == 255:  #Terminate .kinds if usr did not specify attrs for unknown
    cf.kinds.add ("", 255.uint8, proc(f: var Proc): bool {.closure.} = true)
@@ -1406,11 +1414,17 @@ proc fmtSz[T](attrSize: array[0..25, string], a0: string, binary: bool, b: T,
 
 proc fmtSz[T](b: T): string = fmtSz(cg.attrSize, cg.a0, cg.binary, b, 4)
 
+proc pctColor(rat: float): int =
+  for i, tup in cg.pctFmts: (if tup.level >= rat: return max(0, i - 1))
+  cg.pctFmts.len - 1 # Can do std/algorithm.lower|upperBound if anyone ever..
+                     #..goes crazy with zillions of levels.  I expect <10.
 proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return cg.na
   let mills = (1000.uint64*n.uint64 + 5) div d.uint64
   let leading = mills div 10
-  if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
+  result = if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
+  if cg.pctFmts.len > 0:
+    result = cg.pctFmts[pctColor(n.float/d.float)][1] & result
 
 let nP = procPidMax() # Most fmts have PIDs,but this can be silly ovrhd for find
 

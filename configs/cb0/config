@@ -8,6 +8,13 @@
 [include__LC_THEME] #..LC_THEME set.  Defs used by color, ageFmt, maybe style.
 
 [include__color]    #Decide test order,colors,sort order,dimension of kind tests
+color = "ratio+0.00 fhue0" # [   0,    1%) => purple    # Mild usage - blues
+color = "ratio+0.01 fhue1" # [   1,   10%) => blue
+color = "ratio+0.10 fhue2" # [  10,   50%) => cyan
+color = "ratio+0.50 fhue3" # [  50,  100%) => green     # More intense side of..
+color = "ratio+1.00 fhue4" # [ 100, 1000%) => yellow    #..the visible spectrum.
+color = "ratio+10.0 fhue5" # [1000,   inf) => red
+
 [include__ageFmt]   #Define various proc age/timestamp formats & colors
 [include__style]    #Define a bunch of styles/aliases for use with `-s`
 
