@@ -28,6 +28,12 @@ Version: 0.8.6
 
   - m/%MEM was the raw fraction not a percentage.
 
+  - m/e/E use a new concept in condensed float formatting I call `nearUnity4`
+    which basically means whichever of 0 De-N .DDD D.DD DD.D DDDD DDeN DeNN inf
+    seems appropriate for the range of the float - no K/M/G/T involved.  This
+    can be fruitfully combined with replacing ppbT and %-color scales for nicer
+    columns of this type.
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just
