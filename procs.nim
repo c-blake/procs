@@ -1420,9 +1420,7 @@ proc pctColor(rat: float): int =
                      #..goes crazy with zillions of levels.  I expect <10.
 proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return cg.na
-  let mills = (1000.uint64*n.uint64 + 5) div d.uint64
-  let leading = mills div 10
-  result = if leading < 100: $leading & '.' & $(mills mod 10) else: $leading
+  result = nearUnity4(n.float/d.float)
   if cg.pctFmts.len > 0:
     result = cg.pctFmts[pctColor(n.float/d.float)][1] & result
 
