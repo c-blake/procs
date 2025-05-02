@@ -34,6 +34,9 @@ Version: 0.8.6
     can be fruitfully combined with replacing ppbT and %-color scales for nicer
     columns of this type.
 
+  - vsize & rss are now max-accumulated in roll-ups; (PSS would "+=" nicely, but
+    kernel doesn't maintain it incrementally => /proc//smaps emission is slow.)
+
 Version: 0.8.5
 --------------
   - Given worrisome EACCESS errors for readlink(exe) for kernel threads, just
