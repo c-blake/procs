@@ -1,5 +1,4 @@
 ## Linux /proc data/display/query interfaces - both cmdline & library
-#XXX Could port to BSD using libkvm/kvm_getprocs/_getargv/_getenvv/kinfo_proc;
 # This program goes to some effort to save time by collecting only needed data.
 
 import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
@@ -696,7 +695,7 @@ macro rest(p: Proc, fs: varargs[untyped]) =
 proc clear(p: var Proc, fill: ProcFields, sneed: ProcSrcs) =
   # Re-init all that above `read` populates to allow obj/mem re-use. To not leak
   # (& also re-use) seqs & strings we must save, zeroMem, then restore them.
-  #XXX Can save memory write traffic by replicating tests both before & after.
+  # Can save memory write traffic by replicating tests both before & after.
   save p, kind, pidPath, environ, usrs, grps # seq[Pid],seq[string],then strings
   save p, spid,cmd,usr,grp, cmdLine,argv0, root, cwd, exe, name,umask,stateS,
        sigQ,sigPnd,shdPnd,sigBlk,sigIgn,sigCgt,
@@ -715,7 +714,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## ``foo``.  When there is no natural aggregation the merged value is really
   ## set-valued (eg, ``tty``).  In such cases, by default, the first Proc wins
   ## the field unless ``overwriteSetValued`` is ``true``.
-  if p.pidPath.len > q.pidPath.len: p.pidPath = q.pidPath #XXX Shortest? Common?
+  if q.pidPath.len < p.pidPath.len: p.pidPath=q.pidPath #Shortest;XXX CommonPfx?
   p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0
   if pf_minflt              in fill: p.minflt               += q.minflt
   if pf_cminflt             in fill: p.cminflt              += q.cminflt
@@ -1776,7 +1775,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
   while true:
     stdout.flushFile
     nanosleep(cf.delay)
-    if cf.needUptm: cf.uptm = procUptime()  #XXX getTime() is surely faster
+    if cf.needUptm: cf.uptm = procUptime() # getTime faster; Only 1 file of many
     next.clear; procs.setLen 0; parent.clear
     if cf.blanks: stdout.write '\n'
     if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
