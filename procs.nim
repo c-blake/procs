@@ -724,6 +724,8 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   if pf_stime               in fill: p.stime                += q.stime
   if pf_cutime              in fill: p.cutime               += q.cutime
   if pf_cstime              in fill: p.cstime               += q.cstime
+  if pf_vsize               in fill: p.vsize = max(p.vsize, q.vsize)
+  if pf_rss                 in fill: p.rss   = max(p.rss  , q.rss  )
   if pfss_sched             in fill: p.pSched               += q.pSched
   if pfss_wait              in fill: p.pWait                += q.pWait
   if pf_utime               in fill: p.t0 = min(p.t0, q.t0)
