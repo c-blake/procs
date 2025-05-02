@@ -1421,7 +1421,7 @@ proc fmtPct[A,B](n: A, d: B): string =
   if d.uint64 == 0: return cg.na
   result = nearUnity4(n.float/d.float)
   if cg.pctFmts.len > 0:
-    result = cg.pctFmts[pctColor(n.float/d.float)][1] & result
+    result = cg.pctFmts[pctColor(n.float/d.float)][1] & result & cg.a0
 
 let nP = procPidMax() # Most fmts have PIDs,but this can be silly ovrhd for find
 
