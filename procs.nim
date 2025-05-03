@@ -708,6 +708,7 @@ proc clear(p: var Proc, fill: ProcFields, sneed: ProcSrcs) =
        capInh,capPrm,capEff,capBnd,capAmb, spec_Store_Bypass,
        cpusAllowedList,memsAllowedList, wchan, fd0,fd1,fd2,fd3,fd4,fd5,fd6
 
+proc mergeCmp(a, b: Proc): int = cmp a.t0, b.t0 # Always merge oldest -> newest
 proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## Merge ``fill`` fields for ``q`` on to those for ``p``.  Summing makes sense
   ## for fields like ``utime``, min|max for eg ``t0``, or bool-aggregated for eg
@@ -715,7 +716,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## set-valued (eg, ``tty``).  In such cases, by default, the first Proc wins
   ## the field unless ``overwriteSetValued`` is ``true``.
   if q.pidPath.len < p.pidPath.len: p.pidPath=q.pidPath #Shortest;XXX CommonPfx?
-  p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0
+  p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0 #Maybe just val4oldest?
   if pf_minflt              in fill: p.minflt               += q.minflt
   if pf_cminflt             in fill: p.cminflt              += q.cminflt
   if pf_majflt              in fill: p.majflt               += q.majflt
@@ -1653,6 +1654,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.parseFormat                                  #.format => .fields
   cf.parseMerge                                   #.merge => .mergeKDs
   cf.parseHdrs                                    #.hdrs => fixed up .fields.hdr
+  if cf.merge.len>0: cf.need = cf.need + {pf_t0}  #Merges pre-sorted by startTm
   if cf.forest: cf.need = cf.need + {pf_pid0, pf_ppid0}
   cf.sneed = needs(cf.need)                       #inits usrs&grps if necessary
   cf.uAbb = parseAbbrev(cf.maxUnm); cf.uAbb.realize(usrs)
@@ -1756,6 +1758,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
   if cf.forest:
     for i in 0 ..< procs.len: procs[i].pidPath = parent.pidPath(procs[i].pid0)
   if cf.merge.len > 0:
+    procs.sort mergeCmp         #Q: Should this become conditional?
     var procs2: seq[Proc]
     var lastSlot = initTable[tuple[k,d:uint8], int](procs.len)
     for p in procs:
