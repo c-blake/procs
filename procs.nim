@@ -2247,9 +2247,12 @@ proc scrollSys*(cf: var ScCf) =
       nanosleep(cf.delay)
 
 when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
-  import cligen, cligen/cfUt
+  import cligen, cligen/[cfUt, argcvt]
   const procsEtc {.strdefine.} = ""   # Allow -d:procsEtc= override of auto etc/
   let argv {.importc: "cmdLine".}: cstringArray   #NOTE MUST be in main module
+
+  proc argHelp(dfl: ProcSrcs; a: var ArgcvtParams): seq[string] =
+    @[a.argKeys, "ProcSrcs", $dfl]
 
   proc mergeParams(cmdNames: seq[string],
                    cmdLine=os.commandLineParams()): seq[string] =
@@ -2374,7 +2377,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "FileSrc": """/proc file sources to include (for PFA):
   dstat stat statm status wchan cwd exe io
   fds root schedstat smaps-rollup meminfo
-Use -f to include /cmdline""" },
+`-f` to include /cmdline; `-A1` for uptime""" },
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
              "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A',
