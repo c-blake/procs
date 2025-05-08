@@ -1,6 +1,17 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.7
+--------------
+
+  - Always merge in oldest-\>newest start-time order for determinism.
+
+  - Do not try to read `smaps_rollup` for kthreads which always fails & do not
+    auto-fail on `psIO` files (which may also need root).
+
+  - Convert %D to "" format if first sort key is not also D to not misleadingly
+    indent the sorted table.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
