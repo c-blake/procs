@@ -653,12 +653,12 @@ proc read*(p: var Proc; pid: string, fill: ProcFields, sneed: ProcSrcs,
   if pfr_root     in fill: p.root = readlink(pr & "root", devNull)
   if pfc_cwd      in fill: p.cwd  = readlink(pr & "cwd" , devNull)
   if pfe_exe      in fill: p.exe  = readlink(pr & "exe" , devNull)
-  if psStatm      in sneed and not p.readStatm( pr, fill): return false
-  if psStatus     in sneed and not p.readStatus(pr, fill): return false
+  if psStatm      in sneed and not p.readStatm( pr, fill): return false #already
+  if psStatus     in sneed and not p.readStatus(pr, fill): return false #..gone.
   if pfw_wchan    in fill: (pr & "wchan").readFile buf; p.wchan = buf
-  if psIO         in sneed and not p.readIO(pr, fill): return false
-  if psSchedSt    in sneed: discard p.readSchedStat(pr, fill, schedSt)
-  if psSMapsR     in sneed and not p.readSMapsR(pr, fill): return false
+  if psIO         in sneed: discard p.readIO(pr, fill) # perm-blocked|notIn kern
+  if psSchedSt    in sneed: discard p.readSchedStat(pr, fill, schedSt) #notInKrn
+  if psSMapsR     in sneed and p.ppid != 2: discard p.readSMapsR(pr, fill) #perm
   #Maybe faster to readlink, remove tag:[] in tag:[inode], decimal->binary.
   if pfn_ipc      in fill: p.nIpc    =st_inode(pr&"ns/ipc",    devNull)
   if pfn_mnt      in fill: p.nMnt    =st_inode(pr&"ns/mnt",    devNull)
