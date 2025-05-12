@@ -4,6 +4,9 @@ function pd() {
     local PD_LABELS_STALE=${PD_LABELS_STALE:-10} # seconds
     local PFA=${PFA:-/dev/shm/proc.kaminsky.cpio}
 
+    #local start_time
+    #start_time=$EPOCHREALTIME
+
     eval "declare -A rollups=($(< $PD_LABELS_ROLLUPS))"
     declare -a labels=("${(k)rollups[@]/#/-L }")
     declare -a patterns=("${(v)rollups[@]}")
@@ -26,7 +29,7 @@ function pd() {
         declare -a ru_pids=($(pf -f "$labels[@]" "${patterns[@]}"))
     else
         declare -a ru_pids=($(pf \
-            -F,=,dst,stat,exe,io,sched -A-99999999900 \
+            -F,=,dst,stat,exe,io,sched,meminfo,smap -A-99999999900 \
             -f "$labels[@]" "${patterns[@]}"
         ))
         local PFS=$PFA 
@@ -45,13 +48,19 @@ function pd() {
             arglist+=(
                 -k\^="${ru_lab} any unknown"
             )
+        elif [[ "$ru_lab" == _* ]]; then
+            # If label starts with _, don't create a new rollup; instead,
+            # add the PID to the "first" rollup for the given label.
+            maplist+=("map[$ru_pid] = \"${${ru_lab#_}%_*}\";\n")
         else
             maplist+=("map[$ru_pid] = \"${ru_lab}\";\n")
             arglist+=(
                 -k\^="${ru_lab} all ${ru_lab}__base notexplicit"
                 -k\^="${ru_lab}__base pcr_l ${ru_lab}:"
                 -m\^="${ru_lab}"
-                -c\^="${ru_lab}:0x0:3 inverse"
+                -c\^="${ru_lab}:0x0:3 ru_color"
+                #-c\^="${ru_lab}:0x0:3 ru_color over underdot"
+                #-c\^="${ru_lab}:0x0:3 underline cmdclr" # b242888"
             )
         fi
     done
@@ -63,6 +72,8 @@ function pd() {
     )
     #echo $arglist
     #echo $map
+
+    #echo $[EPOCHREALTIME-start_time]
 
     local input
     declare -a flags
@@ -76,14 +87,26 @@ function pd() {
     done
 
     if [[ -z $input ]]; then
+        #start_time=$EPOCHREALTIME
+
         declare -a pids=(
             $(pf -ap "" | \
                 mawk -f <(echo $map) -f $PD_LABELS_AWK
             )
         )
-        pids=($(printf "%s\n" "${pids[@]}" | sort | uniq))
+        # The -U flag to declare/typeset removes duplicates. Note
+        # that we cannot put that -U in the previous declare line,
+        # since that will deduplicate before labels are added.
+        declare -U -a pids=(${(on)pids})
+        #pids=($(printf "%s\n" "${pids[@]}" | sort | uniq))
 
-        command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+        #echo $[EPOCHREALTIME-start_time]
+
+        #start_time=$EPOCHREALTIME
+
+        command pd -s user --na "" "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+
+        #echo $[EPOCHREALTIME-start_time]
 
     else
         local process scope scope_pids
@@ -107,20 +130,28 @@ function pd() {
                 mawk -f <(echo $map) -v prefix=explicit -f $PD_LABELS_AWK
             )
         )
-        pids=($(printf "%s\n" "${pids[@]}" | sort | uniq))
+        #print -l "${pids[@]}"
+        # The -U flag to declare/typeset removes duplicates. Note
+        # that we cannot put that -U in the previous declare line,
+        # since that will deduplicate before labels are added.
+        declare -U -a pids=(${(on)pids})
 
         if [[ -z $pids ]]; then
             echo "No processes match pattern: $process"
             return 1
         fi
 
-        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} $flags $pids | \
+        #start_time=$EPOCHREALTIME
+        command pd -s user --na "" --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" | \
             sed -E \
-                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|)m//g" \
+                -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|039|38;2;[0-9]+;[0-9]+;0|)m//g" \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
                 -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
                 -e "s/@@.+@@//"
+        #echo $[EPOCHREALTIME-start_time]
     fi
+
+    #echo $[EPOCHREALTIME-start_time]
 }
 
 # vi:ft=zsh

@@ -52,6 +52,7 @@ see their provenance in a subtle way.
   roll-ups/merge behavior (not shown in this first screenshot) is slightly different for certain applications (see above).
 
   <img src="pd.png" alt="pd" style="margin-left: 2em; margin-bottom: 1.5em;" width="75%" hspace="50">
+  <img src="pd-more.png" alt="pd" style="margin-left: 2em; margin-bottom: 1.5em;" width="75%" hspace="50">
 
 - **Search for a pattern**.  Note that matching text is underlined,
   and non-matching parents/ancestors are not-colored/dark.
