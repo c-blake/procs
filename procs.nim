@@ -1074,7 +1074,7 @@ type
     order*, diffCmp*, format*, maxUnm*, maxGnm*, na*:string ##see help string
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
-    blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool ##flags
+    eqLeaf*, blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     kinds: seq[Kind]                                        #kinds user colors
@@ -1668,13 +1668,18 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cg = cf.addr                                    #Init global ptr
   cmpsG = cf.cmps.addr                            #Init global ptr
 
-proc pidPath(parent: Table[Pid, Pid], pid: Pid, rev=true): seq[Pid] =
-  var pid = pid
+let emptK = initCountTable[Pid](2)                # Empty take of nKids
+proc nValues(parent: Table[Pid, Pid]): CountTable[Pid] =
+  for v in parent.values: result.inc v
+proc pidPath(parent: Table[Pid, Pid], kid: Pid, nKid=emptK, rev=true): seq[Pid]=
+  var pid = kid
   result.add pid
   while (pid := parent.getOrDefault(pid)) != 0:
     result.add pid
   if rev: result.reverse
-  if result[0] == 2: result[0] = 0  #So kernel threads come first
+  if result[0] == 2: result[0] = 0      # So kernel threads come first w/-oD
+  if nKid.len > 0 and nKid[kid] == 0:   # Equalize the kidless to enable further
+    result[^1] = 1.Pid                  #.. sorting within same "leaf levels".
 
 #XXX display,displayASAP should grow a threads mode like '/bin/ps H' etc.
 #XXX display,displayASAP should grow --action so caller can use user-defd kinds.
@@ -1759,7 +1764,8 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
       continue
     if cf.forest: parent[procs[^1].pid0] = procs[^1].ppid0
   if cf.forest:
-    for i in 0 ..< procs.len: procs[i].pidPath = parent.pidPath(procs[i].pid0)
+    let nK = if cf.eqLeaf: parent.nValues else: emptK
+    for i in 0..<procs.len: procs[i].pidPath = parent.pidPath(procs[i].pid0, nK)
   if cf.merge.len > 0:
     procs.sort mergeCmp         #Q: Should this become conditional?
     var procs2: seq[Proc]
@@ -2334,6 +2340,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "indent" : "per-level depth-indentation",
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",
+               "eqLeaf" : "equalize pidPath leaves for follow-on sort",
                "blanks" : "add blank rows after each delay report",
                "maxUnm" : "abbreviation specification for user nms:\n" &
                            parseAbbrevHelp,

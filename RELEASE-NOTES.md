@@ -12,6 +12,17 @@ Version: 0.8.7
   - Convert %D to "" format if first sort key is not also D to not misleadingly
     indent the sorted table.
 
+  - Add %/ format code for pidPath to better self-explain -oD sort modes
+
+  - Add `-e, --eqLeaf`: to equalize leaf processes (those sans kids) to make
+    n-level sorting w/the `-oD` prefix needed for a "forest look" more useful
+    (instead of comparison always terminating at the unique-by-definition PID).
+
+    Combined with prior new format code, `pd -sb -eoDJ -f^='%/ '` shows things
+    sorted first into the kthread/init pair, then kidless but internally ordered
+    by cumulCPU time, then each kid of init with its last level kids also all
+    time-sorted.  Meanwhile, `-eoDT` instead does maybe-nicer start-time order.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
