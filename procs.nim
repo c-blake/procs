@@ -1339,7 +1339,7 @@ cAdd('>', {pfi_wch}            , cmp, uint64  ): p.wch # ,pfi_wbl + p.wbl
 cAdd('O', {pfo_score}          , cmp, cint    ): p.oom_score
 cAdd('M', {pfsr_pss}           , cmp, uint64  ): p.pss
 cAdd('l', {}             , cmp, string): cg.labels.getOrDefault(p.spid).join ":"
-let cmpD = cmpOf['D'].cmp
+let cmpD = cmpOf['D'].cmp; let cmpA = cmpOf['A'].cmp
 
 proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
   cmps.setLen(0)
@@ -1448,7 +1448,7 @@ fAdd('z', {pffs_usr}           ,0,5, "  GID"  ): $p.getGid.uint
 fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
 fAdd('D', {pf_ppid0}           ,0,-1, ""  ): # Below -2=>show pid1/2 w/sep roots
-  let doIt = not cmpsG.isNil and cmpsG[].len>0 and cmpsG[][0].cmp == cmpD
+  let doIt = not cmpsG.isNil and cmpsG[].len>0 and cmpsG[][0].cmp in [cmpD,cmpA]
   let s = if doIt: repeat(' ', cg.indent*max(0,p.pidPath.len - 2)) else: ""
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
 fAdd('A', {pf_ppid0}           ,0,nP, alignLeft("AID",nP)):
