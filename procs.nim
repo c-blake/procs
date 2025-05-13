@@ -1447,6 +1447,7 @@ fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
 fAdd('z', {pffs_usr}           ,0,5, "  GID"  ): $p.getGid.uint
 fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
+fAdd('/', {pf_ppid0}           ,0,16,"PIDPATH"): p.pidPath.join("/")
 fAdd('D', {pf_ppid0}           ,0,-1, ""  ): # Below -2=>show pid1/2 w/sep roots
   let doIt = not cmpsG.isNil and cmpsG[].len>0 and cmpsG[][0].cmp in [cmpD,cmpA]
   let s = if doIt: repeat(' ', cg.indent*max(0,p.pidPath.len - 2)) else: ""
@@ -1541,7 +1542,7 @@ proc parseFormat(cf: var DpCf) =
       except Ce: Value !! "unknown format code " & c.repr
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
-      elif c in {'D', 'A'}: cf.forest = true
+      elif c in {'D', 'A', '/'}: cf.forest = true
       elif c == 'N': cf.needNow = true
       elif c in {'T', 'a', 'e', 'E'}: cf.needUptm = true
       elif c in {'m'}: cf.needTotRAM = true
