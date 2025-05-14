@@ -579,12 +579,11 @@ proc readIO*(p: var Proc; pr: string, fill: ProcFields): bool =
 proc readSchedStat*(p:var Proc; pr:string, fill:ProcFields, schedSt=false):bool=
   ## Fill `Proc p` pfss_ fields requested in `fill` via /proc/PID/schedstat.  If
   ## (stale `pid`, not Linux, CONFIG_SCHEDSTATS=n, etc.) return false.
-  result = true
-  buf.setLen 0
-  if schedSt: (pr & "schedstat").readFile buf
+  result = true; if not schedSt: return
+  buf.setLen 0; (pr & "schedstat").readFile buf
   if buf.len == 0:
     if fill.all(pfss_sched, pf_utime, pf_stime):
-      p.pSched = int64(p.utime + p.stime)*10_000_000i64
+      p.pSched = int64(p.utime + p.stime)*10_000_000i64 # jiffy -> ns
     if pfss_wait   in fill: p.pWait   = 0
     if pfss_NOnCPU in fill: p.pNOnCPU = 0
     return
@@ -1301,8 +1300,9 @@ cAdd('J', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
 cAdd('e', {pf_utime,pf_stime}  , cmp, culong  ): p.utime + p.stime
 cAdd('E', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
-proc totCPUns(p: Proc): float = p.pSched.float
-cAdd('b', {pf_utime,pf_stime,pfss_sched}, cmp, uint64):
+proc totCPUns(p: Proc): float =
+  if cg[].schedSt: p.pSched.float else: (p.utime + p.stime).float*1e7
+cAdd('b', {pf_utime,pf_stime}, cmp, uint64):
                                  uint64(p.totCPUns*1e2/max(1.0, p.ageD.float))
 cAdd('L', {pf_flags}           , cmp, culong  ): p.flags
 cAdd('v', {pf_vsize}           , cmp, culong  ): p.vsize
@@ -1477,7 +1477,7 @@ fAdd('J', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "CTIM"):
 fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
-fAdd('b', {pf_utime,pf_stime,pfss_sched},0,4, "ppbT"):
+fAdd('b', {pf_utime,pf_stime}  ,0,4, "ppbT"):
   if p.ageD == 0: cg.na  #XXX Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(100*p.rss, cg.totRAM)
@@ -1659,6 +1659,8 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.parseHdrs                                    #.hdrs => fixed up .fields.hdr
   if cf.merge.len>0: cf.need = cf.need + {pf_t0}  #Merges pre-sorted by startTm
   if cf.forest: cf.need = cf.need + {pf_pid0, pf_ppid0}
+  if cf.schedSt and len({pf_utime, pf_stime}*cf.need) > 0:
+    cf.need = cf.need + {pfss_sched}
   cf.sneed = needs(cf.need)                       #inits usrs&grps if necessary
   cf.uAbb = parseAbbrev(cf.maxUnm); cf.uAbb.realize(usrs)
   cf.gAbb = parseAbbrev(cf.maxGnm); cf.gAbb.realize(grps)
