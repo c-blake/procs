@@ -24,8 +24,9 @@ Version: 0.8.7
     time-sorted.  Meanwhile, `-eoDT` instead does maybe-nicer start-time order.
 
   - Fix bug of %e always formatting to zero.  Works w/both -t=on/off now.  You
-    probably want to add schedSt=true to your config if speed matters less than
-    CPU time accounting precision.
+    want to add schedSt=true to your config (or -t locally just to formats you
+    care about) when speed matters less than CPU time accounting precision and
+    you are sure your kernel provides PID/schedstat.
 
 Version: 0.8.6
 --------------
