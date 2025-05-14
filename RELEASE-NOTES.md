@@ -23,6 +23,10 @@ Version: 0.8.7
     by cumulCPU time, then each kid of init with its last level kids also all
     time-sorted.  Meanwhile, `-eoDT` instead does maybe-nicer start-time order.
 
+  - Fix bug of %e always formatting to zero.  Works w/both -t=on/off now.  You
+    probably want to add schedSt=true to your config if speed matters less than
+    CPU time accounting precision.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
