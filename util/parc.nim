@@ -65,22 +65,26 @@ proc main() =
   if chdir("/proc") != 0: quit "cannot cd /proc"
   readFile "sys/kernel/pid_max", buf
   readFile "uptime", buf
-  var i, eoProg = 0
-  while i + 1 < argc:
-    eoProg = i; inc i
-    if argv[i][0] in {'1'..'9'}: break
+  var i = 1; while i < argc:
+    if argv[i][0] in {'1'..'9'}:
+      break
+    if i mod 2 == 1 and argv[i][0] notin {'s', 'r', 'R'}:
+      stderr.write "Bad command ",$argv[i]," (not s*|r*|R*)\n\n"; quit u, 1
     if i mod 2 == 0 and argv[i][0] != '/':
-      quit "expecting /dirEntry as in /proc/PID/dirEntry"
-  if eoProg mod 2 != 0: quit "unpaired 'program section' args"
+      stderr.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
+    inc i
+  let eoProg = i
+  if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
   var path: string
   while i < argc:
+    if argv[i][0] notin {'1'..'9'}:
+      stderr.write "warning: \"", $argv[i], "\" cannot be a PID\n"
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
-    for j in countup(1, eoProg, 2):
+    for j in countup(1, eoProg - 1, 2):
       path.setLen nI; let nJ = cstrlen(argv[j + 1]); path.add argv[j + 1], nJ
       if   argv[j][0] == 's': discard stat(path.cstring, st)
       elif argv[j][0] == 'r': readFile path, buf
       elif argv[j][0] == 'R': discard readlink(path, nil)
-      else: stderr.write "Bad command ",$argv[j]," (not s*|r*|R*)\n"; quit u
     inc i
 
 main()
