@@ -69,6 +69,8 @@ proc main() =
   while i + 1 < argc:
     eoProg = i; inc i
     if argv[i][0] in {'1'..'9'}: break
+    if i mod 2 == 0 and argv[i][0] != '/':
+      quit "expecting /dirEntry as in /proc/PID/dirEntry"
   if eoProg mod 2 != 0: quit "unpaired 'program section' args"
   var path: string
   while i < argc:
