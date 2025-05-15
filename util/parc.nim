@@ -67,7 +67,7 @@ proc main() =
   if chdir("/proc") != 0: quit "cannot cd /proc"
   for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
     if f.len > 0: readFile f, buf; did = true
-  if not did: stderr.write "parc warning: no global files - `pd` will fail\n"
+  if not did: stderr.write "parc warning: no global files - `pd` may fail\n"
   var i = 1; while i < argc:
     if argv[i][0] in {'1'..'9'}:
       break
