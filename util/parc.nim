@@ -78,6 +78,7 @@ proc main() =
       if   argv[j][0] == 's': discard stat(path.cstring, st)
       elif argv[j][0] == 'r': readFile path, buf
       elif argv[j][0] == 'R': discard readlink(path, nil)
+      else: stderr.write "Bad command ",$argv[j]," (not s*|r*|R*)\n"; quit u
     inc i
 
 main()
