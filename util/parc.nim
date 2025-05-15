@@ -69,7 +69,7 @@ proc main() =
   while i + 1 < argc:
     eoProg = i; inc i
     if argv[i][0] in {'1'..'9'}: break
-  if eoProg mod 2 != 1: quit "unpaired 'program section' args"
+  if eoProg mod 2 != 0: quit "unpaired 'program section' args"
   var path: string
   while i < argc:
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
