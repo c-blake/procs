@@ -66,10 +66,10 @@ proc main() =
   readFile "sys/kernel/pid_max", buf
   readFile "uptime", buf
   var i, eoProg = 0
-  while true:
+  while i + 1 < argc:
     eoProg = i; inc i
     if argv[i][0] in {'1'..'9'}: break
-  if eoProg mod 2 != 0: quit "unpaired 'program' args"
+  if eoProg mod 2 != 1: quit "unpaired 'program section' args"
   var path: string
   while i < argc:
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
