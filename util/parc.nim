@@ -60,7 +60,7 @@ proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 const u="/proc archiver like cpio -oHbin; Works on '0 len' /proc files. Use:\n"&
         "    parc s / r /io R /exe .. pids >cpio-oHbinOut { s)tat r)ead R)dLn }"
 proc main() =
-  if argc < 2 or argv[1][0] == '\0': quit u
+  if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
   var buf: string; var st: Stat
   if chdir("/proc") != 0: quit "cannot cd /proc"
   readFile "sys/kernel/pid_max", buf
