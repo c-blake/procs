@@ -1,4 +1,4 @@
-import std/[syncio, posix], cligen/[posixUt, osUt]
+import std/[syncio, posix, os, strutils], cligen/[posixUt, osUt]
 
 type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
@@ -58,13 +58,16 @@ let argv {.importc: "cmdLine".}: cstringArray #..is both simpler & faster.
 proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 
 const u="/proc archiver like cpio -oHbin; Works on '0 len' /proc files. Use:\n"&
-        "    parc s / r /io R /exe .. pids >cpio-oHbinOut { s)tat r)ead R)dLn }"
+ "    parc s / r /io R /exe .. pids >cpio-oHbinOut { s)tat r)ead R)dLn }\n" &
+ "$PARC_PATHS is also split-on-space for global(non-perPID) entries done first."
+
 proc main() =
   if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
-  var buf: string; var st: Stat
+  var buf: string; var st: Stat; var did = false
   if chdir("/proc") != 0: quit "cannot cd /proc"
-  readFile "sys/kernel/pid_max", buf
-  readFile "uptime", buf
+  for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
+    if f.len > 0: readFile f, buf; did = true
+  if not did: stderr.write "parc warning: no global files - `pd` will fail\n"
   var i = 1; while i < argc:
     if argv[i][0] in {'1'..'9'}:
       break
@@ -78,7 +81,7 @@ proc main() =
   var path: string
   while i < argc:
     if argv[i][0] notin {'1'..'9'}:
-      stderr.write "warning: \"", $argv[i], "\" cannot be a PID\n"
+      stderr.write "parc warning: \"", $argv[i], "\" cannot be a PID\n"
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
     for j in countup(1, eoProg - 1, 2):
       path.setLen nI; let nJ = cstrlen(argv[j + 1]); path.add argv[j + 1], nJ
