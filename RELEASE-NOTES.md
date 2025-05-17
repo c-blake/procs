@@ -32,9 +32,9 @@ Version: 0.8.7
     `cd /proc; parc s / r /stat R /exe [1-9]* >/tmp/p`.  While `parc` itself is
     single-threaded, higher-level dispatch of xargs/bash/zsh/slices of [1-9]*
     and temp file catenation can provide good multi-core scaling of collection.
-    The empty final "TRAILER!!!" file is elided here, but that was always kind
-    of a silly "break cat-ability" thing/gen warnings, AFAICT, and is easy to
-    add to the end of your `cat` if you care.
+    The final "TRAILER!!!" file is elided here, but that was always kind of a
+    silly "break cat-ability"/gen warnings thing, AFAICT, and is easy to add
+    output of `touch 'TRAILER!!!';echo 'TRAILER!!!'|cpio -oHbin` if you care.
 
     While this was mostly motivated by rather surprising in-kernel slowness of
     `/smaps_rollup` for a more nicely rolling up PSS field, there may be other
