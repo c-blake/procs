@@ -28,6 +28,18 @@ Version: 0.8.7
     care about) when speed matters less than CPU time accounting precision and
     you are sure your kernel provides PID/schedstat.
 
+  - Add `util/parc.nim` which ONLY does /proc data collection into cpio, e.g.
+    `cd /proc; parc s / r /stat R /exe [1-9]* >/tmp/p`.  While `parc` itself is
+    single-threaded, higher-level dispatch of xargs/bash/zsh/slices of [1-9]*
+    and temp file catenation can provide good multi-core scaling of collection.
+    The empty final "TRAILER!!!" file is elided here, but that was always kind
+    of a silly "break cat-ability" thing/gen warnings, AFAICT, and is easy to
+    add to the end of your `cat` if you care.
+
+    While this was mostly motivated by rather surprising in-kernel slowness of
+    `/smaps_rollup` for a more nicely rolling up PSS field, there may be other
+    slow files and there may also be thousands of processes/threads.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
