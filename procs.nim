@@ -74,7 +74,7 @@ proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
       copyMem buf.cstring, s.mem, s.len
     except: buf.setLen 0
   else: posixUt.readFile path, buf, nil, perRead
-  if PFA.len > 0:
+  if PFA.len > 0 and buf.len > 0:
     rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
     writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
     discard outp.writeBuffer(buf.cstring, buf.len)
