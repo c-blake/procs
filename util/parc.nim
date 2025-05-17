@@ -64,12 +64,11 @@ const u="/proc archiver like cpio -oHbin; Works on '0 len' /proc files. Use:\n"&
 
 proc main() =
   if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
-  var buf: string; var st: Stat; var did = false
+  var buf: string; var st: Stat
   if chdir("/proc") != 0: quit "cannot cd /proc"
   let thisUid = getuid()
   for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
-    if f.len > 0: readFile f, buf; did = true
-  if not did: stderr.write "parc warning: no global files - `pd` may fail\n"
+    if f.len > 0: readFile f, buf
   var i = 1; while i < argc:
     if argv[i][0] in {'1'..'9'}:
       break
