@@ -22,10 +22,11 @@ proc writeRecHdr(path: cstring; pLen, datLen: int) =
 
 proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
   posixUt.readFile path, buf, nil, perRead
-  rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
-  writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
-  discard o.uriteBuffer(buf.cstring, buf.len)
-  if buf.len mod 2 == 1: discard o.uriteBuffer(pad0.addr, 1)
+  if buf.len > 0:
+    rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
+    writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
+    discard o.uriteBuffer(buf.cstring, buf.len)
+    if buf.len mod 2 == 1: discard o.uriteBuffer(pad0.addr, 1)
 
 proc stat(a1: cstring, a2: var Stat): cint =
   discard posix.stat(a1, a2)
@@ -65,6 +66,7 @@ proc main() =
   if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
   var buf: string; var st: Stat; var did = false
   if chdir("/proc") != 0: quit "cannot cd /proc"
+  let thisUid = getuid()
   for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
     if f.len > 0: readFile f, buf; did = true
   if not did: stderr.write "parc warning: no global files - `pd` may fail\n"
@@ -76,6 +78,8 @@ proc main() =
     if i mod 2 == 0 and argv[i][0] != '/':
       stderr.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
     inc i
+  if argv[1][0] != 's': 
+    stderr.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
   let eoProg = i
   if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
   var path: string
@@ -86,7 +90,10 @@ proc main() =
     for j in countup(1, eoProg - 1, 2):
       path.setLen nI; let nJ = cstrlen(argv[j + 1]); path.add argv[j + 1], nJ
       if   argv[j][0] == 's': discard stat(path.cstring, st)
-      elif argv[j][0] == 'r': readFile path, buf
+      elif argv[j][0] == 'r':
+        if path == "/smaps_rollup":
+          if thisUid == 0 or thisUid == st.st_uid: readFile path, buf
+        else: readFile path, buf
       elif argv[j][0] == 'R': discard readlink(path, nil)
     inc i
 
