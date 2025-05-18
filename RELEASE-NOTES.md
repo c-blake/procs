@@ -40,8 +40,11 @@ Version: 0.8.7
     `/smaps_rollup` for a more nicely rolling up PSS field, there may be other
     slow files and there may also be thousands of processes/threads.
 
-  - Add `-H, --ifHandled` (or `--if-handled`, if you prefer) to mimic same
-    functionality recently added to `pkill`.
+  - Add to procs find/pf/pk `-H, --ifHandled` (or `--if-handled`, if you prefer)
+    to mimic similar functionality recently added to `pkill`.
+
+  - Add `-R, --RunState` (or `--run-state`, if you prefer) for filtering based
+    on the 1-letter run-state code from /proc/PID/stat.
 
 Version: 0.8.6
 --------------

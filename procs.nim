@@ -1869,8 +1869,8 @@ proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
 
 proc ctrlC() {.noconv.} = echo ""; quit 130
 setControlCHook(ctrlC)  #XXX Take -F=,--format= MacroCall string below
-proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
-    pgroup: seq[Pid] = @[], session: seq[Pid] = @[], tty=ess, group=ess,
+proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
+    @[], pgroup: seq[Pid]= @[], session: seq[Pid]= @[], tty=ess, group=ess,
     euid=ess, uid=ess, root=0.Pid, ns=0.Pid, nsList: seq[NmSpc] = @[],
     first=false, newest=false, oldest=false, age=0, exclude=ess, invert=false,
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
@@ -1905,7 +1905,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   else:
     if pids.len==0 and parent.len==0 and pgroup.len==0 and session.len==0 and
        tty.len==0 and group.len==0 and euid.len==0 and uid.len==0 and
-       root==0 and ns==0 and age==0:
+       root==0 and ns==0 and age==0 and RunState.len == 0:
       stderr.write "procs: no criteria given; -h for help; exiting\n"
       return 1
   let uptm = if age != 0: procUptime() else: 0.culong
@@ -1916,6 +1916,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   let tty  = ttyToDev(tty) ; let group = grpToGid(group)  #name|nums->nums
   let euid = usrToUid(euid); let uid   = usrToUid(uid)
   var ppids = initTable[Pid, Pid](); let doTree = acts.any(acAid, acPath)
+  if RunState.len>0 : fill.incl {pf_state}
   if parent.len  > 0 or doTree: fill.incl {pf_pid0,pf_ppid0}
   if pgroup.len  > 0: fill.incl pf_pgrp
   if session.len > 0: fill.incl pf_sess
@@ -1952,6 +1953,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     var match = 1; var j = -1
     if   newest and p.t0.uint < tM                    : match = 0
     elif oldest and p.t0.uint > tM                    : match = 0
+    elif RunState.len>0 and p.state     notin RunState: match = 0
     elif parent.len  > 0 and p.ppid0     notin parent : match = 0
     elif pgroup.len  > 0 and p.pgrp      notin pgroup : match = 0
     elif exclPPID        and p.pgrp != selfPgrp       : match = 0
@@ -2370,7 +2372,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
       help = { "pids":      "whitespace separated PIDs to subset",
                "full":      "match full command name",
                "ignoreCase":"ignore case in matching patterns",
-               "ifHandled": "fail undelayed kills unless targets handle",
+               "RunState":  "match procs in given run states (STIRDZ..)",
                "parent":    "match only kids of given parent",
                "pgroup":    "match process group IDs",
                "session":   "match session IDs",
@@ -2396,6 +2398,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "signals":   "signal names/numbers (=>actions.add kill)",
                "nice":      "nice increment (!=0 =>actions.add nice)",
                "actions":   "echo/path/aid/count/kill/nice/wait/Wait",
+               "ifHandled": "fail undelayed kills unless targets handle",
                "FileSrc": """/proc file sources to include (for PFA):
   dstat stat statm status wchan cwd exe io
   fds root schedstat smaps-rollup meminfo
