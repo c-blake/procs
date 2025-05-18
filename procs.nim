@@ -1848,7 +1848,8 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
 proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
-         nice: int, cnt: var int, wrote: var bool, nErr: var int) =
+         sigCgt:string, nice:int, cnt:var int, wrote:var bool, nErr:var int) =
+  let sigMask = if sigCgt.len > 0: fromHex[int64](sigCgt) else: 0
   for a in acts:
     case a
     of acEcho :
@@ -1857,7 +1858,11 @@ proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
     of acPath : discard         # Must handle after forPid
     of acAid  : discard         # Must handle after forPid
     of acCount: cnt.inc
-    of acKill : nErr += (kill(pid, sigs[0]) == -1).int
+    of acKill :
+      if sigCgt.len > 0:        # Not handled => fail, as with inadequate perm
+        if (1 shl (sigs[0].int - 1) and sigMask) == 0: nErr += 1
+        else: nErr += (kill(pid, sigs[0]) == -1).int
+      else: nErr += (kill(pid, sigs[0]) == -1).int
     of acNice : nErr += (nice(pid, nice.cint) == -1).int
     of acWait1: discard
     of acWaitA: discard
@@ -1871,10 +1876,10 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
     delay=Timespec(tv_sec: 0.Time, tv_nsec: 40_000_000.int),
     limit=Timespec(tv_sec: 0.Time, tv_nsec: 0.int), delim=" ", otrTerm="\n",
     Labels=ess, exist=false, signals=ess, nice=0, actions: seq[PfAct] = @[],
-    FileSrc: ProcSrcs={}, PCREpatterns: seq[string]): int =
-  ## Find subset of procs by various criteria & act upon them ASAP (echo, path,
-  ## aid, count, kill, nice, wait for any|all). Unify & generalize pidof, pgrep,
-  ## pkill, snice features in one command with options most similar to pgrep.
+    ifHandled=false, FileSrc: ProcSrcs={}, PCREpatterns: seq[string]): int =
+  ## Find procs & act (*echo*, *path*, *aid*, *count*, *kill*, *nice*, *wait*
+  ## for any|All) upon them ASAP . Unifies & generalizes `pidof`, `pgrep`,
+  ## `pkill`, `snice` into one command with options most similar to `pgrep`.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var acts: set[PfAct]; var wrote = false
   for a in actions: acts.incl a
@@ -1922,6 +1927,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if ns != 0:
     for ns in nsList: fill.incl toPfn(ns)
   if newest or oldest or age != 0: fill.incl pf_t0
+  if ifHandled: fill.incl pfs_sigCgt    # w/o CL-flag, p.sigCgt.len will == 0
   if psMemInf in FileSrc: discard procMemInfo()
   if psRoot in FileSrc: fill.incl pfr_root
   if psCwd  in FileSrc: fill.incl pfc_cwd
@@ -1975,7 +1981,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       if rxes.len > 0:                           # j<L.len should suffice for..
         if j < Labels.len and Labels[j].len > 0: #..either no | too few Labels.
           lab = Labels[j] & "_" & $used[j]; inc used[j]
-      acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
+      acts.act(lab, p.pid, delim, sigs, p.sigCgt, nice, cnt, wrote, result)
       lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
       t0 = getTime()    # NOTE: Overwrite here means t0=time of LAST matched pid
@@ -1995,7 +2001,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
         if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
       stdout.write otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
-    acts.act("", pList[0], delim, sigs, nice, cnt, wrote, result)
+    acts.act("", pList[0], delim, sigs, p.sigCgt, nice, cnt, wrote, result)
   if acCount in acts:                         # PIDs end in delim & otrTerm,
     if wrote: stdout.write otrTerm            #..but cnt ends ONLY in otrTerm.
     stdout.write cnt, delim; wrote = true
@@ -2003,7 +2009,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if wrote and acts.any(acEcho, acAid, acCount):
     stdout.write otrTerm                      #^acPath already does otrTerm
   if acKill in acts and sigs.len > 1:         # Send any remaining signals
-    var dt = delay - (getTime() - t0)
+    var dt = delay - (getTime() - t0)         # AFTER the delay
     if dt < delay: dt.nanosleep
     for i, sig in sigs[1..^1]:
       for pid in pList: result += (kill(pid, sig) == -1).int
@@ -2364,6 +2370,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
       help = { "pids":      "whitespace separated PIDs to subset",
                "full":      "match full command name",
                "ignoreCase":"ignore case in matching patterns",
+               "ifHandled": "fail undelayed kills unless targets handle",
                "parent":    "match only kids of given parent",
                "pgroup":    "match process group IDs",
                "session":   "match session IDs",
@@ -2396,7 +2403,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
       short={"parent":'P', "pgroup":'g', "group":'G', "euid":'u', "uid":'U',
              "ns":'\0', "nsList":'\0', "first":'1', "exclude":'x',"actions":'a',
              "inVert":'v', "delay":'D', "session":'S', "nice":'N', "age":'A',
-             "otrTerm": 'O'} ],
+             "otrTerm": 'O', "ifHandled": 'H'} ],
     [ scrollC, cmdName="scrollsy", doc=docFromProc(procs.scrollSys),
       help = { "colors": "color aliases; Syntax: name = ATTR1 ATTR2..",
                "color" : """attrs for size/load fields.  Syntax:
