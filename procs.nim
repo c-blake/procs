@@ -1693,7 +1693,7 @@ proc displayASAP*(cf: var DpCf) =
   var last = initTable[Pid, Proc](4)
   var p: Proc
   if cf.needNow: cf.nowNs = $getTime()
-  forPid(cf.pids):
+  forPid cf.pids:
     p.clear cf.need, cf.sneed
     if p.read(pid, cf.need, cf.sneed, cf.schedSt) and not cf.failsFilters(p):
       cf.fmtWrite p, 0    #Flush lowers user-perceived latency by up to 100x at
@@ -1713,7 +1713,7 @@ proc displayASAP*(cf: var DpCf) =
     if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
-    forPid(cf.pids):
+    forPid cf.pids:
       p.clear cf.need, cf.sneed
       if p.read(pid, cf.need, cf.sneed, cf.schedSt) and not cf.failsFilters(p):
         next[p.pid] = p                              #Not done now,but wchan
@@ -1758,7 +1758,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
   var parent = initTable[Pid, Pid]()
   var procs = newSeqOfCap[Proc](cf.pids.len)
   if cf.needNow: cf.nowNs = $getTime()
-  forPid(cf.pids):
+  forPid cf.pids:
     procs.setLen procs.len + 1
     if not procs[^1].read(pid, cf.need, cf.sneed, cf.schedSt) or
        cf.failsFilters(procs[^1]):
@@ -1798,7 +1798,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
     cmpsG = cf.diffCmps.addr
-    forPid(cf.pids):
+    forPid cf.pids:
       procs.setLen procs.len + 1
       if not procs[^1].read(pid, cf.need, cf.sneed, cf.schedSt) or
          cf.failsFilters(procs[^1]):
@@ -1938,7 +1938,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
   if Labels.len>0 and acPath in acts:
     Value !! "`Labels` & `--actions=path` are mutually exclusive!"
   var lab = ""; var used = newSeq[int](Labels.len)
-  forPid(pids):
+  forPid pids:
     if pid in exclPIDs: continue                    #skip specifically excluded
     p.clear fill, sneed
     if not p.read(pid, fill, sneed): continue       #proc gone or perm problem
@@ -1978,7 +1978,7 @@ proc find*(pids="", full=false, ignoreCase=false, parent: seq[Pid] = @[],
       acts.act(lab, p.pid, delim, sigs, nice, cnt, wrote, result)
       lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
-      t0 = getTime()
+      t0 = getTime()    # NOTE: Overwrite here means t0=time of LAST matched pid
     if workAtEnd: pList.add p.pid
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
