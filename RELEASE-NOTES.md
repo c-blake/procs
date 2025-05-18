@@ -40,6 +40,9 @@ Version: 0.8.7
     `/smaps_rollup` for a more nicely rolling up PSS field, there may be other
     slow files and there may also be thousands of processes/threads.
 
+  - Add `-H, --ifHandled` (or `--if-handled`, if you prefer) to mimic same
+    functionality recently added to `pkill`.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
