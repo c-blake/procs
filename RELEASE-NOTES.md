@@ -46,6 +46,33 @@ Version: 0.8.7
   - Add `-R, --RunState` (or `--run-state`, if you prefer) for filtering based
     on the 1-letter run-state code from /proc/PID/stat.
 
+  - Move `kill`-> `pidfd_open` & `pidfd_send_signal` in `procs find`.  Linux in
+    2019 (&glibc 2022) began full support of pidfd interfaces.  As of 2025, MUSL
+    still doesn't seem to; Unsure of plans, but TLDR - I've waited long enough.
+
+    Some background: This limits PID recycling/wraparound races to the time from
+    getdents(/proc) to the loop iteration classifying a PID.  USUALLY, this is a
+    small fraction of the 20 ms to wrap process tables under heavy load UNLESS:
+    A) `pid_max` is very small, B) effective `pid_max` is very small (e.g. a
+    zillion sleeps, only partially mitigated by ulimit -u per-uid), C) per-PID
+    loop work is very costly (e..g expensive regular expressions|/proc queries),
+    or D) per-PID work is effectively very costly by an unfortunate SIGSTOP/etc.
+    { As with any race, these "very"s are all about relative scales & I may well
+    have missed some! }
+
+    Due to its good loop design, this was *always* the race for simple uses of
+    `procs find -akill`.  The new method mostly helps actions use stable process
+    Ids for delayed `SIGTERM` -> `SIGKILL` style signalling protocols and the
+    `wait` & `Wait` for unrelated-to-target-process waiting where delays can be
+    large on purpose.  Things needing full table scans before acting (`--newest`
+    & `--oldest`) also benefit some.
+
+    6 years later & Linux still has no API analogues for pid-taking stuff other
+    than signaling (eg. anything in `man 7 sched`) but for madvise.  Presumably,
+    the assumption is that misidentified targets of such calls do limited damage
+    (though superusery CAP_SYS_NICE guards most such calls under *exactly the
+    OPPOSITE* assumption!).  Also, `process_madvise` has no *vanilla* pid API.
+
 Version: 0.8.6
 --------------
   - `pf` was unable to save "/proc/meminfo" in a cpio archive.  Add & document
