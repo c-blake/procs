@@ -1027,10 +1027,6 @@ proc ttyToDev*(t: string): Dev = #tty string names -> nums
 proc ttyToDev*(ttys: seq[string]): seq[Dev] = #tty string names -> nums
   for t in ttys: result.add ttyToDev(t)
 
-#XXX waitAny & waitAll should obtain pidfds ASAP & use pidfd_send_signal.  pList
-#should maybe even become seq[fd].  procs can still die between classification &
-#pidfd creation.  Need CLONE_PIDFD/parent-kid relationship for TRUE reliability,
-#BUT non-parent-kid relations is actually the main point of this API.
 iterator waitLoop(delay, limit: Timespec): int =
   let lim = limit.tv_sec.int*1_000_000_000 + limit.tv_nsec
   let dly = delay.tv_sec.int*1_000_000_000 + delay.tv_nsec
@@ -1040,20 +1036,24 @@ iterator waitLoop(delay, limit: Timespec): int =
     yield j; inc j
     nanosleep(delay)
 
-proc waitAny*(pList: seq[Pid]; delay, limit: Timespec): int =
-  ## Wait for ANY PIDs in `pList` to not exist; Timeout after `limit`.
+proc pidfd_open(pid: Pid; flags: cuint): cint {.header: "sys/pidfd.h".}
+proc pidfd_send_signal(fd,sig: cint; info: ptr SigInfo, # LinuxK 5.4+,glibc2.36+
+                       flags: cuint): cint {.header: "sys/pidfd.h".}
+
+proc waitAny*(pList: seq[cint]; delay, limit: Timespec): int =
+  ## Wait for ANY PID fds in `pList` to not exist; Timeout after `limit`.
   for it in waitLoop(delay, limit):
     for i, pid in pList:
-      if kill(pid, 0) == -1 and errno != EPERM: return i
+      if pidfd_send_signal(pid, 0, nil, 0) == -1 and errno != EPERM: return i
 
-proc waitAll*(pList: seq[Pid]; delay, limit: Timespec) =
-  ## Wait for ALL PIDs in `pList` to not exist once; Timeout after `limit`.
+proc waitAll*(pList: seq[cint]; delay, limit: Timespec) =
+  ## Wait for ALL PID fds in `pList` to not exist once; Timeout after `limit`.
   var failed = newSeq[bool](pList.len)
   var count = 0
   for it in waitLoop(delay, limit):
     for i, pid in pList:
       if not failed[i]:
-        if kill(pid, 0) == -1 and errno != EPERM:
+        if pidfd_send_signal(pid, 0, nil, 0) == -1 and errno != EPERM:
           failed[i] = true
           count.inc
     if count == failed.len: return
@@ -1847,7 +1847,10 @@ proc nsNotEq(p, q: Proc, nsList: seq[NmSpc]): bool =
     of nsCgroup:   (if q.nCgroup   != p.nCgroup  : return false)
     of nsPid4Kids: (if q.nPid4Kids != p.nPid4Kids: return false)
 
-proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
+proc kill(pid: Pid; pfd, sig: cint): cint =
+  if pfd != -1: pidfd_send_signal(pfd, sig, nil, 0) else: kill(pid, sig)
+
+proc act(acts:set[PfAct], lab:string, pid:Pid,pfd:cint, delim:string,sigs:seq[cint],
          sigCgt:string, nice:int, cnt:var int, wrote:var bool, nErr:var int) =
   let sigMask = if sigCgt.len > 0: fromHex[int64](sigCgt) else: 0
   for a in acts:
@@ -1861,8 +1864,8 @@ proc act(acts: set[PfAct], lab:string, pid:Pid, delim:string, sigs: seq[cint],
     of acKill :
       if sigCgt.len > 0:        # Not handled => fail, as with inadequate perm
         if (1 shl (sigs[0].int - 1) and sigMask) == 0: nErr += 1
-        else: nErr += (kill(pid, sigs[0]) == -1).int
-      else: nErr += (kill(pid, sigs[0]) == -1).int
+        else: nErr += (kill(pid, pfd, sigs[0]) == -1).int
+      else: nErr += (kill(pid, pfd, sigs[0]) == -1).int
     of acNice : nErr += (nice(pid, nice.cint) == -1).int
     of acWait1: discard
     of acWaitA: discard
@@ -1878,8 +1881,8 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
     Labels=ess, exist=false, signals=ess, nice=0, actions: seq[PfAct] = @[],
     ifHandled=false, FileSrc: ProcSrcs={}, PCREpatterns: seq[string]): int =
   ## Find procs & act (*echo*, *path*, *aid*, *count*, *kill*, *nice*, *wait*
-  ## for any|All) upon them ASAP . Unifies & generalizes `pidof`, `pgrep`,
-  ## `pkill`, `snice` into one command with options most similar to `pgrep`.
+  ## for any|All) upon them. Unifies&generalizes `pidof`, `pgrep/pkill/pidwait`,
+  ## `snice` into one command with options most similar to `pgrep`.
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var acts: set[PfAct]; var wrote = false
   for a in actions: acts.incl a
@@ -1890,7 +1893,7 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
   var exclPIDs = initHashSet[string](min(1, exclude.len))
   for p in exclude: exclPIDs.incl (if p == "PPID": $getppid() else: p)
   exclPIDs.incl $selfPid                #always exclude self
-  var pList: seq[Pid]
+  var pList: seq[Pid]; var fList: seq[cint]
   var fill: ProcFields                  #field needs
   var rxes: seq[Regex]
   var sigs: seq[cint]
@@ -1970,24 +1973,25 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
     if (match xor invert.int) == 0: continue  #-v messes up newest/oldest logic
     if exist: return 0
     if (newest or oldest) and pList.len == 0: #first passing always new min|max
-        tM = p.t0; pList.add p.pid; continue
+        tM = p.t0; pList.add p.pid; fList.add pidfd_open(p.pid, 0); continue
     if newest:                                #t0 < tM has already been skipped
       if p.t0>tM or p.t0==tM and p.pid>pList[0]: #PIDwraparound=>iffy tie-break
-        tM = p.t0; pList[0] = p.pid           #update max start time
+        tM = p.t0; pList[0] = p.pid; fList[0] = pidfd_open(p.pid, 0) #update max
       continue
     elif oldest:                              #t0 > tM has already been skipped
       if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
-        tM = p.t0; pList[0] = p.pid           #update min start time
+        tM = p.t0; pList[0] = p.pid; fList[0] = pidfd_open(p.pid, 0) #update min
       continue
     if not exist:                 # Do any "immediate"/ASAP actions as we go
       if rxes.len > 0:                           # j<L.len should suffice for..
         if j < Labels.len and Labels[j].len > 0: #..either no | too few Labels.
           lab = Labels[j] & "_" & $used[j]; inc used[j]
-      acts.act(lab, p.pid, delim, sigs, p.sigCgt, nice, cnt, wrote, result)
+      acts.act lab, p.pid, -1, delim, sigs,p.sigCgt, nice, cnt, wrote,result
       lab.setLen 0
     if acKill in acts and sigs.len > 1 and delay > ts0 and t0.tv_sec.int > 0:
       t0 = getTime()    # NOTE: Overwrite here means t0=time of LAST matched pid
-    if workAtEnd: pList.add p.pid
+    if workAtEnd and not (pList.len > 0 and pList[^1] == p.pid):
+      pList.add p.pid; fList.add pidfd_open(p.pid, 0)
     if first: break               #first,newest,oldest are mutually incompatible
   if exist: return 1
   for j, c in used:                                     # Be explicit about miss
@@ -2003,7 +2007,7 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
         if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
       stdout.write otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
-    acts.act("", pList[0], delim, sigs, p.sigCgt, nice, cnt, wrote, result)
+    acts.act "",pList[0],fList[0], delim, sigs,p.sigCgt, nice, cnt, wrote,result
   if acCount in acts:                         # PIDs end in delim & otrTerm,
     if wrote: stdout.write otrTerm            #..but cnt ends ONLY in otrTerm.
     stdout.write cnt, delim; wrote = true
@@ -2013,12 +2017,12 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
   if acKill in acts and sigs.len > 1:         # Send any remaining signals
     var dt = delay - (getTime() - t0)         # AFTER the delay
     if dt < delay: dt.nanosleep
-    for i, sig in sigs[1..^1]:
-      for pid in pList: result += (kill(pid, sig) == -1).int
+    for i, sig in sigs[1..^1]:      # pidfd_send_signal(fd,sig,NULL,0).
+      for pfd in fList: result += (pidfd_send_signal(pfd, sig, nil,0) == -1).int
       if i < sigs.len - 2: delay.nanosleep
-  if pList.len > 0:                             #wait for condition if requested
-    if   acWait1 in acts: discard waitAny(pList, delay, limit)
-    elif acWaitA in acts: waitAll(pList, delay, limit)
+  if fList.len > 0:                             #wait for condition if requested
+    if   acWait1 in acts: discard waitAny(fList, delay, limit)
+    elif acWaitA in acts: waitAll(fList, delay, limit)
 
 #------------ COMMAND-LINE INTERFACE: scrollSys - system-wide scrolling stats
 type
