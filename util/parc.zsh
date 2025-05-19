@@ -1,6 +1,6 @@
 #!/bin/zsh -f
 set -e
-[ -t 1 ] && { echo 1>&2 "Usage: parc.zsh > /some/where/foo.cpio"; exit 1; }
+[ -t 1 ] &&{ echo 1>&2 "Usage: parc.zsh > /dev/shm/\$LOGNAME-pfs.cpio"; exit 1;}
 : "${j:=$(nproc)}"      # j jobs parallel /proc files data collector
 t="/dev/shm"            # Meant as a starting point; mktemp -d, trap etc
 # Eg. github.com/c-blake/bu/blob/main/doc/funnel.md#example-xargs-wrapper-script

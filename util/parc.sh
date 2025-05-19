@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-[ -t 1 ] && { echo 1>&2 "Usage: parc.sh > /some/where/foo.cpio"; exit 1; }
+[ -t 1 ] &&{ echo 1>&2 "Usage: parc.sh > /dev/shm/\$LOGNAME-pfs.cpio"; exit 1;}
 : "${j:=$(nproc)}"
 : "${prog:=s / r /stat r /cmdline R /exe r /io r /schedstat r /smaps_rollup}"
 export t="/dev/shm"     # Meant as a starting point; mktemp -d, trap etc
