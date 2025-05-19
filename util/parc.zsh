@@ -1,7 +1,10 @@
 #!/bin/zsh -f
-: "${j:=$(ncpu /2)}"    # j jobs parallel /proc files data collector
-t="/dev/shm"            # temp dir
-cd "/proc"              # proc-fs root
+set -e
+[ -t 1 ] && { echo 1>&2 "Usage: parc.zsh > /some/where/foo.cpio"; exit 1; }
+: "${j:=$(nproc)}"      # j jobs parallel /proc files data collector
+t="/dev/shm"            # Meant as a starting point; mktemp -d, trap etc
+# Eg. github.com/c-blake/bu/blob/main/doc/funnel.md#example-xargs-wrapper-script
+cd "/proc" || exit 2    # proc-fs root
 pids=([1-9]*)           # All processes *right now*; Inherently racy
 n=${#pids}              # Number total
 m=$(( (n + j - 1)/j ))  # Batch size
@@ -16,5 +19,5 @@ for ((i=1; i<=j; i++)); do # Fire $j batches
     unset PARC_PATHS
 done
 wait                    # Wait for last to finish
-cat $t/pfs.$$.* >${PFA:-$t/pfs} # Merge results
-rm -f $t/pfs.$$.*       # Clean-up temporary files
+cat "$t/pfs.$$".*       # Merge results
+rm -f "$t/pfs.$$".*     # Clean-up temporary files
