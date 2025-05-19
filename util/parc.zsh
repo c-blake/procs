@@ -16,5 +16,5 @@ for ((i=1; i<=j; i++)); do # Fire $j batches
     unset PARC_PATHS
 done
 wait                    # Wait for last to finish
-cat $t/pfs.$$.* >$t/pfs # Merge results
+cat $t/pfs.$$.* >${PFA:-$t/pfs} # Merge results
 rm -f $t/pfs.$$.*       # Clean-up temporary files
