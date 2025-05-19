@@ -1,4 +1,5 @@
-import std/[syncio, posix, os, strutils], cligen/[posixUt, osUt]
+when not declared stderr: import std/syncio
+import std/[posix, os, strutils], cligen/[posixUt, osUt]
 
 type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
