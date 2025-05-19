@@ -1478,7 +1478,7 @@ fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
 fAdd('b', {pf_utime,pf_stime}  ,0,4, "ppbT"):
-  if p.ageD == 0: cg.na  #XXX Better data for pd itself; Re-set p.t0,uptm here?
+  if p.ageD == 0: cg.na  #Q: Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(100*p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "FLAGS"  ): "x"&toHex(p.flags.BiggestInt,6)
