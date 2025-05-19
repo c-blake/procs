@@ -52,13 +52,13 @@ Version: 0.8.7
 
     Some background: This limits PID recycling/wraparound races to the time from
     getdents(/proc) to the loop iteration classifying a PID.  USUALLY, this is a
-    small fraction of the 20 ms to wrap process tables under heavy load UNLESS:
+    tiny fraction of 20 ms..8 sec to wrap process tables under fork load UNLESS:
     A) `pid_max` is very small, B) effective `pid_max` is very small (e.g. a
     zillion sleeps, only partially mitigated by ulimit -u per-uid), C) per-PID
     loop work is very costly (e..g expensive regular expressions|/proc queries),
     or D) per-PID work is effectively very costly by an unfortunate SIGSTOP/etc.
     { As with any race, these "very"s are all about relative scales & I may well
-    have missed some! }
+    have missed some! } { 20 ms is for pid_max=1e4; 8 sec, extrapolated 4e6. }
 
     Due to its good loop design, this was *always* the race for simple uses of
     `procs find -akill`.  The new method mostly helps actions use stable process
