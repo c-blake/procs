@@ -33,6 +33,7 @@ proc cpioLoad(path: string): (Table[MSlice, MSlice], seq[string]) =
     nm = MSlice(mem: mf.mem +! off, len: h.nmLen.int - 1) # Rec includes \0
     if nm == trailer: break     # stat / smwhere is NOT optional Q:Make implied?
     if nm.len>0 and nm[0] in {'1'..'9'} and nm[nm.len-1] in {'/', '0'..'9'}:
+      # `if nm notin result[0]` could de-duplicate here, but just allow dups.
       result[1].add $MSlice(mem: nm.mem, len: nm.len - (nm[nm.len-1]=='/').int)
     off += h.nmLen.int + int(h.nmLen mod 2 != 0)
     let dLen = (h.datLen[0].int shl 16) or h.datLen[1].int
