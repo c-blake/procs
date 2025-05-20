@@ -29,12 +29,10 @@ Version: 0.8.7
     you are sure your kernel provides PID/schedstat.
 
   - Add `util/parc.nim` which ONLY does /proc data collection into cpio, e.g.
-    `cd /proc; parc s / r /stat R /exe [1-9]* >p.cpio`.  Final "TRAILER!!!" file
-    is elided, but that was always a silly "break cat-ability"/gen warns thing,
-    IMO. It's easy to append `touch 'TRAILER!!!';echo 'TRAILER!!!'|cpio -oHbin`.
-    While this was mostly motivated by rather surprising in-kernel slowness of
-    `/smaps_rollup` for a more nicely rolling up PSS field, there may be other
-    slow files and there may also be thousands of processes/threads.
+    `cd /proc; parc s / r /stat R /exe [1-9]* >p.cpio`.  While this was mostly
+    motivated by rather surprising in-kernel slowness of `/smaps_rollup` for a
+    more nicely rolling up PSS field, there may be other slow files and there
+    may also be thousands of processes/threads.
 
   - Add to procs find/pf/pk `-H, --ifHandled` (or `--if-handled`, if you prefer)
     to mimic similar functionality recently added to `pkill`.
