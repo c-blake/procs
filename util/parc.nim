@@ -86,6 +86,50 @@ proc perPidWork(remainder: int) =
       elif argv[j][0] == 'R': discard readlink(path, nil)
     inc i
 
+proc driveKids() =
+  let quiet = getEnv("parc_quiet", "").len >= 3
+  var pipes = newSeq[array[0..1, cint]](jobs)
+  var fds   = newSeq[TPollfd](jobs)
+  for j in 0..<jobs:            # Re-try rather than exit on failures since..
+    while pipe(pipes[j]) < 0:   #..often one queries /proc DUE TO overloads.
+      if not quiet: stderr.write "parc: pipe(): errno: ",errno,"\n"
+      discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
+    var kid: Pid      
+    while (kid = fork(); kid == -1):
+      if not quiet: stderr.write "parc: fork(): errno: ",errno,"\n"
+      discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
+    if kid == 0:                # In Kid
+      discard pipes[j][0].close
+      if dup2(pipes[j][1], 1) < 0: quit "parc: dup2 failure - bailing", 4
+      discard pipes[j][1].close
+      perPidWork j; quit 0      # write->[1]=stdout; Par reads from pipes[j][0]
+    else:
+      discard pipes[j][1].close
+      fds[j] = TPollfd(fd: pipes[j][0], events: POLLIN)
+  var buf = newSeq[char](4096)
+  var nLive = jobs
+  while nLive > 0:
+    if poll(fds[0].addr, jobs.Tnfds, -1) <= 0:
+      if errno == EINTR: continue
+      quit "parc: poll(): errno: " & $errno, 5
+    for j in 0..<jobs:
+      template cp1 = 
+        discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
+        let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
+        let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
+                    dLen + int(dLen mod 2 != 0)         # Calculate size
+        buf.setLen bytes                                # Read all, blocking..
+        let nR = read(fds[j].fd, buf[0].addr, bytes)    #..as needed.
+        discard o.uriteBuffer(buf[0].addr, bytes)       # Send body to stdout
+      if fds[j].fd != -1 and fds[j].revents != 0:
+        if (fds[j].revents and POLLIN) != 0:                # Data is ready
+          if (let nR = read(fds[j].fd, rec.addr, rec.sizeof); nR > 0): cp1
+          else:
+            dec nLive; if close(fds[j].fd)==0: fds[j].fd = -1 else: quit 6
+        if (fds[j].revents and POLLHUP) != 0:               # Kid is done
+          while (var nR = read(fds[j].fd, rec.addr, rec.sizeof); nR > 0): cp1
+          dec nLive; if close(fds[j].fd)==0: fds[j].fd = -1 else: quit 7
+
 proc main() =
   if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
   var buf: string
@@ -105,6 +149,8 @@ proc main() =
     stderr.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
   eoProg = i
   if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
-  perPidWork 0
+  jobs = getEnv("j", "1").parseInt
+  if jobs == 1: perPidWork 0; return
+  driveKids()
 
 main()
