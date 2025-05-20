@@ -28,6 +28,7 @@ proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
     writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
     discard o.uriteBuffer(buf.cstring, buf.len)
     if buf.len mod 2 == 1: discard o.uriteBuffer(pad0.addr, 1)
+    flushFile o
 
 proc stat(a1: cstring, a2: var Stat): cint =
   discard posix.stat(a1, a2)
@@ -40,7 +41,7 @@ proc stat(a1: cstring, a2: var Stat): cint =
   rec.rdev     = uint16(a2.st_rdev)   # Dev Specials are very rare
   rec.mtime[0] = uint16(a2.st_mtime.int shr 16)
   rec.mtime[1] = uint16(a2.st_mtime.int and 0xFFFF)
-  writeRecHdr a1, a1.len, 0
+  writeRecHdr a1, a1.len, 0; flushFile o
 
 proc readlink(path: string, err=stderr): string =
   result = posixUt.readlink(path, err)
@@ -49,6 +50,7 @@ proc readlink(path: string, err=stderr): string =
     writeRecHdr path.cstring, path.len, result.len + 1
     discard o.uriteBuffer(result.cstring, result.len + 1)
     if result.len mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
+    flushFile o
 
 proc add(s: var string, t: cstring, nT: int) =
   let n0 = s.len
