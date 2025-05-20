@@ -31,11 +31,9 @@ proc cpioLoad(path: string): (Table[MSlice, MSlice], seq[string]) =
     off += Rec.sizeof
     if h.magic != 0o070707: IO !! &"off:{off}: magic!=0o070707: 0o{h.magic:06o}"
     nm = MSlice(mem: mf.mem +! off, len: h.nmLen.int - 1) # Rec includes \0
-    if nm == trailer: break
-    if nm.len > 0 and nm[0] in {'1'..'9'} and (let sl = nm.find('/'); sl != -1):
-      let tld = $nm[0..<sl]
-      if result[1].len > 0: (if result[1][^1] != tld: result[1].add $nm[0..<sl])
-      else: result[1].add tld
+    if nm == trailer: break     # stat / smwhere is NOT optional Q:Make implied?
+    if nm.len>0 and nm[0] in {'1'..'9'} and nm[nm.len-1] in {'/', '0'..'9'}:
+      result[1].add $MSlice(mem: nm.mem, len: nm.len - (nm[nm.len-1]=='/').int)
     off += h.nmLen.int + int(h.nmLen mod 2 != 0)
     let dLen = (h.datLen[0].int shl 16) or h.datLen[1].int
     dat = MSlice(mem: mf.mem +! off, len: dLen)
