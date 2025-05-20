@@ -61,9 +61,17 @@ let argc {.importc: "cmdCount".}: cint        # On POSIX, not a lib; importc
 let argv {.importc: "cmdLine".}: cstringArray #..is both simpler & faster.
 proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 
-const u="/proc archiver like cpio -oHbin; Works on '0 len' /proc files. Use:\n"&
- "    parc s / r /io R /exe .. pids >cpio-oHbinOut { s)tat r)ead R)dLn }\n" &
- "$PARC_PATHS is also split-on-space for global(non-perPID) entries done first."
+const u = """/proc archiver like cpio -oHbin, but works on weird /proc files.
+Usage:
+  j=4 PARC_PATHS='sys/kernel/pid_max uptime meminfo' parc s / r /stat R /exe \
+    r /cmdline r /io r /schedstat r /smaps_rollup > /dev/shm/$LOGNAME-pfs.cpio
+
+Here s* means stat, r* means read, R* means ReadLink, $j indicates parallelism,
+and $PARC_PATHS is split-on-space for global(non-perPID) paths done first.
+
+`PFA=x pd -sX; cpio -tv < x | less` shows global and per-PID needs of style X,
+but NOTE unreadable entries (e.g. kthread /exe, otherUser /io) are dropped from
+cpio archives, which are then treated as empty files by `pd`."""
 
 var jobs = 1; var i, eoProg: int              # Globals to all parallel work
 var thisUid: Uid                              # Const during execution, EXCEPT i
