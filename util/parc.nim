@@ -65,27 +65,14 @@ const u="/proc archiver like cpio -oHbin; Works on '0 len' /proc files. Use:\n"&
  "    parc s / r /io R /exe .. pids >cpio-oHbinOut { s)tat r)ead R)dLn }\n" &
  "$PARC_PATHS is also split-on-space for global(non-perPID) entries done first."
 
-proc main() =
-  if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
-  var buf: string; var st: Stat
-  if chdir("/proc") != 0: quit "cannot cd /proc"
-  let thisUid = getuid()
-  for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
-    if f.len > 0: readFile f, buf
-  var i = 1; while i < argc:
-    if argv[i][0] in {'1'..'9'}:
-      break
-    if i mod 2 == 1 and argv[i][0] notin {'s', 'r', 'R'}:
-      stderr.write "Bad command ",$argv[i]," (not s*|r*|R*)\n\n"; quit u, 1
-    if i mod 2 == 0 and argv[i][0] != '/':
-      stderr.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
-    inc i
-  if argv[1][0] != 's': 
-    stderr.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
-  let eoProg = i
-  if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
-  var path: string
+var jobs = 1; var i, eoProg: int              # Globals to all parallel work
+var thisUid: Uid                              # Const during execution, EXCEPT i
+proc perPidWork(remainder: int) =
+  var i = i                                   #..And `i` gets a private copy.
+  var st: Stat
+  var buf, path: string
   while i < argc:
+    if i mod jobs != remainder: inc i; continue
     if argv[i][0] notin {'1'..'9'}:
       stderr.write "parc warning: \"", $argv[i], "\" cannot be a PID\n"
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
@@ -98,5 +85,26 @@ proc main() =
         else: readFile path, buf
       elif argv[j][0] == 'R': discard readlink(path, nil)
     inc i
+
+proc main() =
+  if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
+  var buf: string
+  if chdir("/proc") != 0: quit "cannot cd /proc"
+  thisUid = getuid()
+  for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
+    if f.len > 0: readFile f, buf
+  i = 1; while i < argc:
+    if argv[i][0] in {'1'..'9'}:
+      break
+    if i mod 2 == 1 and argv[i][0] notin {'s', 'r', 'R'}:
+      stderr.write "Bad command ",$argv[i]," (not s*|r*|R*)\n\n"; quit u, 1
+    if i mod 2 == 0 and argv[i][0] != '/':
+      stderr.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
+    inc i
+  if argv[1][0] != 's': 
+    stderr.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
+  eoProg = i
+  if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
+  perPidWork 0
 
 main()
