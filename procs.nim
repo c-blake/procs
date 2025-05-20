@@ -1292,7 +1292,7 @@ cAdd('w', {pfw_wchan}          , cmp, string  ): p.wchan
 cAdd('s', {pf_state}           , cmp, char    ): p.state
 cAdd('t', {pf_tty}             , cmp, Dev     ): p.tty
 cAdd('T', {pf_t0}              , cmp, culong  ): p.t0
-cAdd('a', {pf_t0}              , cmp, culong  ): cg.uptm - p.t0
+cAdd('a', {pf_t0}              , cmp, clong   ): -p.t0.clong
 cAdd('j', {pf_utime,pf_stime}  , cmp, culong  ): p.utime  + p.stime
 cAdd('J', {pf_utime,pf_stime, pf_cutime,pf_cstime}, cmp, culong):
                                  p.utime + p.cutime + p.stime + p.cstime
@@ -1353,7 +1353,7 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
       cmps.add (sgn, cmpE.cmp)
       need = need + cmpE.pfs
     except Ce: Value !! "unknown sort key code " & c.repr
-    if c == 'a': result = true
+    if c == 'b': result = true
     sgn = +1
 
 proc multiLevelCmp(a, b: ptr Proc): int {.procvar.} =
@@ -1544,7 +1544,7 @@ proc parseFormat(cf: var DpCf) =
       elif c == 'G': cf.need.incl pffs_grp
       elif c in {'D', 'A', '/'}: cf.forest = true
       elif c == 'N': cf.needNow = true
-      elif c in {'T', 'a', 'e', 'E'}: cf.needUptm = true
+      elif c in {'T', 'a', 'e', 'E', 'b'}: cf.needUptm = true
       elif c in {'m'}: cf.needTotRAM = true
     of inPrefix:
       if c == '%': state = inField; continue
@@ -1665,7 +1665,9 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.uAbb = parseAbbrev(cf.maxUnm); cf.uAbb.realize(usrs)
   cf.gAbb = parseAbbrev(cf.maxGnm); cf.gAbb.realize(grps)
   cf.t0 = if entry.tv_sec.clong==0 and entry.tv_nsec==9: getTime() else: entry
-  if cf.needUptm: cf.uptm = procUptime()          #uptime in seconds
+  if cf.needUptm:
+    cf.uptm = procUptime()          #uptime in seconds
+    if cf.uptm==0: stderr.write "Need /proc/uptime which seems to be missing\n"
   if cf.needTotRAM: cf.totRAM = procMemInfo().MemTotal
   cg = cf.addr                                    #Init global ptr
   cmpsG = cf.cmps.addr                            #Init global ptr
