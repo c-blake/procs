@@ -13,7 +13,7 @@ for ((i=1; i<=j; i++)); do # Fire $j batches
 # `procs display` style drives specific list needed here.  To show MyStyle needs
 # `PFA=/tmp/x pd -sMyStyle; cpio -tv</tmp/x|tail`, but NOTE unreadable entries
 # (eg. kthread /exe, otherUser /smaps_rollup) are dropped from the cpio archive.
-    [[ $i = 1 ]] && export PARC_PATHS="sys/kernel/pid_max uptime"
+    [[ $i = 1 ]] && export PARC_PATHS="sys/kernel/pid_max uptime meminfo"
     parc s /   r /stat      r /cmdline      R /exe \
          r /io r /schedstat r /smaps_rollup $slice > $t/pfs.$$.$i &
     unset PARC_PATHS
