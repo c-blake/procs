@@ -1338,6 +1338,7 @@ cAdd('<', {pfi_rch}            , cmp, uint64  ): p.rch # ,pfi_rbl + p.rbl
 cAdd('>', {pfi_wch}            , cmp, uint64  ): p.wch # ,pfi_wbl + p.wbl
 cAdd('O', {pfo_score}          , cmp, cint    ): p.oom_score
 cAdd('M', {pfsr_pss}           , cmp, uint64  ): p.pss
+cAdd('m', {pf_rss}             , cmp, culong  ): p.rss # alias for 'R'
 cAdd('l', {}             , cmp, string): cg.labels.getOrDefault(p.spid).join ":"
 let cmpD = cmpOf['D'].cmp; let cmpA = cmpOf['A'].cmp
 
