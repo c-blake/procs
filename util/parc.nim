@@ -63,8 +63,9 @@ proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 
 const u = """/proc archiver like cpio -oHbin, but works on weird /proc files.
 Usage:
+  cd /proc
   j=4 PARC_PATHS='sys/kernel/pid_max uptime meminfo' parc s / r /stat R /exe \
-    r /cmdline r /io r /schedstat r /smaps_rollup > /dev/shm/$LOGNAME-pfs.cpio
+   r /cmdline r /io r /schedstat r /smaps_rollup [1-9]* >/dev/shm/$USER-pfs.cpio
 
 Here s* means stat, r* means read, R* means ReadLink, $j indicates parallelism,
 and $PARC_PATHS is split-on-space for global(non-perPID) paths done first.
