@@ -161,9 +161,7 @@ proc main() =
   jobs = getEnv("j", "1").parseInt
   if jobs == 1: perPidWork 0
   else: driveKids()
-  rec.nlink = 1                 # At least GNU cpio does this
-  writeRecHdr cstring("TRAILER!!!"), 10, 0
-  let sz = o.getFilePos      # Traditionally, cpio pads to 512B block size
-  if sz mod 512!=0: discard o.uriteBuffer(pad0.addr, (sz div 512 + 1)*512 - sz)
+  rec.nlink = 1                             # At least GNU cpio does this;Cannot
+  writeRecHdr cstring("TRAILER!!!"), 10, 0  #..pad w/o seekable(!PIPE) o assump.
 
 main()
