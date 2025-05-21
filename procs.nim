@@ -1667,7 +1667,7 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.t0 = if entry.tv_sec.clong==0 and entry.tv_nsec==9: getTime() else: entry
   if cf.needUptm:
     cf.uptm = procUptime()          #uptime in seconds
-    if cf.uptm==0: stderr.write "Need /proc/uptime which seems to be missing\n"
+    if cf.uptm == 0: quit "procs: need /proc/uptime which seems to be missing",1
   if cf.needTotRAM: cf.totRAM = procMemInfo().MemTotal
   cg = cf.addr                                    #Init global ptr
   cmpsG = cf.cmps.addr                            #Init global ptr
