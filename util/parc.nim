@@ -108,7 +108,7 @@ proc driveKids() =
     while pipe(pipes[j]) < 0:   #..often one queries /proc DUE TO overloads.
       if not quiet: e.write "parc: pipe(): errno: ",errno,"\n"
       discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
-    var kid: Pid      
+    var kid: Pid
     while (kid = fork(); kid == -1):
       if not quiet: e.write "parc: fork(): errno: ",errno,"\n"
       discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
@@ -164,7 +164,7 @@ proc main() =
     if i mod 2 == 0 and argv[i][0] != '/':
       e.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
     inc i
-  if argv[1][0] != 's': 
+  if argv[1][0] != 's':
     e.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
   eoProg = i
   if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
