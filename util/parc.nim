@@ -130,8 +130,6 @@ proc driveKids() =
         buf.setLen bytes                                # Read all, blocking..
         while (let nR=read(fds[j].fd, buf[0].addr, bytes); nR<0): #..as needed.
           discard usleep(500) #; stderr.write "parc: had to wait\n"
-        if nR != bytes and not quiet:
-          stderr.write "parc: warning ", nR, " < requested ", bytes, "\n"
         discard o.uriteBuffer(buf[0].addr, bytes)       # Send body to stdout
       if fds[j].fd != -1 and fds[j].revents != 0:
         if (fds[j].revents and POLLIN) != 0:                # Data is ready
