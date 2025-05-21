@@ -122,7 +122,7 @@ proc driveKids() =
       if errno == EINTR: continue
       quit "parc: poll(): errno: " & $errno, 5
     for j in 0..<jobs:
-      template cp1 = 
+      template cp1 =    # Write already read header `rec` & then cp varLen data
         discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
