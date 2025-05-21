@@ -19,6 +19,10 @@ proc writeRecHdr(path: cstring; pLen, datLen: int) =
   rec.nmLen     = uint16(pLen + 1)      # Include NUL terminator
   rec.datLen[0] = uint16(datLen shr 16)
   rec.datLen[1] = uint16(datLen and 0xFFFF)
+  let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
+              datLen        + int(datLen mod 2 != 0)
+  if bytes < 2:                         # This should simply not be possible
+    e.write "parc: SHORT WRITE; nameLen=",rec.nmLen," dataLen=",datLen,"\n"
   discard o.uriteBuffer(rec.addr, rec.sizeof)
   discard o.uriteBuffer(path    , pLen + 1)
   if pLen mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
