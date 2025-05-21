@@ -713,8 +713,9 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
   ## ``foo``.  When there is no natural aggregation the merged value is really
   ## set-valued (eg, ``tty``).  In such cases, by default, the first Proc wins
   ## the field unless ``overwriteSetValued`` is ``true``.
-  if q.pidPath.len < p.pidPath.len: p.pidPath=q.pidPath #Shortest;XXX CommonPfx?
-  p.ppid0 = if p.pidPath.len > 0: p.pidPath[^1] else: 0 #Maybe just val4oldest?
+  if q.t0 < p.t0 or (q.t0 == p.t0 and q.pid < p.pid): # Oldest process wins Id
+    p.spid = q.spid; p.pid = q.pid; p.pid0 = q.pid0; p.ppid0 = q.ppid0
+    p.pidPath = q.pidPath
   if pf_minflt              in fill: p.minflt               += q.minflt
   if pf_cminflt             in fill: p.cminflt              += q.cminflt
   if pf_majflt              in fill: p.majflt               += q.majflt

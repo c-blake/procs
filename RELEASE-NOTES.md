@@ -4,7 +4,8 @@ RELEASE NOTES
 Version: 0.8.7
 --------------
 
-  - Always merge in oldest-\>newest start-time order for determinism.
+  - Always merge in oldest-\>newest start-time order for determinism.  Merges
+    keep the older|lesser pid/ppid/pidPath type identifiers.
 
   - Do not try to read `smaps_rollup` for kthreads which always fails & do not
     auto-fail on `psIO` files (which may also need root).
