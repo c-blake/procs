@@ -1,5 +1,6 @@
 when not declared stderr: import std/syncio
 import std/[posix, os, strutils], cligen/[posixUt, osUt]
+proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 
 type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
@@ -10,6 +11,7 @@ type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
 var rec = Rec(magic: 0o070707)
 var pad0: array[512, char]
 let o = stdout
+proc clear(rec: var Rec) = zeroMem(rec.addr, rec.sizeof); rec.magic = 0o070707
 
 proc writeRecHdr(path: cstring; pLen, datLen: int) =
   let path = if path.isNil: nil else: cast[pointer](path)
@@ -21,32 +23,36 @@ proc writeRecHdr(path: cstring; pLen, datLen: int) =
   discard o.uriteBuffer(path    , pLen + 1)
   if pLen mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
 
+proc fromStat(rec: var Rec; st: ptr Stat) =
+  rec.dev      = uint16(st[].st_dev)    # Dev should neither change nor matter..
+  rec.ino      = uint16(st[].st_ino)    #..so CAN fold into above for 4B inode.
+  rec.mode     = uint16(st[].st_mode)
+  rec.uid      = uint16(st[].st_uid)
+  rec.gid      = uint16(st[].st_gid)
+  rec.nlink    = uint16(st[].st_nlink)  # Generally 1|number of sub-dirs
+  rec.rdev     = uint16(st[].st_rdev)   # Dev Specials are very rare
+  rec.mtime[0] = uint16(st[].st_mtime.int shr 16)
+  rec.mtime[1] = uint16(st[].st_mtime.int and 0xFFFF)
+
+proc stat(a1: cstring, a2: var Stat): cint = # Starts "program" for PID subDirs
+  discard posix.stat(a1, a2) # rec.clear unneeded: stat sets EVERY field anyway
+  rec.fromStat a2.addr
+  writeRecHdr a1, a1.cstrlen, 0; flushFile o
+
 proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
-  posixUt.readFile path, buf, nil, perRead
-  if buf.len > 0:
-    rec.mode = 0o100444; rec.nlink = 1  # Regular file r--r--r--; Inherit rest..
-    writeRecHdr path.cstring, path.len, buf.len #.. from probable last stat.
+  posixUt.readFile path, buf, st, perRead # Does an fstat ONLY IF `st` not Nil
+  if buf.len > 0:                         # rec.clear either unneeded|unwanted
+    if not st.isNil: rec.fromStat st      # Globals fstat field propagation
+    else: rec.mode = 0o100444; rec.nlink = 1 # Regular file r--r--r--; Inherit..
+    writeRecHdr path.cstring, path.len, buf.len #..rest from needed last stat.
     discard o.uriteBuffer(buf.cstring, buf.len)
     if buf.len mod 2 == 1: discard o.uriteBuffer(pad0.addr, 1)
     flushFile o
 
-proc stat(a1: cstring, a2: var Stat): cint =
-  discard posix.stat(a1, a2)
-  rec.dev      = uint16(a2.st_dev)    # Dev should neither change nor matter..
-  rec.ino      = uint16(a2.st_ino)    #..so can fold into above for 4B inode.
-  rec.mode     = uint16(a2.st_mode)
-  rec.uid      = uint16(a2.st_uid)
-  rec.gid      = uint16(a2.st_gid)
-  rec.nlink    = uint16(a2.st_nlink)  # Generally 1|number of sub-dirs
-  rec.rdev     = uint16(a2.st_rdev)   # Dev Specials are very rare
-  rec.mtime[0] = uint16(a2.st_mtime.int shr 16)
-  rec.mtime[1] = uint16(a2.st_mtime.int and 0xFFFF)
-  writeRecHdr a1, a1.len, 0; flushFile o
-
-proc readlink(path: string, err=stderr): string =
-  result = posixUt.readlink(path, err)
+proc readlink(path: string, err=stderr): string = # Must follow `s` "command"
+  result = posixUt.readlink(path, err)  # rec.clear either unneeded|unwanted
   if result.len > 0:            # Mark as SymLn;MUST BE KNOWN to be SymLn
-    rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from probable last stat.
+    rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from needed last stat.
     writeRecHdr path.cstring, path.len, result.len + 1
     discard o.uriteBuffer(result.cstring, result.len + 1)
     if result.len mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
@@ -59,7 +65,6 @@ proc add(s: var string, t: cstring, nT: int) =
 
 let argc {.importc: "cmdCount".}: cint        # On POSIX, not a lib; importc
 let argv {.importc: "cmdLine".}: cstringArray #..is both simpler & faster.
-proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
 
 const u = """/proc archiver like cpio -oHbin, but works on weird /proc files.
 Usage:
@@ -123,6 +128,7 @@ proc driveKids() =
       quit "parc: poll(): errno: " & $errno, 5
     for j in 0..<jobs:
       template cp1 =    # Write already read header `rec` & then cp varLen data
+        if nR != rec.sizeof: stderr.write "parc: SHORT PIPE RD: ",nR," BYTES\n"
         discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
@@ -142,11 +148,11 @@ proc driveKids() =
 
 proc main() =
   if argc < 2 or argv[1][0] in {'\0', '-'}: quit u
-  var buf: string
+  var buf: string; var st: Stat
   if chdir("/proc") != 0: quit "cannot cd /proc"
   thisUid = getuid()
   for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
-    if f.len > 0: readFile f, buf
+    if f.len > 0: readFile f, buf, st.addr
   i = 1; while i < argc:
     if argv[i][0] in {'1'..'9'}:
       break
@@ -162,7 +168,7 @@ proc main() =
   jobs = getEnv("j", "1").parseInt
   if jobs == 1: perPidWork 0
   else: driveKids()
-  rec.nlink = 1                             # At least GNU cpio does this;Cannot
+  rec.clear; rec.nlink = 1                  # At least GNU cpio does this;Cannot
   writeRecHdr cstring("TRAILER!!!"), 10, 0  #..pad w/o seekable(!PIPE) o assump.
 
 main()
