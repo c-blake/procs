@@ -8,9 +8,9 @@ type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   nmLen : uint16
   datLen: array[2, uint16]              #26B Hdr; Support readFile stat readlink
 
-var rec = Rec(magic: 0o070707)
-var pad0: array[512, char]
-let o = stdout
+var rec = Rec(magic: 0o070707)          # Heavily re-used CPIO record header
+var pad0: array[512, char]              # Just a big pad buffer of all \0
+let (o, e) = (stdout, stderr)           # Short aliases
 proc clear(rec: var Rec) = zeroMem(rec.addr, rec.sizeof); rec.magic = 0o070707
 
 proc writeRecHdr(path: cstring; pLen, datLen: int) =
@@ -49,7 +49,7 @@ proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
     if buf.len mod 2 == 1: discard o.uriteBuffer(pad0.addr, 1)
     flushFile o
 
-proc readlink(path: string, err=stderr): string = # Must follow `s` "command"
+proc readlink(path: string, err=e): string = # Must follow `s` "command"
   result = posixUt.readlink(path, err)  # rec.clear either unneeded|unwanted
   if result.len > 0:            # Mark as SymLn;MUST BE KNOWN to be SymLn
     rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from needed last stat.
@@ -88,7 +88,7 @@ proc perPidWork(remainder: int) =
   while i < argc:
     if i mod jobs != remainder: inc i; continue
     if argv[i][0] notin {'1'..'9'}:
-      stderr.write "parc warning: \"", $argv[i], "\" cannot be a PID\n"
+      e.write "parc warning: \"", $argv[i], "\" cannot be a PID\n"
     path.setLen 0; let nI = cstrlen(argv[i]); path.add argv[i], nI
     for j in countup(1, eoProg - 1, 2):
       path.setLen nI; let nJ = cstrlen(argv[j + 1]); path.add argv[j + 1], nJ
@@ -106,11 +106,11 @@ proc driveKids() =
   var fds   = newSeq[TPollfd](jobs)
   for j in 0..<jobs:            # Re-try rather than exit on failures since..
     while pipe(pipes[j]) < 0:   #..often one queries /proc DUE TO overloads.
-      if not quiet: stderr.write "parc: pipe(): errno: ",errno,"\n"
+      if not quiet: e.write "parc: pipe(): errno: ",errno,"\n"
       discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
     var kid: Pid      
     while (kid = fork(); kid == -1):
-      if not quiet: stderr.write "parc: fork(): errno: ",errno,"\n"
+      if not quiet: e.write "parc: fork(): errno: ",errno,"\n"
       discard usleep(20_000)    # Microsec; So, 20 ms|50/sec
     if kid == 0:                # In Kid
       discard pipes[j][0].close
@@ -128,14 +128,17 @@ proc driveKids() =
       quit "parc: poll(): errno: " & $errno, 5
     for j in 0..<jobs:
       template cp1 =    # Write already read header `rec` & then cp varLen data
-        if nR != rec.sizeof: stderr.write "parc: SHORT PIPE RD: ",nR," BYTES\n"
-        discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
+        if nR != rec.sizeof: e.write "parc: SHORT PIPE RD: ",nR," BYTES\n"
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
                     dLen + int(dLen mod 2 != 0)         # Calculate size
+        if bytes < 2:
+          e.write "parc: SHORT RECORD; nameLen=",rec.nmLen," dataLen=",dLen,"\n"
+          discard usleep(1)
+        discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
         buf.setLen bytes                                # Read all, blocking..
         while (let nR=read(fds[j].fd, buf[0].addr, bytes); nR<0): #..as needed.
-          discard usleep(500) #; stderr.write "parc: had to wait\n"
+          discard usleep(500) #; e.write "parc: had to wait\n"
         discard o.uriteBuffer(buf[0].addr, bytes)       # Send body to stdout
       if fds[j].fd != -1 and fds[j].revents != 0:
         if (fds[j].revents and POLLIN) != 0:                # Data is ready
@@ -151,18 +154,18 @@ proc main() =
   var buf: string; var st: Stat
   if chdir("/proc") != 0: quit "cannot cd /proc"
   thisUid = getuid()
-  for f in getEnv("PARC_PATHS", "").split:    # ="sys/kernel/pid_max uptime"
+  for f in getEnv("PARC_PATHS", "sys/kernel/pid_max uptime meminfo").split:
     if f.len > 0: readFile f, buf, st.addr
   i = 1; while i < argc:
     if argv[i][0] in {'1'..'9'}:
       break
     if i mod 2 == 1 and argv[i][0] notin {'s', 'r', 'R'}:
-      stderr.write "Bad command ",$argv[i]," (not s*|r*|R*)\n\n"; quit u, 1
+      e.write "Bad command ",$argv[i]," (not s*|r*|R*)\n\n"; quit u, 1
     if i mod 2 == 0 and argv[i][0] != '/':
-      stderr.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
+      e.write "expecting /dirEntry as in /proc/PID/dirEntry\n\n"; quit u, 2
     inc i
   if argv[1][0] != 's': 
-    stderr.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
+    e.write "'program' doesn't start w/stat; /smaps_rollup trim may fail\n"
   eoProg = i
   if eoProg mod 2 != 1: quit "unpaired 'program' args", 3
   jobs = getEnv("j", "1").parseInt
