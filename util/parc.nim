@@ -104,7 +104,15 @@ proc perPidWork(remainder: int) =
       elif argv[j][0] == 'R': discard readlink(path, nil)
     inc i
 
+proc hdl(sigNo: cint) {.noconv.} =    # Temporary; Later will likely be ignored
+  discard write(2, "parc: DELIVERED SIGNAL: ".cstring, 24)
+  var ch = chr(ord('@') + sigNo.int)  # Notably, SIGCHLD has a default ignore
+  discard write(2, ch.addr, 1)        # disposition but this mvs it to print,
+  discard write(2, "\n".cstring, 1)   # maybe generating EINTR/etc.
+
 proc driveKids() =
+  var sa = Sigaction(sa_handler: hdl) # SIG_IGN if this turns out to problem
+  for sig in cint(1)..31: discard sigaction(sig, sa)
   let quiet = getEnv("parc_quiet", "").len >= 3
   var pipes = newSeq[array[0..1, cint]](jobs)
   var fds   = newSeq[TPollfd](jobs)
