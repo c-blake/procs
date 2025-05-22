@@ -22,7 +22,7 @@ proc writeRecHdr(path: cstring; pLen, datLen: int) =
   let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
               datLen        + int(datLen mod 2 != 0)
   if bytes < 2:                         # This should simply not be possible
-    e.write "parc: SHORT WRITE; nameLen=",rec.nmLen," dataLen=",datLen,"\n"
+    e.write "parc: SHORT WRITE: nameLen=",rec.nmLen," dataLen=",datLen,"\n"
   discard o.uriteBuffer(rec.addr, rec.sizeof)
   discard o.uriteBuffer(path    , pLen + 1)
   if pLen mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
@@ -132,12 +132,12 @@ proc driveKids() =
       quit "parc: poll(): errno: " & $errno, 5
     for j in 0..<jobs:
       template cp1 =    # Write already read header `rec` & then cp varLen data
-        if nR != rec.sizeof: e.write "parc: SHORT PIPE RD: ",nR," BYTES\n"
+        if nR != rec.sizeof: e.write "parc: SHORT PIPE READ: ",nR," BYTES\n"
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
                     dLen + int(dLen mod 2 != 0)         # Calculate size
         if bytes < 2:
-          e.write "parc: SHORT RECORD; nameLen=",rec.nmLen," dataLen=",dLen,"\n"
+          e.write "parc: SHORT RECORD: nameLen=",rec.nmLen," dataLen=",dLen,"\n"
           discard usleep(1)
         discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
         buf.setLen bytes                                # Read all, blocking..
