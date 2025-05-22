@@ -1,6 +1,42 @@
+const u = """/proc archiver like cpio -oHbin, but works on weird /proc files.
+Usage:
+  cd /proc
+  j=4 PARC_PATHS='sys/kernel/pid_max uptime meminfo' parc s / r /stat R /exe \
+   r /cmdline r /io r /schedstat r /smaps_rollup [1-9]* >/dev/shm/$USER-pfs.cpio
+
+Here s* means stat, r* means read, R* means ReadLink, $j indicates parallelism,
+and $PARC_PATHS is split-on-space for global(non-perPID) paths done first.
+
+`PFA=x pd -sX; cpio -tv < x | less` shows global and per-PID needs of style X,
+but NOTE unreadable entries (e.g. kthread /exe, otherUser /io) are dropped from
+cpio archives, which are then treated as empty files by `pd`."""
+
 when not declared stderr: import std/syncio
 import std/[posix, os, strutils], cligen/[posixUt, osUt]
 proc cstrlen(s: pointer): int {.importc: "strlen", header: "string.h".}
+let argc {.importc: "cmdCount".}: cint        # On POSIX, not a lib; importc
+let argv {.importc: "cmdLine".}: cstringArray #..is both simpler & faster.
+proc add(s: var string, t: cstring, nT: int) =  # Sort of like a C `memcat`
+  let n0 = s.len
+  s.setLen n0 + nT
+  if s.len > 0:                     # Both s and t could be ""
+    copyMem s[n0].addr, t, nT
+
+proc hdl(sigNo: cint) {.noconv.} =    # Temporary; Later will likely be ignored
+  if sigNo == SIGCHLD: return
+  discard write(2, "parc: DELIVERED SIGNAL: ".cstring, 24)
+  var ch = chr(ord('@') + sigNo.int)  # Notably, SIGCHLD has a default ignore
+  discard write(2, ch.addr, 1)        # disposition but this mvs it to print,
+  discard write(2, "\n".cstring, 1)   # maybe generating EINTR/etc.
+
+when defined busyWait:
+  const busyWait {.intdefine.} = 200
+  import std/hashes
+  proc wk(buf: cstring; len, j: int) =
+    var h = hash(j + 123456789)
+    for round in 1..busyWait:         #nim c -d:busyWait=50 or 300 to edit delay
+      for c in 0..<len: h = (h shl 17) or (h shr 47) xor buf[c].int
+    if h == 1234567890123456789: quit "UNLIKELY COLLISION", 83
 
 type Rec* {.packed.} = object       # Saved data header; cpio -oHbin compatible
   magic, dev, ino, mode, uid, gid, nlink, rdev: uint16 # magic=0o070707
@@ -62,27 +98,6 @@ proc readlink(path: string, err=e): string = # Must follow `s` "command"
     if result.len mod 2 == 0: discard o.uriteBuffer(pad0.addr, 1)
     flushFile o
 
-proc add(s: var string, t: cstring, nT: int) =
-  let n0 = s.len
-  s.setLen n0 + nT
-  copyMem s[n0].addr, t, nT
-
-let argc {.importc: "cmdCount".}: cint        # On POSIX, not a lib; importc
-let argv {.importc: "cmdLine".}: cstringArray #..is both simpler & faster.
-
-const u = """/proc archiver like cpio -oHbin, but works on weird /proc files.
-Usage:
-  cd /proc
-  j=4 PARC_PATHS='sys/kernel/pid_max uptime meminfo' parc s / r /stat R /exe \
-   r /cmdline r /io r /schedstat r /smaps_rollup [1-9]* >/dev/shm/$USER-pfs.cpio
-
-Here s* means stat, r* means read, R* means ReadLink, $j indicates parallelism,
-and $PARC_PATHS is split-on-space for global(non-perPID) paths done first.
-
-`PFA=x pd -sX; cpio -tv < x | less` shows global and per-PID needs of style X,
-but NOTE unreadable entries (e.g. kthread /exe, otherUser /io) are dropped from
-cpio archives, which are then treated as empty files by `pd`."""
-
 var jobs = 1; var i, eoProg: int              # Globals to all parallel work
 var thisUid: Uid                              # Const during execution, EXCEPT i
 proc perPidWork(remainder: int) =
@@ -103,22 +118,6 @@ proc perPidWork(remainder: int) =
         else: readFile path, buf
       elif argv[j][0] == 'R': discard readlink(path, nil)
     inc i
-
-proc hdl(sigNo: cint) {.noconv.} =    # Temporary; Later will likely be ignored
-  if sigNo == SIGCHLD: return
-  discard write(2, "parc: DELIVERED SIGNAL: ".cstring, 24)
-  var ch = chr(ord('@') + sigNo.int)  # Notably, SIGCHLD has a default ignore
-  discard write(2, ch.addr, 1)        # disposition but this mvs it to print,
-  discard write(2, "\n".cstring, 1)   # maybe generating EINTR/etc.
-
-when defined busyWait:
-  const busyWait {.intdefine.} = 200
-  import std/hashes
-  proc wk(buf: cstring; len, j: int) =
-    var h = hash(j + 123456789)
-    for round in 1..busyWait:         #nim c -d:busyWait=50 or 300 to edit delay
-      for c in 0..<len: h = (h shl 17) or (h shr 47) xor buf[c].int
-    if h == 1234567890123456789: quit "UNLIKELY COLLISION", 83
 
 proc driveKids() =
   var sa = Sigaction(sa_handler: hdl) # SIG_IGN if this turns out to problem
