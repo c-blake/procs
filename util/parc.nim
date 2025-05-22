@@ -105,10 +105,20 @@ proc perPidWork(remainder: int) =
     inc i
 
 proc hdl(sigNo: cint) {.noconv.} =    # Temporary; Later will likely be ignored
+  if sigNo == SIGCHLD: return
   discard write(2, "parc: DELIVERED SIGNAL: ".cstring, 24)
   var ch = chr(ord('@') + sigNo.int)  # Notably, SIGCHLD has a default ignore
   discard write(2, ch.addr, 1)        # disposition but this mvs it to print,
   discard write(2, "\n".cstring, 1)   # maybe generating EINTR/etc.
+
+when defined busyWait:
+  const busyWait {.intdefine.} = 200
+  import std/hashes
+  proc wk(buf: cstring; len, j: int) =
+    var h = hash(j + 123456789)
+    for round in 1..busyWait:         #nim c -d:busyWait=50 or 300 to edit delay
+      for c in 0..<len: h = (h shl 17) or (h shr 47) xor buf[c].int
+    if h == 1234567890123456789: quit "UNLIKELY COLLISION", 83
 
 proc driveKids() =
   var sa = Sigaction(sa_handler: hdl) # SIG_IGN if this turns out to problem
@@ -141,6 +151,7 @@ proc driveKids() =
     for j in 0..<jobs:
       template cp1 =    # Write already read header `rec` & then cp varLen data
         if nR != rec.sizeof: e.write "parc: SHORT PIPE READ: ",nR," BYTES\n"
+        when defined busyWait:wk cast[cstring](fds[0].addr),jobs*fds[0].sizeof,j
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
                     dLen + int(dLen mod 2 != 0)         # Calculate size
