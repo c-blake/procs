@@ -86,7 +86,7 @@ cpio archives, which are then treated as empty files by `pd`."""
 var jobs = 1; var i, eoProg: int              # Globals to all parallel work
 var thisUid: Uid                              # Const during execution, EXCEPT i
 proc perPidWork(remainder: int) =
-  var i = i                                   #..And `i` gets a private copy.
+  var i = i     # fork already gives kid a private copy of `i`,but this is cheap
   var st: Stat
   var buf, path: string
   while i < argc:
@@ -133,7 +133,7 @@ proc driveKids() =
       discard pipes[j][1].close
       fds[j] = TPollfd(fd: pipes[j][0], events: POLLIN)
   var buf = newSeq[char](4096)
-  var nLive = jobs
+  var nLive = jobs; var k = i
   while nLive > 0:
     if poll(fds[0].addr, jobs.Tnfds, -1) <= 0:
       if errno == EINTR: continue
@@ -144,14 +144,15 @@ proc driveKids() =
         let dLen = (rec.datLen[0].int shl 16) or rec.datLen[1].int
         let bytes = rec.nmLen.int + int(rec.nmLen mod 2 != 0) +
                     dLen + int(dLen mod 2 != 0)         # Calculate size
-        if bytes < 2:
-          e.write "parc: SHORT RECORD: nameLen=",rec.nmLen," dataLen=",dLen,"\n"
-          discard usleep(1)
+        if bytes < 2:   # Do not forge onward with impossible/bad data
+          e.write "parc: SHORT RECORD: nameLen=",rec.nmLen," dataLen=",dLen,
+                  " forOutputArg=",k,"/",argc,"\n"; quit 73
         discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
         buf.setLen bytes                                # Read all, blocking..
         while (let nR=read(fds[j].fd, buf[0].addr, bytes); nR<0): #..as needed.
           discard usleep(500) #; e.write "parc: had to wait\n"
         discard o.uriteBuffer(buf[0].addr, bytes)       # Send body to stdout
+        inc k
       if fds[j].fd != -1 and fds[j].revents != 0:
         if (fds[j].revents and POLLIN) != 0:                # Data is ready
           if (let nR = read(fds[j].fd, rec.addr, rec.sizeof); nR > 0): cp1
