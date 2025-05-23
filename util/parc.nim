@@ -144,7 +144,8 @@ proc driveKids() =
           dec nLive; if close(fds[j].fd)==0: fds[j].fd = -1 else: quit 7
 
 proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
-  let fd = open(".", 0o200000) # O_DIRECTORY
+  var O_DIRECTORY {.header: "fcntl.h", importc: "O_DIRECTORY".}: cint
+  let fd = open(".", O_DIRECTORY)
   var dts: seq[int8]
   let dents = getDents(fd, st, dts.addr, avgLen=10)
   for j, dent in dents:
