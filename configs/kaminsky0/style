@@ -10,14 +10,14 @@ Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcrypt
 Style = "Bmerge = "
 
 #First define unfiltered styles
-Style = "abasic =   -DJ><R -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
-Style = "along  = -U4       -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
-#Style = "auser  = -U4 -tDbJ -oDT   \"-f%U %p %m %E %v %R %t %a %b %j %J %D%C\""
-Style = "auser  = -U4 -tDbJ -oDT   \"-f%U %p %t %M %R %v %a %e %j %J %D%C\""
-Style = "amem   =           -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
-Style = "ajobs  = -U4       -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
-#Style = "asig   = -U4       -oDT   \"-f..."""
-#Style = "areg   = -U4       -oDT   \"-f..."""
+Style = "abasic =   -DJ><R -e -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
+Style = "along  = -U4      -e -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
+#Style = "auser  = -U4 -tDbJ -e -oDT   \"-f%U %p %m %E %v %R %t %a %b %j %J %D%C\""
+Style = "auser  = -U4 -tDbJ -e -oDC   \"-f%U %p %t %M %R %v %a %e %j %J %D%C\""
+Style = "amem   =           -e -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
+Style = "ajobs  = -U4       -e -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
+#Style = "asig   = -U4       -e -oDT   \"-f..."""
+#Style = "areg   = -U4       -e -oDT   \"-f..."""
 
 #Then only kernel thread group merged aggregation
 Style = "kbasic = -sKm -s abasic"
