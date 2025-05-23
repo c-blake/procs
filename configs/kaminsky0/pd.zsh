@@ -2,7 +2,7 @@ function pd() {
     local PD_LABELS_AWK="$ZDOTDIR/pd-labels.awk"
     local PD_LABELS_ROLLUPS="$ZDOTDIR/pd-rollups"
     local PD_LABELS_STALE=${PD_LABELS_STALE:-10} # seconds
-    local PFA=${PFA:-/dev/shm/proc.kaminsky.cpio}
+    local PFA=${PFA:-/dev/shm/pfs-$USER.cpio}
 
     #local start_time
     #start_time=$EPOCHREALTIME
@@ -21,21 +21,19 @@ function pd() {
     # See if the user set a PFS before calling us; if so, use that
     if [[ -n "$PFS" ]]; then
         unset PFA
-        declare -a ru_pids=($(pf -f "$labels[@]" "${patterns[@]}"))
-    # Use cached version if it's < 1 minute old
-    elif [[ -f $PFA && $pfa_mtime_delta -lt $PD_LABELS_STALE ]]; then
-        local PFS=$PFA 
-        unset PFA
-        declare -a ru_pids=($(pf -f "$labels[@]" "${patterns[@]}"))
+        declare -a ru_pids=($(pf -f "${labels[@]}" "${patterns[@]}"))
     else
-        declare -a ru_pids=($(pf \
-            -F,=,dst,stat,exe,io,sched,meminfo,smap -A-99999999900 \
-            -f "$labels[@]" "${patterns[@]}"
-        ))
+        # Use cached version if it's < 1 minute old
+        if [[ ! -f $PFA || $pfa_mtime_delta -gt $PD_LABELS_STALE ]]; then
+            j=$(nproc) parc sys/kernel/pid_max uptime meminfo -- \
+                s/ r/stat R/exe r/cmdline r/io r/schedstat r/smaps_rollup \
+                > $PFA
+        fi
+
         local PFS=$PFA 
         unset PFA
+        declare -a ru_pids=($(pf -f "${labels[@]}" "${patterns[@]}"))
     fi
-    #print -l ${ru_pids[@]}
 
     declare -a maplist=()
     declare -a arglist=()
