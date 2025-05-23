@@ -75,7 +75,7 @@ proc readFile(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
 
 proc readlink(path: string, err=e): string = # Must follow `s` "command"
   result = posixUt.readlink(path, err)  # rec.clear either unneeded|unwanted
-  if result.len > 0:            # Mark as SymLn;MUST BE KNOWN to be SymLn
+  if result.len > 0:                    # Mark as SymLn;MUST BE KNOWN to be SLn
     rec.mode = 0o120777; rec.nlink = 1  # Inherit rest from needed last stat.
     writeRecHdr path.cstring, path.len, result.len + 1
     discard o.uriteBuffer(result.cstring, result.len + 1)
@@ -151,32 +151,29 @@ proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
     if dts[j] == DT_DIR and dent[0] in {'1'..'9'}: av.add dent
   discard fd.close
 
-proc main() =
-  if av.len < 1 or av[0].len < 1 or av[0][0] == '-': quit Use, 1
-  let dir = getEnv("d", "/proc");
-  if chdir(dir.cstring) != 0: quit "cannot cd " & dir, 2
-  thisUid = getuid()
-  while i < av.len:
-    if av[i] == "--": inc i; soProg = i; break
-    if av[i].len > 0: readFile av[i], buf, st.addr
-    inc i
-  if soProg >= av.len: soProg = av.len - 1
-  if av[soProg][0] != 's': e.write "parc: PROGRAM doesn't start w/\"s\"tat\n"
-  while i < av.len:
-    if av[i] == "--": break
-    if av[i].len < 2 or av[i][1] != '/' or av[i][0] notin {'s','r','R'}:
-      quit "bad command \""&av[i]&"\" (not [srR]/XX)", 4
-    inc i
-  eoProg = max(i, soProg)
-  if eoProg<=soProg: e.write "No PROGRAM; Start(",soProg,") >= End(",eoProg,")\n"
-  else:
-    if i < av.len: inc i                # skip "--" for next for loop
-    if i == av.len: addDirents()
-    if (jobs = getEnv("j", "1").parseInt; jobs <= 0):
-      jobs += sysconf(SC_NPROCESSORS_ONLN)
-      if jobs < 0: jobs = 1
-    if jobs == 1: perPidWork 0
-    else: driveKids()
-  rec.clear; rec.nlink = 1; writeRecHdr cstring("TRAILER!!!"), 10, 0
-
-main()
+if av.len < 1 or av[0].len < 1 or av[0][0] == '-': quit Use, 1
+let dir = getEnv("d", "/proc");
+if chdir(dir.cstring) != 0: quit "cannot cd " & dir, 2
+thisUid = getuid()
+while i < av.len:
+  if av[i] == "--": inc i; soProg = i; break
+  if av[i].len > 0: readFile av[i], buf, st.addr
+  inc i
+if soProg >= av.len: soProg = av.len - 1
+if av[soProg][0] != 's': e.write "parc: PROGRAM doesn't start w/\"s\"tat\n"
+while i < av.len:
+  if av[i] == "--": break
+  if av[i].len < 2 or av[i][1] != '/' or av[i][0] notin {'s','r','R'}:
+    quit "bad command \""&av[i]&"\" (not [srR]/XX)", 4
+  inc i
+eoProg = max(i, soProg)
+if eoProg<=soProg: e.write "No PROGRAM; Start(",soProg,") >= End(",eoProg,")\n"
+else:
+  if i < av.len: inc i                # skip "--" for next for loop
+  if i == av.len: addDirents()
+  if (jobs = getEnv("j", "1").parseInt; jobs <= 0):
+    jobs += sysconf(SC_NPROCESSORS_ONLN)
+    if jobs < 0: jobs = 1
+  if jobs == 1: perPidWork 0
+  else: driveKids()
+rec.clear; rec.nlink = 1; writeRecHdr cstring("TRAILER!!!"), 10, 0
