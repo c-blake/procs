@@ -143,8 +143,8 @@ proc driveKids() =
           while (var nR = read(fds[j].fd, rec.addr, rec.sizeof); nR > 0): cp1
           dec nLive; if close(fds[j].fd)==0: fds[j].fd = -1 else: quit 7
 
+var O_DIRECTORY {.header: "fcntl.h", importc: "O_DIRECTORY".}: cint
 proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
-  var O_DIRECTORY {.header: "fcntl.h", importc: "O_DIRECTORY".}: cint
   let fd = open(".", O_DIRECTORY)
   var dts: seq[int8]
   let dents = getDents(fd, st, dts.addr, avgLen=10)
