@@ -107,11 +107,11 @@ proc driveKids() =
   for j in 0..<jobs:            # Re-try rather than exit on failures since..
     while pipe(pipes[j]) < 0:   #..often one queries /proc DUE TO overloads.
       if not quiet: e.write "parc: pipe(): errno: ",errno,"\n"
-      discard usleep(10_000)    # Microsec; So, 20 ms|50/sec
+      discard usleep(10_000)    # Microsec; So, 10 ms|100/sec
     var kid: Pid
     while (kid = fork(); kid == -1):
       if not quiet: e.write "parc: fork(): errno: ",errno,"\n"
-      discard usleep(10_000)    # Microsec; So, 20 ms|50/sec
+      discard usleep(10_000)    # Microsec; So, 10 ms|100/sec
     if kid == 0:                # In Kid
       discard pipes[j][0].close
       if dup2(pipes[j][1], 1) < 0: quit "parc: dup2 failure - bailing", 4
@@ -150,7 +150,7 @@ proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
   for j, dent in dents:
     if dts[j] == DT_DIR and dent[0] in {'1'..'9'}: av.add dent
   discard fd.close
-
+                        # # # MAIN LOGIC/CLI PARSE # # #
 if av.len < 1 or av[0].len < 1 or av[0][0] == '-': quit Use, 1
 let dir = getEnv("d", "/proc");
 if chdir(dir.cstring) != 0: quit "cannot cd " & dir, 2
