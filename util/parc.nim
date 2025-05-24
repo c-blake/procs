@@ -102,6 +102,7 @@ proc perPidWork(remainder: int) =
 
 proc driveKids() =
   let quiet = existsEnv("q")
+  var kids  = newSeq[Pid](jobs)
   var pipes = newSeq[array[0..1, cint]](jobs)
   var fds   = newSeq[TPollfd](jobs)
   for j in 0..<jobs:            # Re-try rather than exit on failures since..
@@ -118,6 +119,7 @@ proc driveKids() =
       discard pipes[j][1].close
       perPidWork j; quit 0      # write->[1]=stdout; Par reads from pipes[j][0]
     else:
+      kids[j] = kid
       discard pipes[j][1].close
       fds[j] = TPollfd(fd: pipes[j][0], events: POLLIN)
   var buf = newSeq[char](4096)
@@ -142,6 +144,7 @@ proc driveKids() =
         if (fds[j].revents and POLLHUP) != 0:               # Kid is done
           while (var nR = read(fds[j].fd, rec.addr, rec.sizeof); nR > 0): cp1
           dec nLive; if close(fds[j].fd)==0: fds[j].fd = -1 else: quit 7
+  var x: cint; for k in kids: discard waitpid(k,x,0) # make getrusage cumulative
 
 var O_DIRECTORY {.header: "fcntl.h", importc: "O_DIRECTORY".}: cint
 proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac

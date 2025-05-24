@@ -18,10 +18,11 @@ char *Use="Programmed ARChiver; Like cpio -oHbin, but works on odd /proc files."
 #include <stdio.h>    // stdout stderr fprintf fwrite
 #include <dirent.h>   // opendir readdir closedir DT_DIR
 #include <assert.h>   // assert Debugging
+#include <errno.h>    // errno EAGAIN EINTR
 #include <sys/stat.h> // fstat stat struct stat
 #include <unistd.h>   // pipe fork dup2 chdir getuid usleep read close readlink
 #include <fcntl.h>    // open O_RDONLY
-#include <errno.h>    // errno EAGAIN EINTR
+#include <sys/wait.h> // waitpid
 #include <poll.h>     // struct pollfd POLLIN POLLHUP
 
 #define E(fmt, ...) (fprintf(stderr, "parc: " fmt, ##__VA_ARGS__))
@@ -158,9 +159,9 @@ void runProgram(int remainder) {        //Main Program Interpreter
 /*if (path.p) free(path.p);*/ }         //Appease leak sanitizers
 
 void driveKids() {                      //Parallel Kid Launcher-Driver
-  int           quiet = !!getenv("q"), j, bytes, dLen, nR; // Flag, loop, temps
-  int           pipes[jobs][2]; memset(pipes, 0, jobs*sizeof pipes[0]);
-  struct pollfd fds[jobs];      memset(fds  , 0, jobs*sizeof fds[0]);
+  int           quiet = !!getenv("q"), j, bytes, dLen,nR,x; // Flag, loop, temps
+  int           pipes[jobs][2], kids[jobs];memset(pipes,0,jobs*sizeof pipes[0]);
+  struct pollfd fds[jobs];                 memset(fds  ,0,jobs*sizeof fds[0]);
   for (j = 0; j < jobs; j++) {  //Re-try rather than exit on failures since..
     while (pipe(pipes[j])<0) {  //..often one queries /proc DUE TO overloads.
       if (!quiet) E("pipe(): %s (%d)\n", strerror(errno), errno);
@@ -175,6 +176,7 @@ void driveKids() {                      //Parallel Kid Launcher-Driver
       close(pipes[j][1]);       //wr->[1]=stdout; Par reads from pipes[j][0]
       runProgram(j); exit(0); } //Exit avoids multiple stupid TRAILER!!!
     else {                      //fork: In Parent
+      kids[j] = kid;
       close(pipes[j][1]);       //kid will write to this side of pipe
       fds[j].fd = pipes[j][0]; fds[j].events = POLLIN; } }
   int nLive = jobs;             // // // MAIN KID DRIVING LOOP // // //
@@ -201,7 +203,8 @@ void driveKids() {                      //Parallel Kid Launcher-Driver
           while ((nR = read(fds[j].fd, &rec, sizeof rec) > 0)) { cp1; }
           nLive--;
           if (close(fds[j].fd)==0) fds[j].fd = -1;
-          else Q(9, "close: %s (%d)", strerror(errno), errno); } } } } }
+          else Q(9, "close: %s (%d)", strerror(errno), errno); } } } }
+  for (int j=0; j<jobs; j++) waitpid(kids[j],&x,0);}// make getrusage cumulative
 
 void addDirents() {     // readdir("."), appending $dir/[1-9]* to av[], ac
   struct dirent *de;            // Should perhaps someday take a more..
