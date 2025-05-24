@@ -1885,7 +1885,7 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
     ifHandled=false, FileSrc: ProcSrcs={}, PCREpatterns: seq[string]): int =
   ## Find procs & act (*echo*, *path*, *aid*, *count*, *kill*, *nice*, *wait*
   ## for any|All) upon them. Unifies&generalizes `pidof`, `pgrep/pkill/pidwait`,
-  ## `snice` into one command with options most similar to `pgrep`.
+  ## `waitpid`, `snice` into ONE command (with options most similar to `pgrep`).
   let pids: seq[string] = if pids.len > 0: pids.splitWhitespace else: @[ ]
   var acts: set[PfAct]; var wrote = false
   for a in actions: acts.incl a
