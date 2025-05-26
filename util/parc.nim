@@ -157,8 +157,8 @@ proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
                         # # # MAIN LOGIC/CLI PARSE # # #
 if av.len < 1 or av[0].len < 1 or av[0][0] == '-': quit Use, 1
 let dir = getEnv("d", "/proc");
-if chdir(dir.cstring) != 0: quit "cannot cd " & dir, 2
 thisUid = getuid()
+if chdir(dir.cstring) != 0: quit "uid " & $thisUid & "cannot cd " & dir, 2
 while i < av.len:
   if av[i] == "--": inc i; soProg = i; break
   if av[i].len > 0: readFile av[i], buf, st.addr

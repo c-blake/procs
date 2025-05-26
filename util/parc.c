@@ -100,7 +100,7 @@ void wH(char *path, int datLen) {       //Write Header to stdout
   rec.nmLen     = (u2_t)(pLen + 1);     //Include NUL terminator
   rec.datLen[0] = (u2_t)((unsigned)datLen >> 16);
   rec.datLen[1] = (u2_t)((unsigned)datLen & 0xFFFF);
-  wD(&rec, sizeof rec);
+  wD(&rec, sizeof rec);                 //Write header, then maybe-padded path
   wD(path, pLen + 1);
   if (pLen%2 == 0) wD(pad0, 1); }
 
@@ -119,7 +119,7 @@ void fromStat(struct stat *st) {        //At least for a single FS like /proc,..
 // ensure parent read() starts w/26B Rec struct to say how much more to read.
 void Astat(char *path, struct stat*st){ //Starts archive program for PIDsubDir
   if (stat(path, st) == 0) {        //No clear: fromStat sets EVERY field anyway
-    fromStat(st); wH(path, 0); fflush(stdout); } }
+    fromStat(st); wH(path, 0); fflush(stdout); } }  //Header ONLY record
 
 void Aread(char *path, struct stat *st) {
   BufReadFile(&buf, path, st, 4096);    //Does fstat ONLY IF `st` not Nil making
@@ -127,15 +127,15 @@ void Aread(char *path, struct stat *st) {
     if (st) fromStat(st);               //Global fstat field propagation
     else { rec.mode = 0100444; rec.nlink = 1; } //Regular file r--r--r--
     wH(path, buf.n);                    //Inherit rest from needed last stat
-    wD(buf.p, buf.n);
+    wD(buf.p, buf.n);                   //Write header & maybe-padded data
     if (buf.n%2 == 1) wD(pad0, 1);
     fflush(stdout); } }
 
 void AReadLink(char *path) {            //Must follow `s` "command"
-  if (BufReadLink(&buf, path)==0){      //rec.clear either unneeded|unwanted
+  if (BufReadLink(&buf, path)==0) {     //rec.clear either unneeded|unwanted
     rec.mode = 0120777; rec.nlink = 1;  //Mark as SymLn;MUST BE KNOWN to be SLn
     wH(path, buf.n + 1);                //Inherit rest from needed last stat
-    wD(buf.p, buf.n + 1);
+    wD(buf.p, buf.n + 1);               //Write header & maybe-padded data
     if (buf.n%2 == 0) wD(pad0, 1);
     fflush(stdout); } }
 
@@ -151,14 +151,13 @@ void runProgram(int remainder) {        //Main Program Interpreter
       int nE = nEntPath[j - soProg];    //Below +- 1 skips the [srR]
       BufSetLen(&path, nPath); BufAddC(&path, av[j] + 1, nE - 1);
       if      (av[j][0] == 's') Astat(path.p, &st);  // Act
-      else if (av[j][0] == 'r') {
+      else if (av[j][0] == 'r') {       //read; Skip odd perms pass open, not rd
         if (nE == 14 && memcmp(av[j], "r/smaps_rollup", 14) == 0) {
           if (thisUid == 0 || thisUid == st.st_uid) Aread(path.p, NULL); }
-        else Aread(path.p, NULL);
-      } else if (av[j][0] == 'R') AReadLink(path.p); } }
-/*if (path.p) free(path.p);*/ }         //Appease leak sanitizers
+        else Aread(path.p, NULL);       //read, ordinary, then readlink
+      } else if (av[j][0]=='R') AReadLink(path.p);}}/*if(path.p)free(path.p);*/}
 
-void driveKids() {                      //Parallel Kid Launcher-Driver
+void driveKids() {              //Parallel Kid Launcher-Driver
   int           quiet = !!getenv("q"), j, bytes, dLen,nR,x; // Flag, loop, temps
   int           pipes[jobs][2], kids[jobs];memset(pipes,0,jobs*sizeof pipes[0]);
   struct pollfd fds[jobs];                 memset(fds  ,0,jobs*sizeof fds[0]);
@@ -166,7 +165,7 @@ void driveKids() {                      //Parallel Kid Launcher-Driver
     while (pipe(pipes[j])<0) {  //..often one queries /proc DUE TO overloads.
       if (!quiet) E("pipe(): %s (%d)\n", strerror(errno), errno);
       usleep(10000); }          //Microsec; So, 10 ms|100/sec
-    pid_t kid;
+    pid_t kid;                  //Launch a kid
     while ((kid = fork()) == -1) {
       if (!quiet) E("fork(): %s (%d)\n", strerror(errno), errno);
       usleep(10000); }          //Microsec; So, 10 ms|100/sec
@@ -219,32 +218,31 @@ void addDirents() {     // readdir("."), appending $dir/[1-9]* to av[], ac
       av[ac++] = strdup(de->d_name); } //Memory for av[] & av is intentionally..
   closedir(dp); }                      //..leaked; Reaped by OS. gcc-san misses?
 
-#define A (av[i])
+#define A (av[i])               //Current CL A)rgument C-string
 int main(int _ac, char **_av) {
   char *dir = getenv("d") ? getenv("d") : "/proc";
-  ac = _ac; av = _av;
+  ac = _ac; av = _av;           //Users: addDirents & runProgram(& so driveKids)
   if (ac < 2 || !*av[1] || av[1][0]=='-') quit(1, Use);
-  if (chdir(dir)) { Q(2, "cd %s: %s\n", dir, strerror(errno)); }
-  thisUid = getuid();
-  for (i = 1; i < ac; i++) {
-    if (A[0]=='-' && A[1]=='-' && A[2]=='\0') { soProg = ++i; break; }
-    if (A[0] != '\0') Aread(A, &st); }
+  thisUid = getuid();           //Short circuits some attempted /proc accesses
+  if (chdir(dir)) { Q(2, "uid %d: cd %s: %s\n", thisUid, dir, strerror(errno));}
+  for (i = 1; i < ac; i++) {    //Split av into pre-Program GLOBALS & Program..
+    if (A[0]=='-' && A[1]=='-' && A[2]=='\0') { soProg = ++i; break; } //"--"
+    if (A[0] != '\0') Aread(A, &st); }  //..archiving GLOBALS as we go.
   if (soProg >= ac) soProg = ac - 1;
   if (av[soProg][0] != 's') E("PROGRAM doesn't start w/\"s\"tat\n");
-  for (/**/; i < ac; i++) {
-    if (A[0]=='-' && A[1]=='-' && A[2]=='\0') break;
+  for (/**/; i < ac; i++) {     //Split av into Program&explicit top-level list.
+    if (A[0]=='-' && A[1]=='-' && A[2]=='\0') break;    //"--"
     if (A[0]=='\0' || A[1] != '/' || !(A[0]=='s' || A[0]=='r' || A[0]=='R'))
-      Q(4, "bad command \"%s\" (not [srR]/XX)\n", A); }
-  eoProg = i > soProg ? i : soProg;
+      Q(4, "bad command \"%s\" (not [srR]/XX)\n", A); } //Check Program
+  eoProg = i > soProg ? i : soProg; //Ensure Program len >= 0
   if (eoProg <= soProg) E("No PROGRAM; Start(%d) >= End(%d))\n", eoProg,soProg);
   else {
-    if (i < ac) i++;      // skip "--" for next for (/**/; i < ac; i++) loop
-    if (i == ac) addDirents();
-    if ((jobs = getenv("j") ? atoi(getenv("j")) : 1) <= 0) {
-      jobs += sysconf(_SC_NPROCESSORS_ONLN);
-      if (jobs < 0) jobs = 1; }
-    if (jobs == 1) runProgram(0);
-    else driveKids(); }
+    if (i < ac) i++;            //Skip "--" for next for(/**/; i < ac; i++) loop
+    if (i == ac) addDirents();  //No top-level given => readdir to get it
+    if ((jobs = getenv("j") ? atoi(getenv("j")) : 1) <= 0) { //Make j relative..
+      jobs += sysconf(_SC_NPROCESSORS_ONLN);                 //..to nproc. 0=all
+      if (jobs < 0) jobs = 1; }                              //..but -1 best.
+    if (jobs == 1) runProgram(0);   // All set up - runProgram in this process..
+    else driveKids(); }             //..or in `jobs` kids w/parent sequencer.
   memset(&rec,0,sizeof rec); rec.magic=0070707; rec.nlink=1; wH("TRAILER!!!",0);
-//if (buf.p) free(buf.p);
-  return 0; }
+/*if (buf.p) free(buf.p);*/ return 0; }
