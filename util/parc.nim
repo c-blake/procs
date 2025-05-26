@@ -84,23 +84,23 @@ proc readlink(path: string, err=e): string = # Must follow `s` "command"
 
 var jobs=1; var soProg=1; var eoProg, i: int  # Globals to all parallel work
 var thisUid: Uid                              # Const during execution, EXCEPT i
-proc perPidWork(remainder: int) =
+proc perPidWork(remainder: int) =             # Main Program Interpreter
   template `+!`(p: cstring, i: int): cstring = cast[cstring](cast[int](p) +% i)
-  var path: string
-  while i < av.len:
-    if i mod jobs != remainder: inc i; continue
-    path = av[i]; let nI = path.len
-    for j in soProg..<eoProg:           # Form "ROOT/entry" in `path`
+  var path: string              # Starts w/PID-like top-level; Gets /foo added
+  while i < av.len:             # addDirents/main put all work in av[]
+    if i mod jobs != remainder: inc i; continue # For jobs>1, skip not-ours
+    path = av[i]; let nI = path.len     # Form "ROOT/entry" in `path`
+    for j in soProg..<eoProg:           # Below +- 1 skips the [srR]
       path.setLen nI; path.add av[j].cstring +! 1, av[j].len - 1
-      if   av[j][0] == 's': discard stat(path.cstring, st)
+      if   av[j][0] == 's': discard stat(path.cstring, st)  # stat
       elif av[j][0] == 'r':
-        if path == "/smaps_rollup":
+        if path == "/smaps_rollup":     #read; Skip odd perms pass open,not read
           if thisUid == 0 or thisUid == st.st_uid: readFile path, buf
-        else: readFile path, buf
-      elif av[j][0] == 'R': discard readlink(path, nil)
+        else: readFile path, buf                        # read, ordinary
+      elif av[j][0] == 'R': discard readlink(path, nil) # readlink
     inc i
 
-proc driveKids() =
+proc driveKids() =              # Parallel Kid Launcher-Driver
   let quiet = existsEnv("q")
   var kids  = newSeq[Pid](jobs)
   var pipes = newSeq[array[0..1, cint]](jobs)
@@ -109,25 +109,25 @@ proc driveKids() =
     while pipe(pipes[j]) < 0:   #..often one queries /proc DUE TO overloads.
       if not quiet: e.write "parc: pipe(): errno: ",errno,"\n"
       discard usleep(10_000)    # Microsec; So, 10 ms|100/sec
-    var kid: Pid
+    var kid: Pid                # Launch a kid
     while (kid = fork(); kid == -1):
       if not quiet: e.write "parc: fork(): errno: ",errno,"\n"
       discard usleep(10_000)    # Microsec; So, 10 ms|100/sec
     if kid == 0:                # In Kid
-      discard pipes[j][0].close
+      discard pipes[j][0].close # Parent will read from this side of pipe
       if dup2(pipes[j][1], 1) < 0: quit "parc: dup2 failure - bailing", 4
-      discard pipes[j][1].close
-      perPidWork j; quit 0      # write->[1]=stdout; Par reads from pipes[j][0]
-    else:
+      discard pipes[j][1].close # write->[1]=stdout; Par reads from pipes[j][0]
+      perPidWork j; quit 0      # Exit avoids multiple stupid "TRAILER!!!"
+    else:                       # fork: In Parent
       kids[j] = kid
-      discard pipes[j][1].close
+      discard pipes[j][1].close # kid will write to this side of pipe
       fds[j] = TPollfd(fd: pipes[j][0], events: POLLIN)
   var buf = newSeq[char](4096)
   var nLive = jobs
-  while nLive > 0:
-    if poll(fds[0].addr, jobs.Tnfds, -1) <= 0:
-      if errno == EINTR: continue
-      quit "parc: poll(): errno: " & $errno, 5
+  while nLive > 0:              # # # MAIN KID DRIVING LOOP # # #
+    if poll(fds[0].addr,jobs.Tnfds,-1)<=0: #While our kids live, poll for their
+      if errno == EINTR: continue             #..pipes having data, then copy..
+      quit "parc: poll(): errno: " & $errno,5 #..what they write to parent out.
     for j in 0..<jobs:
       template cp1 =    # Write already read header `rec` & then cp varLen data
         discard o.uriteBuffer(rec.addr, rec.sizeof)     # Send header to stdout
@@ -148,36 +148,36 @@ proc driveKids() =
 
 var O_DIRECTORY {.header: "fcntl.h", importc: "O_DIRECTORY".}: cint
 proc addDirents() =     # readdir("."), appending $dir/[1-9]* to av[], ac
-  let fd = open(".", O_DIRECTORY)
-  var dts: seq[int8]
+  let fd = open(".", O_DIRECTORY)       #Should perhaps someday take a more..
+  var dts: seq[int8]                    #..general pattern than this [1-9]*.
   let dents = getDents(fd, st, dts.addr, avgLen=10)
-  for j, dent in dents:
+  for j, dent in dents:                 #Just add to global `av`
     if dts[j] == DT_DIR and dent[0] in {'1'..'9'}: av.add dent
   discard fd.close
                         # # # MAIN LOGIC/CLI PARSE # # #
 if av.len < 1 or av[0].len < 1 or av[0][0] == '-': quit Use, 1
 let dir = getEnv("d", "/proc");
-thisUid = getuid()
+thisUid = getuid()      # Short circuits some attempted /proc accesses
 if chdir(dir.cstring) != 0: quit "uid " & $thisUid & "cannot cd " & dir, 2
-while i < av.len:
+while i < av.len:       # Split av into pre-Program GLOBALS & Program..
   if av[i] == "--": inc i; soProg = i; break
-  if av[i].len > 0: readFile av[i], buf, st.addr
+  if av[i].len > 0: readFile av[i], buf, st.addr  #..archiving GLOBALS as we go.
   inc i
 if soProg >= av.len: soProg = av.len - 1
 if av[soProg][0] != 's': e.write "parc: PROGRAM doesn't start w/\"s\"tat\n"
-while i < av.len:
+while i < av.len:       # Split av into Program&explicit top-level list.
   if av[i] == "--": break
   if av[i].len < 2 or av[i][1] != '/' or av[i][0] notin {'s','r','R'}:
-    quit "bad command \""&av[i]&"\" (not [srR]/XX)", 4
+    quit "bad command \""&av[i]&"\" (not [srR]/XX)", 4  # Check Program
   inc i
-eoProg = max(i, soProg)
+eoProg = max(i, soProg) # Ensure Program len >= 0
 if eoProg<=soProg: e.write "No PROGRAM; Start(",soProg,") >= End(",eoProg,")\n"
 else:
-  if i < av.len: inc i                # skip "--" for next for loop
-  if i == av.len: addDirents()
-  if (jobs = getEnv("j", "1").parseInt; jobs <= 0):
-    jobs += sysconf(SC_NPROCESSORS_ONLN)
+  if i < av.len: inc i                # Skip "--" for next for loop
+  if i == av.len: addDirents()        # No top-level given => readdir to get it
+  if (jobs = getEnv("j", "1").parseInt; jobs <= 0): # Make j relative to nproc;
+    jobs += sysconf(SC_NPROCESSORS_ONLN)            # 0=all; often -1 best.
     if jobs < 0: jobs = 1
-  if jobs == 1: perPidWork 0
-  else: driveKids()
+  if jobs == 1: perPidWork 0    # All set up - runProgram in this process..
+  else: driveKids()             #..or in `jobs` kids w/parent sequencer.
 rec.clear; rec.nlink = 1; writeRecHdr cstring("TRAILER!!!"), 10, 0
