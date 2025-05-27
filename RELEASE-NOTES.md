@@ -4,6 +4,10 @@ RELEASE NOTES
 Version: 0.8.7
 --------------
 
+  - The example cb0/ config family are all updated.  If you "just copy them"
+    as per install instructions, you might want to copy over them in you $HOME,
+    but you really should `diff` first to see what changes you may have made.
+
   - Always merge in oldest-\>newest start-time order for determinism.  Merges
     keep the older|lesser pid/ppid/pidPath type identifiers.
 
