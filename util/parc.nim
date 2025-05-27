@@ -87,11 +87,13 @@ var thisUid: Uid                              # Const during execution, EXCEPT i
 proc perPidWork(remainder: int) =             # Main Program Interpreter
   template `+!`(p: cstring, i: int): cstring = cast[cstring](cast[int](p) +% i)
   var path: string              # Starts w/PID-like top-level; Gets /foo added
+  var lens = newSeq[int](eoProg - soProg)
+  for j in soProg..<eoProg: lens[j - soProg] = av[j].len - 1
   while i < av.len:             # addDirents/main put all work in av[]
     if i mod jobs != remainder: inc i; continue # For jobs>1, skip not-ours
     path = av[i]; let nI = path.len     # Form "ROOT/entry" in `path`
     for j in soProg..<eoProg:           # Below +- 1 skips the [srR]
-      path.setLen nI; path.add av[j].cstring +! 1, av[j].len - 1
+      path.setLen nI; path.add av[j].cstring +! 1, lens[j - soProg]
       if   av[j][0] == 's': discard stat(path.cstring, st)  # stat
       elif av[j][0] == 'r':
         if path == "/smaps_rollup":     #read; Skip odd perms pass open,not read
