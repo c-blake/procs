@@ -3,7 +3,12 @@ RELEASE NOTES
 
 Version: 0.8.8
 --------------
-  - Default parc/$j to -1 & update help strings a bit.
+  - Default parc/$j to -1 & update help strings a bit
+
+  - Fix configs/cb0 example configs
+
+  - Add 1 width-column to TT tty field for people with >10 pseudoterminals
+    (This should really be either user-configurable somehow, though.)
 
 Version: 0.8.7
 --------------
