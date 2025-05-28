@@ -1462,7 +1462,7 @@ fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
   let wch = if p.wchan.startsWith("__x64_sys_"): p.wchan[10..^1] else: p.wchan
   wch[0 ..< min(9,wch.len)]
 fAdd('s', {pf_state}           ,0,4, "STAT"   ): $p.state
-fAdd('t', {pf_tty}             ,1,3, "TT"     ):
+fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
         else: cg.na                                       #no tty/unknown
