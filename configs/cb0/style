@@ -14,6 +14,8 @@ eqLeaf  = true  # Equalize leaves so -oDT / -oDJ / -oDM sort Last-Lvl kidless
 # schedSt = true  # For below %e/%b; Just use -t locally
 # First define unfiltered styles; -DJ><R is for differential -d1 top-esque mode
 # -U4 shortens usernames to be 4-wide
+# hdrs = "t:TTY" # more columns for many pseudo-terminals; May want -U8, etc.
+# For local adjustment, it might make sense to have a `[include__PD_LOCAL]`.
 Style = "abasic = -DJ><R       -oDT \"-f%p %t %R %< %> %a %J %D%C\""
 Style = "along  = -U4          -oDT \"-f%L %U %p %t %P %y %R %w %J %D%C\""
 Style = "auser  = -U4 -tDbJ><R -oDT \"-f%U %p %t %M %< %> %a %b %J %D%C\""
