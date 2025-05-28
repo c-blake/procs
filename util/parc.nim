@@ -1,17 +1,22 @@
-const Use="""Programmed ARChiver; Like cpio -oHbin, but works on odd /proc files
-Usage:
-  d=DIR(/proc) j=JOBS(1) parco GLOBALS -- PROGRAM [-- ROOTS]
-where DIR is the directory to run out of (must be cd-able), JOBS refers to
-process parallelism like make -j, GLOBALS are $d-relative paths to archive,
+const Use="""parc: Programmed ARChiver; Like cpio -oHbin, but works on odd /proc files.
+Usage (Nim):
+
+  d=DIR(/proc) j=JOBS(-1) parc GLOBALS -- PROGRAM [-- ROOTS]
+
+where DIR is the directory to run out of (must be cd-able), JOBS is parallelism
+(>0-absolute, <=0-relative to nproc), GLOBALS are $d-relative paths to archive,
 PROGRAM is a series of archival steps to make against ROOTS.  If ROOTS are
 omitted, every top-level direntry of $d matching [1-9]* is used.  Program
 steps are LETTER/entry where LETTER codes are s:stat r:read R:ReadLink and
-these actions are run with each ROOT as a prefix to \"/entry\".  E.g.:
-  j=8 parc sys/kernel/pid_max uptime meminfo -- s/ r/stat r/io R/exe \\
-           r/cmdline r/schedstat r/smaps_rollup >/dev/shm/$LOGNAME-pfs.cpio
-snapshots what `procs display` needs for most formats/sorts/merges. To see
-needs for your specific case of style X, `PFA=y pd -sX; cpio -tv < y|less`,
-but NOTE parc drops unreadable entries(eg. kthread /exe, otherUser /io) from
+these actions are run with each ROOT as a prefix to "/entry".  E.g.:
+
+  parc sys/kernel/pid_max uptime meminfo -- s/ r/stat r/io R/exe \
+       r/cmdline r/schedstat r/smaps_rollup >/dev/shm/$LOGNAME-pfs.cpio
+
+snapshots what `procs display` needs for most formats/sorts/merges.
+
+`PFA=Y pd -sX; cpio -tv<Y|less` shows needs for your specific case of style X,
+but NOTE parc drops unreadable entries (eg. kthread /exe, otherUser /io) from
 written cpio archives, which are then treated as empty files by `pd`."""
 
 when not declared stderr: import std/syncio
