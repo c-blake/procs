@@ -239,7 +239,7 @@ int main(int _ac, char **_av) {
   else {
     if (i < ac) i++;            //Skip "--" for next for(/**/; i < ac; i++) loop
     if (i == ac) addDirents();  //No top-level given => readdir to get it
-    if ((jobs = getenv("j") ? atoi(getenv("j")) : 1) <= 0) { //Make j relative..
+    if ((jobs = getenv("j") ? atoi(getenv("j")) : -1)<=0) {  //Make j relative..
       jobs += sysconf(_SC_NPROCESSORS_ONLN);                 //..to nproc. 0=all
       if (jobs < 0) jobs = 1; }                              //..but -1 best.
     if (jobs == 1) runProgram(0);   // All set up - runProgram in this process..

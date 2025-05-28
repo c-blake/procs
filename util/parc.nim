@@ -177,8 +177,8 @@ if eoProg<=soProg: e.write "No PROGRAM; Start(",soProg,") >= End(",eoProg,")\n"
 else:
   if i < av.len: inc i                # Skip "--" for next for loop
   if i == av.len: addDirents()        # No top-level given => readdir to get it
-  if (jobs = getEnv("j", "1").parseInt; jobs <= 0): # Make j relative to nproc;
-    jobs += sysconf(SC_NPROCESSORS_ONLN)            # 0=all; often -1 best.
+  if (jobs = getEnv("j", "-1").parseInt; jobs <= 0): # Make j relative to nproc;
+    jobs += sysconf(SC_NPROCESSORS_ONLN)             # 0=all; often -1 best.
     if jobs < 0: jobs = 1
   if jobs == 1: perPidWork 0    # All set up - runProgram in this process..
   else: driveKids()             #..or in `jobs` kids w/parent sequencer.
