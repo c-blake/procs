@@ -39,6 +39,14 @@ Version: 0.8.7
     more nicely rolling up PSS field, there may be other slow files and there
     may also be thousands of processes/threads.
 
+    GNU cpio, bsdcpio from libarchive, and paxcpio all seem to find produced
+    archives acceptable.  I chose the "obsolete bin" format for max simplicity
+    and efficiency (no binary-\>ASCII-\>binary) writing/parsing.  Its < 64KiNode
+    limits may induce change, but then again /proc also has no hard-links, so
+    maybe not.  You can unpack as root (needed for file owner diversity) in
+    /dev/shm and re-pack however.  You can also always convert without unpack
+    via libarchive's examples/tarfilter.c or similar.
+
   - Add to procs find/pf/pk `-H, --ifHandled` (or `--if-handled`, if you prefer)
     to mimic similar functionality recently added to `pkill`.
 
