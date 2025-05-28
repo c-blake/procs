@@ -1,6 +1,10 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.8
+--------------
+  - Default parc/$j to -1 & update help strings a bit.
+
 Version: 0.8.7
 --------------
 
