@@ -7,6 +7,17 @@ function pd() {
     #local start_time
     #start_time=$EPOCHREALTIME
 
+    local input
+    declare -a flags
+
+    for arg in "$@"; do
+        if [[ ${arg:0:1} == "-" ]]; then
+            flags+=$arg
+        else
+            input=$arg
+        fi
+    done
+
     eval "declare -A rollups=($(< $PD_LABELS_ROLLUPS))"
     declare -a labels=("${(k)rollups[@]/#/-L }")
     declare -a patterns=("${(v)rollups[@]}")
@@ -25,8 +36,10 @@ function pd() {
     else
         # Use cached version if it's < 1 minute old
         if [[ ! -f $PFA || $pfa_mtime_delta -gt $PD_LABELS_STALE ]]; then
-            j=$(nproc) parc sys/kernel/pid_max uptime meminfo -- \
-                s/ r/stat R/exe r/cmdline r/io r/schedstat r/smaps_rollup \
+            local SMR=""
+            [[ $flags == *"-smem"* ]] && SMR="r/smaps_rollup"
+            parc sys/kernel/pid_max uptime meminfo -- \
+                s/ r/stat R/exe r/cmdline r/io r/schedstat $SMR \
                 > $PFA
         fi
 
@@ -72,17 +85,6 @@ function pd() {
     #echo $map
 
     #echo $[EPOCHREALTIME-start_time]
-
-    local input
-    declare -a flags
-
-    for arg in "$@"; do
-        if [[ ${arg:0:1} == "-" ]]; then
-            flags+=$arg
-        else
-            input=$arg
-        fi
-    done
 
     if [[ -z $input ]]; then
         #start_time=$EPOCHREALTIME

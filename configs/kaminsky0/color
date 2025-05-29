@@ -1,48 +1,41 @@
 #Value-conditional attr settings; ORDER MATTERS: 1st ck passed WITHIN a (string,
 #dtype, inode) dimension decides KIND WITHIN that dimension.  Optional :KEY is a
 #0..255 overall order for that kind.  3rd :-separated field is DIMENSION NUMBER.
-#Attributes add across dimensions.
+#Attributes add/overlay across dimensions, but not within.
 
 #      nm:ord:dim        attrs          #overall test number for reference
 color = "kern:0x0:0      underline"     #0x00
 color = "sleep:0x2:0     NONE"          #0x01
 color = "zomb:0x3:0      struck"        #0x02
-color = "stop:0x4:0      struck"        #0x03 - will usually also be bold
+color = "stop:0x4:0      blink"         #0x03
 color = "run:0x5:0       bold"          #0x04
 
 color = "MT:0x6:1        italic"        #0x05
-color = "self:0x6:1      blink"         #0x06
+color = "self:0x6:1      struck"        #0x06 - will usually also be bold
 #color = "niced:0x7:2     inverse"       #0x07
 
-color = "kworker:0x0:3   kern_color" #0x08 
-color = "cpuhp:0x0:3     kern_color" #0x09
-color = "irq:0x0:3       kern_color" #0x0A
-color = "ksoftirqd:0x0:3 kern_color" #0x0B
-color = "migration:0x0:3 kern_color" #0x0C
-color = "xfs:0x0:3       kern_color" #0x0D
-color = "kcryptd:0x0:3   kern_color" #0x0E
-color = "dmcrypt:0x0:3   kern_color" #0x0F
-color = "scsi_eh:0x0:3   kern_color" #0x10
-color = "scsi_tmf:0x0:3  kern_color" #0x11
-color = "wq:0x0:3        kern_color" #0x12
-color = "rcu_*:0x0:3     kern_color" #0x13
-color = "*iod:0x0:3      kern_color" #0x14
-color = "kdmflush:0x0:3  kern_color" #0x15
-color = "iprtVBox:0x0:3  kern_color" #0x16
-color = "nvidia:0x0:3    kern_color" #0x17
+color = "kworker:0x0:3   WHITE on_blue" #0x08
+color = "cpuhp:0x0:3     WHITE on_blue" #0x09
+color = "irq:0x0:3       WHITE on_blue" #0x0A
+color = "ksoftirqd:0x0:3 WHITE on_blue" #0x0B
+color = "migration:0x0:3 WHITE on_blue" #0x0C
+color = "xfs:0x0:3       WHITE on_blue" #0x0D
+color = "kcryptd:0x0:3   WHITE on_blue" #0x0E
+color = "dmcrypt:0x0:3   WHITE on_blue" #0x0F
+color = "scsi_eh:0x0:3   WHITE on_blue" #0x10
+color = "scsi_tmf:0x0:3  WHITE on_blue" #0x11
+color = "wq:0x0:3        WHITE on_blue" #0x12
+#color = "rcuS:0x0:3      WHITE on_blue" #0x13
+#color = "Xiod:0x0:3      WHITE on_blue" #0x14
+color = "kdmflush:0x0:3  WHITE on_blue" #0x15
+color = "iprtVBox:0x0:3  WHITE on_blue" #0x16
+color = "nvidia:0x0:3    WHITE on_blue" #0x17
+#color = "erofs:0x0:3     WHITE on_blue" #0x18
+#color = "idle:0x0:3      WHITE on_blue" #0x19
+#color = "crtc:0x0:3      WHITE on_blue" #0x1A
+#color = "bch:0x0:3       WHITE on_blue" #0x1B
+#color = "jbd:0x0:3       WHITE on_blue" #0x1C
 
-color = "root:0x1:3      fhue5"         #0x1B
+color = "root:0x1:3      fhue5"         #0x20
 
-color = "unknown:0x18:0  NONE"          #0x1C #Added if missing;Here to set ord
-
-[include__sizeColors]
-
-color = "delta   underline"
-
-# For percents
-color = "ratio+0.00 fhue0" # [   0,    1%) => purple    # Mild usage - blues
-color = "ratio+0.01 fhue1" # [   1,   10%) => blue
-color = "ratio+0.10 fhue2" # [  10,   50%) => cyan
-color = "ratio+0.50 fhue3" # [  50,  100%) => green     # More intense side of..
-color = "ratio+1.00 fhue4" # [ 100, 1000%) => yellow    #..the visible spectrum.
-color = "ratio+10.0 fhue5" # [1000,   inf) => red
+color = "unknown:0x18:0  NONE"          #0x21 #Added if missing;Here to set ord

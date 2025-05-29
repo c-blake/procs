@@ -1,6 +1,6 @@
-#File kinds; Built-in: unknown sleep run stop zomb niced MT Lcked kern self
+# File kinds; Built-in: unknown sleep run stop zomb niced MT Lcked kern self
 
-#To support non-exclusive kinding, most all tests are run on most all processes.
+# To support non-exclusive kinding, most all tests are run on most all processes
 kind = "root      uid 0"
 
 kind = "kworker   pcr kworker/"
@@ -10,22 +10,27 @@ kind = "ksoftirqd pcr ksoftirqd/"
 kind = "migration pcr migration/"
 kind = "kcryptd   pcr kcryptd.*/"
 kind = "dmcrypt   pcr dmcrypt.*/"
-kind = "scsi_eh   pcr ^scsi_eh_.*"      #in theory these four could collide,
+kind = "scsi_eh   pcr ^scsi_eh_.*"      # In theory these four could collide,
 kind = "scsi_tmf  pcr ^scsi_tmf_.*"     #..but eh.  Seems unlikley.
 kind = "kdmflush  pcr ^kdmflush$"
 kind = "xfs       pcr xfs.*/|^xfsalloc$|^xfs_mru_cache$"
 kind = "iprtVBox  pcr iprt-VBox"
 kind = "nvidia    pcr nvidia|nv_queue|UVM"
+kind = "erofs     pcr erofs_worker"
+kind = "idle      pcr idle_inject"
+kind = "crtc      pcr card.-crtc"
+kind = "bch       pcr bch-*"
+kind = "jbd       pcr ^jbd"
 
-#These 3 might collide with user proc names and so we ANDed with builtin kern
+# These 3 might collide with user proc names and so we ANDed with builtin kern
 kind = "kwq       pcr wq$"
 kind = "wq        all kern kwq"
 
-kind = "krcu      pcr ^rcu_"
-kind = "rcu_*     all kern krcu"
+kind = "krcu      pcr ^rcu"
+kind = "rcuS      all kern krcu"
 
 kind = "kiod      pcr iod$"
-kind = "*iod      all kern kiod"
+kind = "Xiod      all kern kiod"
 
-#Some user space bundles
-#Moved pd-rollups
+# Some user space bundles
+# Moved to pd-rollups

@@ -4,33 +4,41 @@
 #  pd -s aX -- all/unaggregated; Add on CL -sKm -ikern for partial kthread agg
 
 Style = "nkern  = -mkern"
-Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcu_* -m*iod -mkdmflush -miprtVBox -mnvidia"
-#Style = "Bmerge = -mfirefox -mchrome -mvbox"
-#Style = "Bmerge = -mfirefox_work -mfirefox_home -mcode -mchrome -mzulip -mpgadmin -msignal -mvbox"
+Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcuS -mXiod -mkdmflush -miprtVBox -mnvidia -merofs -midle -mcrtc -mbch -mjbd"
 Style = "Bmerge = "
 
-#First define unfiltered styles
-Style = "abasic =   -DJ><R -e -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
-Style = "along  = -U4      -e -oDT   \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
-#Style = "auser  = -U4 -tDbJ -e -oDT   \"-f%U %p %m %E %v %R %t %a %b %j %J %D%C\""
-Style = "auser  = -U4 -tDbJ -e -oDC   \"-f%U %p %t %M %R %v %a %e %j %J %D%C\""
-Style = "amem   =           -e -oDT   \"-f%p %t %J %H %r %d %R %m %D%C\""
-Style = "ajobs  = -U4       -e -oDT   \"-f%P %p %g %o %t %G %U %J %D%C\""
-#Style = "asig   = -U4       -e -oDT   \"-f..."""
-#Style = "areg   = -U4       -e -oDT   \"-f..."""
+color = "delta   underline" # embellishment for column hdrs used in delta-mode
+indent  = 2     # For below %D's
+na      = ""   # Missing values: ? -> . to be less obtrusive
+eqLeaf  = true  # Equalize leaves so -oDT / -oDJ / -oDM sort Last-Lvl kidless
+# schedSt = true  # For below %e/%b; Just use -t locally
+# First define unfiltered styles; -DJ><R is for differential -d1 top-esque mode
+# -U4 shortens usernames to be 4-wide
+Style = "abasic = -DJ><R     -e -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
+Style = "along  = -U4        -e -oDT    \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
+Style = "auser  = -U4 -tDbJ  -e -oDC    \"-f%U %p %t %m %R %v %a %e %j %J %D%C\""
+Style = "acpu   =            -e -oJ     \"-f%U %p %t %J %E %e %D%C\""
+Style = "amem   =            -e -om     \"-f%U %p %t %J %H %r %d %R %m %M %D%C\""
+Style = "ajobs  = -U4        -e -oDT    \"-f%P %p %g %o %t %G %U %J %D%C\""
+#Style = "auser  = -U4 -tDbJ><R -oDT \"-f%U %p %t %M %< %> %a %b %J %D%C\""
+#Style = "Auser  = -U4 -tDbJ><R -oDT \"-f%A %U %p %t %M %< %> %a %b %J %D%C\""
+#Style = "asig   = -U4          -oDT \"-f...\""
+#Style = "areg   = -U4          -oDT \"-f...\""
 
-#Then only kernel thread group merged aggregation
+# Then only kernel thread group merges/aggregation/roll-up
 Style = "kbasic = -sKm -s abasic"
 Style = "klong  = -sKm -s along"
 Style = "kuser  = -sKm -s auser"
 Style = "kmem   = -sKm -s amem"
+Style = "kcpu   = -sKm -s acpu"
 Style = "kjobs  = -sKm -s ajobs"
 
-#Then all kernel thread groups aggregated
+# Then all kernel thread groups merged
 Style = "basic = -sBm -snk -s abasic"
 Style = "long  = -sBm -snk -s along"
 Style = "user  = -sBm -snk -s auser"
 Style = "mem   = -sBm -snk -s amem"
+Style = "cpu   = -sBm -snk -s acpu"
 Style = "jobs  = -sBm -snk -s ajobs"
 
 Style = "2 = -W160"
