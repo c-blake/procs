@@ -1074,6 +1074,7 @@ type
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
     eqLeaf*, blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool
+    frqHdr*: int                                            #header frq
     pids*: seq[string]                                      ##pids to display
     t0: Timespec                                            #ref time for pTms
     kinds: seq[Kind]                                        #kinds user colors
@@ -1780,13 +1781,29 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
     procs = procs2
   if cf.delay >= ts0:
     for p in procs: last[p.pid] = p
+  # Write the header every `frqHdr` lines.  If `frqHdr` is negative,
+  # count from the end, so that you end up with a header at the top
+  # of the last page of the output.
+  var idx = 0
+  if cf.frqHdr < 0:
+    cf.frqHdr = 1-cf.frqHdr
+    idx = (procs.len mod cf.frqHdr) + (procs.len div cf.frqHdr)
+    idx = cf.frqHdr - idx
   if cf.cmps.len > 0:
     var ptrs = newSeq[ptr Proc](procs.len)
     for i in 0 ..< procs.len: ptrs[i] = procs[i].addr
     ptrs.sort(multiLevelCmp)
-    for pp in ptrs: cf.fmtWrite pp[], 0
+    for pp in ptrs:
+      if cf.header and cf.frqHdr != 0 and idx > 0 and idx mod cf.frqHdr == 0:
+        cf.hdrWrite
+      idx.inc
+      cf.fmtWrite pp[], 0
   else:
-    for p in procs: cf.fmtWrite p.unsafeAddr[], 0
+    for p in procs:
+      if cf.header and cf.frqHdr != 0 and idx > 0 and idx mod cf.frqHdr == 0:
+        cf.hdrWrite
+      idx.inc
+      cf.fmtWrite p.unsafeAddr[], 0
   if cf.delay < ts0: return
   let dJiffies = cf.delay.tv_sec.int*100 + (cf.delay.tv_nsec.int div 10_000_000)
   var zero: Proc
@@ -2354,6 +2371,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "wide"   : "%C does not truncate to terminal width",
                "plain"  : "plain text; aka no color Esc sequences",
                "header" : "add row at start of data with col names",
+               "frqHdr":  "frequency of header repeats",
                "indent" : "per-level depth-indentation",
                "width"  : "override auto-detected terminal width",
                "delay"  : "seconds between differential reports",

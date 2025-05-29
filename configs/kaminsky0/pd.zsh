@@ -10,6 +10,9 @@ function pd() {
     local input
     declare -a flags
 
+    # repeat header if stdout is a terminal
+    [[ -t 1 ]] && flags+="--frqHdr=-$[${LINES}-3]"
+
     for arg in "$@"; do
         if [[ ${arg:0:1} == "-" ]]; then
             flags+=$arg
@@ -104,7 +107,7 @@ function pd() {
 
         #start_time=$EPOCHREALTIME
 
-        command pd -s user --na "" "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+        command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}"
 
         #echo $[EPOCHREALTIME-start_time]
 
@@ -142,7 +145,7 @@ function pd() {
         fi
 
         #start_time=$EPOCHREALTIME
-        command pd -s user --na "" --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" | \
+        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" | \
             sed -E \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|039|38;2;[0-9]+;[0-9]+;0|)m//g" \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
