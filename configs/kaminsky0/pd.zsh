@@ -1,4 +1,4 @@
-function pd() {
+function _pd() {
     local PD_LABELS_AWK="$ZDOTDIR/pd-labels.awk"
     local PD_LABELS_ROLLUPS="$ZDOTDIR/pd-rollups"
     local PD_LABELS_STALE=${PD_LABELS_STALE:-10} # seconds
@@ -9,9 +9,6 @@ function pd() {
 
     local input
     declare -a flags
-
-    # repeat header if stdout is a terminal
-    [[ -t 1 ]] && flags+="--frqHdr=-$[${LINES}-3]"
 
     for arg in "$@"; do
         if [[ ${arg:0:1} == "-" ]]; then
@@ -107,7 +104,8 @@ function pd() {
 
         #start_time=$EPOCHREALTIME
 
-        command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}"
+        command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}" | \
+            sed -E -e "/^USER/ s/.*/\x1b[38:5:220;1;4m&\x1b[m/g"
 
         #echo $[EPOCHREALTIME-start_time]
 
@@ -149,12 +147,26 @@ function pd() {
             sed -E \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|039|38;2;[0-9]+;[0-9]+;0|)m//g" \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
+                -e "/^@@LABELS.*@@/ s/.*/\x1b[38:5:220;1;4m&\x1b[m/g" \
                 -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
                 -e "s/@@.+@@//"
         #echo $[EPOCHREALTIME-start_time]
     fi
 
     #echo $[EPOCHREALTIME-start_time]
+}
+
+function pd() {
+    # repeat header if stdout is a terminal
+    if [[ -t 1 ]]; then
+        _pd "$@" | add-final-header.awk $[$LINES-3]
+    else
+        _pd "$@"
+    fi
+}
+
+function pdl() {
+    _pd "$@"| LESS_LINES=$[$LINES-2] less --header=1,52 -F --redraw-on-quit -X
 }
 
 # vi:ft=zsh

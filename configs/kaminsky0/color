@@ -7,7 +7,7 @@
 color = "kern:0x0:0      underline"     #0x00
 color = "sleep:0x2:0     NONE"          #0x01
 color = "zomb:0x3:0      struck"        #0x02
-color = "stop:0x4:0      blink"         #0x03
+color = "stop:0x4:0      struck"        #0x03
 color = "run:0x5:0       bold"          #0x04
 
 color = "MT:0x6:1        italic"        #0x05
@@ -25,16 +25,16 @@ color = "dmcrypt:0x0:3   WHITE on_blue" #0x0F
 color = "scsi_eh:0x0:3   WHITE on_blue" #0x10
 color = "scsi_tmf:0x0:3  WHITE on_blue" #0x11
 color = "wq:0x0:3        WHITE on_blue" #0x12
-#color = "rcuS:0x0:3      WHITE on_blue" #0x13
-#color = "Xiod:0x0:3      WHITE on_blue" #0x14
+color = "rcuS:0x0:3      WHITE on_blue" #0x13
+color = "Xiod:0x0:3      WHITE on_blue" #0x14
 color = "kdmflush:0x0:3  WHITE on_blue" #0x15
 color = "iprtVBox:0x0:3  WHITE on_blue" #0x16
 color = "nvidia:0x0:3    WHITE on_blue" #0x17
-#color = "erofs:0x0:3     WHITE on_blue" #0x18
-#color = "idle:0x0:3      WHITE on_blue" #0x19
-#color = "crtc:0x0:3      WHITE on_blue" #0x1A
-#color = "bch:0x0:3       WHITE on_blue" #0x1B
-#color = "jbd:0x0:3       WHITE on_blue" #0x1C
+color = "erofs:0x0:3     WHITE on_blue" #0x18
+color = "idle:0x0:3      WHITE on_blue" #0x19
+color = "crtc:0x0:3      WHITE on_blue" #0x1A
+color = "bch:0x0:3       WHITE on_blue" #0x1B
+color = "jbd:0x0:3       WHITE on_blue" #0x1C
 
 color = "root:0x1:3      fhue5"         #0x20
 
