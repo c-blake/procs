@@ -1234,6 +1234,9 @@ proc parseColor(cf: var DpCf) =
    cf.kinds.add ("", 255.uint8, proc(f: var Proc): bool {.closure.} = true)
   cf.kslotNm.setLen cf.kslot.len                 #Build inverse table:
   for nm,val in cf.kslot:                        #  kind slots -> names
+    if val.slot.int + 1 > cf.kslotNm.len:
+      stderr.write "procs: warning: more colors than kinds\n"
+      cf.kslotNm.setLen val.slot.int + 1
     cf.kslotNm[val.slot] = nm
 
 #------------ FILTERING
