@@ -7,6 +7,12 @@ Version: 0.8.8
 
   - Fix configs/cb0 example configs
 
+  - Make headers have same alignment as their data.  This particularly impacts
+    PID which will now be right padded/flush-left (since first data column is),
+    but may also impact any user `--hdrs`.  This is useful both as a redundant
+    alignment cue and for any textual post-processing where lexing columns may
+    otherwise get confused/need to handle more (literal) edge cases.
+
 Version: 0.8.7
 --------------
 
