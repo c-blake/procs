@@ -298,6 +298,7 @@ var usrs*: Table[Uid, string]      #user tables
 var uids*: Table[string, Uid]
 var grps*: Table[Gid, string]      #group tables
 var gids*: Table[string, Gid]
+proc maxKey[A,B](t: Table[A,B]): A = (for k in keys t: result = max(result, k))
 
 proc invert*[T, U](x: Table[T, U]): Table[U, T] =
   for k, v in x.pairs: result[v] = k
@@ -1435,29 +1436,28 @@ template fAdd(code, pfs, left, wid, hdr, toStr: untyped) {.dirty.} =
   fmtOf[code] = (pfs, left.bool, wid, hdr,
                  proc(p:var Proc, wMax=0): string {.closure.} = toStr)
 fAdd('N', {}                   ,0,20,"NOW"    ): cg.nowNs
-fAdd('p', {}                   ,0,nP, align("PID", nP)): p.spid
+fAdd('p', {}                   ,0,nP,"PID"    ): p.spid
 fAdd('c', {pf_cmd}             ,1,-1,"CMD"    ):
   if cg.wide: p.cmd else: p.cmd[0 ..< min(p.cmd.len, wMax)]
-fAdd('@', {pfe_exe}            ,1,-1,"EXE"):
+fAdd('@', {pfe_exe}            ,1,-1,"EXE"    ):
   if cg.wide: p.exe else: p.exe[0 ..< min(p.exe.len, wMax)]
 fAdd('C', {pfcl_cmdline,pf_cmd},1,-1,"COMMAND"):
   let s = p.command
   if cg.wide: s else: s[0 ..< min(s.len, wMax)]
-fAdd('u', {pffs_uid}           ,0,5, "  UID"  ): $p.getUid.uint
-fAdd('U', {pffs_gid}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
-fAdd('z', {pffs_usr}           ,0,5, "  GID"  ): $p.getGid.uint
+fAdd('u', {pffs_uid}           ,0,4, "UID"    ): $p.getUid.uint
+fAdd('U', {pffs_usr}           ,1,4, "USER"   ): cg.uAbb.abbrev p.getUsr
+fAdd('z', {pffs_gid}           ,0,4, "GID"    ): $p.getGid.uint
 fAdd('Z', {pffs_grp}           ,1,4, "GRP"    ): cg.gAbb.abbrev p.getGrp
 #Unshowable: pf_nThr,pf_rss_rlim,pf_exit_sig,pf_processor,pf_rtprio,pf_sched
-fAdd('/', {pf_ppid0}           ,0,16,"PIDPATH"): p.pidPath.join("/")
-fAdd('D', {pf_ppid0}           ,0,-1, ""  ): # Below -2=>show pid1/2 w/sep roots
+fAdd('/', {pf_ppid0}           ,1,16,"PIDPATH"): p.pidPath.join("/")
+fAdd('D', {pf_ppid0}           ,0,-1,""       ): # <-2=>show pid1/2 w/sep roots
   let doIt = not cmpsG.isNil and cmpsG[].len>0 and cmpsG[][0].cmp in [cmpD,cmpA]
   let s = if doIt: repeat(' ', cg.indent*max(0,p.pidPath.len - 2)) else: ""
   if cg.wide: s else: s[0 ..< min(s.len, max(0, wMax - 1))]
-fAdd('A', {pf_ppid0}           ,0,nP, alignLeft("AID",nP)):
-  $(p.pidPath.ancestorId p.ppid)
-fAdd('P', {pf_ppid0}           ,0,nP, align("PPID",nP)): $p.ppid0
-fAdd('n', {pf_nice}            ,0,7, "   NICE"): $p.nice
-fAdd('y', {pf_prio}            ,0,4, " PRI"   ): $p.prio
+fAdd('A', {pf_ppid0}           ,0,nP,"AID"    ): $(p.pidPath.ancestorId p.ppid)
+fAdd('P', {pf_ppid0}           ,0,nP,"PPID"   ): $p.ppid0
+fAdd('n', {pf_nice}            ,0,3, "NI"     ): $p.nice
+fAdd('y', {pf_prio}            ,0,3, "PRI"    ): $p.prio
 fAdd('w', {pfw_wchan}          ,1,9, "WCHAN"  ):
   let wch = if p.wchan.startsWith("__x64_sys_"): p.wchan[10..^1] else: p.wchan
   wch[0 ..< min(9,wch.len)]
@@ -1466,7 +1466,7 @@ fAdd('t', {pf_tty}             ,1,2, "TT"     ):
         if   p.tty shr 8 == 0x04: "t" & $(p.tty and 0xFF) #Linux VTs
         elif p.tty shr 8 == 0x88: "p" & $(p.tty and 0xFF) #pseudo-terminals
         else: cg.na                                       #no tty/unknown
-fAdd('a', {pf_t0}              ,0,4, " AGE"   ): fmtJif(cg.uptm - p.t0)
+fAdd('a', {pf_t0}              ,0,4, "AGE"    ): fmtJif(cg.uptm - p.t0)
 fAdd('T', {pf_t0}              ,1,6, "START"  ):
   let ageJ = cg.uptm - p.t0
   var age = Timespec(tv_sec: (ageJ div 100).Time,
@@ -1478,24 +1478,24 @@ fAdd('J', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "CTIM"):
 fAdd('e', {pf_utime,pf_stime}  ,0,4, "%cPU"   ): fmtPct(p.totCPUns/1e7, p.ageD)
 fAdd('E', {pf_utime,pf_stime,pf_cutime,pf_cstime},0,4, "%CPU"):
   fmtPct(p.utime + p.stime + p.cutime + p.cstime, p.ageD)
-fAdd('b', {pf_utime,pf_stime}  ,0,4, "ppbT"):
+fAdd('b', {pf_utime,pf_stime}  ,0,4, "ppbT"   ):
   if p.ageD == 0: cg.na  #Q: Better data for pd itself; Re-set p.t0,uptm here?
   else: fmtSz(cg.attrSize, cg.a0, false, int(p.totCPUns*1e2/p.ageD.float), 4)
 fAdd('m', {pf_rss}             ,0,4, "%MEM"   ): fmtPct(100*p.rss, cg.totRAM)
 fAdd('L', {pf_flags}           ,1,7, "FLAGS"  ): "x"&toHex(p.flags.BiggestInt,6)
-fAdd('v', {pf_vsize}           ,0,4, " VSZ"   ): fmtSz(p.vsize)
+fAdd('v', {pf_vsize}           ,0,4, "VSZ"    ): fmtSz(p.vsize)
 fAdd('d', {pf_vsize,pf_startcode,pf_endcode},0,4, "DRS"):
   fmtSz(if p.vsize.int != 0: p.vsize.uint64 + p.startcode - p.endcode else: 0)
 fAdd('r', {pf_vsize,pf_startcode,pf_endcode},0,4, "TRS"):
   fmtSz(if p.vsize.int != 0: p.endcode - p.startcode else: 0)
-fAdd('R', {pf_rss}             ,0,4, " RSS"   ): fmtSz(p.rss)
+fAdd('R', {pf_rss}             ,0,4, "RSS"    ): fmtSz(p.rss)
 fAdd('f', {pf_minflt}          ,0,4, "MNFL"   ): fmtSz(p.minflt)
 fAdd('F', {pf_majflt}          ,0,4, "MJFL"   ): fmtSz(p.majflt)
 fAdd('h', {pf_minflt,pf_cminflt},0,4,"CMNF"   ): fmtSz(p.minflt + p.cminflt)
 fAdd('H', {pf_majflt,pf_cmajflt},0,4,"CMJF"   ): fmtSz(p.majflt + p.cmajflt)
-fAdd('g', {pf_pgrp}            ,0,nP, align("PGID" , nP)): $p.pgrp
-fAdd('o', {pf_sess}            ,0,nP, align("SID"  , nP)): $p.sess
-fAdd('G', {pf_pgid}            ,0,nP, align("TPGID", nP)): $p.pgid
+fAdd('g', {pf_pgrp}            ,0,nP,"PGID"   ): $p.pgrp
+fAdd('o', {pf_sess}            ,0,nP,"SID"    ): $p.sess
+fAdd('G', {pf_pgid}            ,0,nP,"TPGID"  ): $p.pgid
 fAdd('V', {pfen_environ}       ,1,7, "ENVIRON"): p.environ.join(" ")
 fAdd('K', {pf_startstk}        ,1,16,"STACK"  ): $p.startstk
 fAdd('S', {pf_kstk_esp}        ,1,16,"ESP"    ): $p.kstk_esp
@@ -1516,7 +1516,7 @@ fAdd('6', {pfd_6}              ,1,3, "FD6"    ): p.fd6
 fAdd('<', {pfi_rch}            ,0,4, "READ"   ): fmtSz(p.rch) # ,pfi_rbl + p.rbl
 fAdd('>', {pfi_wch}            ,0,4, "WRIT"   ): fmtSz(p.wch) # ,pfi_wbl + p.wbl
 fAdd('O', {pfo_score}          ,0,4, "OOMs"   ): $p.oom_score
-fAdd('M', {pfsr_pss}           ,0,4, " PSS"   ): fmtSz(p.pss)
+fAdd('M', {pfsr_pss}           ,0,4, "PSS"    ): fmtSz(p.pss)
 fAdd('l', {}                   ,0,30,"LABELS" ):
   cg.labels.getOrDefault(p.spid).join(":") & ":"
 
@@ -1543,6 +1543,8 @@ proc parseFormat(cf: var DpCf) =
       except Ce: Value !! "unknown format code " & c.repr
       if   c == 'U': cf.need.incl pffs_usr
       elif c == 'G': cf.need.incl pffs_grp
+      elif c == 'u': usrs = users() ; cf.fields[^1].wid = len($usrs.maxKey)
+      elif c == 'z': grps = groups(); cf.fields[^1].wid = len($grps.maxKey)
       elif c in {'D', 'A', '/'}: cf.forest = true
       elif c == 'N': cf.needNow = true
       elif c in {'T', 'a', 'e', 'E', 'b'}: cf.needUptm = true
@@ -1572,13 +1574,15 @@ proc hdrWrite(cf: var DpCf, diff=false) =
   proc sgn(x: int): int = (if x < 0: -1 else: +1)   #export or re-locate?
   for i, f in cf.fields:
     if f.prefix.len > 0: stdout.write f.prefix  #.wid += f.prefix.printedLen?
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len > 0:
-      stdout.write cf.attrDiff
-    cf.fields[i].wid  = f.wid.sgn * max(f.wid.abs, f.hdr.printedLen)
-    if   cf.fields[i].wid > 0: stdout.write alignLeft(f.hdr, cf.fields[i].wid)
+    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0:stdout.write cf.attrDiff
+    let nH = f.hdr.printedLen
+    cf.fields[i].wid = f.wid.sgn*max(f.wid.abs, nH)
+    let pad = if f.hdr.len > 0: ' '.repeat(cf.fields[i].wid.abs - nH) else: ""
+    if i == 0                : stdout.write f.hdr, pad
+    elif not f.left          : stdout.write pad, f.hdr
+    elif cf.fields[i].wid > 0: stdout.write f.hdr, pad
     elif cf.fields[i].wid < 0: stdout.write f.hdr
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len > 0:
-      stdout.write cf.a0
+    if diff and f.c in cf.diffCmp and cf.attrDiff.len > 0: stdout.write cf.a0
   stdout.write '\n'
 
 # Tricky/slow to avoid zero visible width columns under common-case space split.
