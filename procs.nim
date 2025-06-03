@@ -1233,9 +1233,10 @@ proc parseColor(cf: var DpCf) =
   if unknown == 255:  #Terminate .kinds if usr did not specify attrs for unknown
    cf.kinds.add ("", 255.uint8, proc(f: var Proc): bool {.closure.} = true)
   cf.kslotNm.setLen cf.kslot.len                 #Build inverse table:
+  var w = false
   for nm,val in cf.kslot:                        #  kind slots -> names
     if val.slot.int + 1 > cf.kslotNm.len:
-      stderr.write "procs: warning: more colors than kinds\n"
+      if not w: stderr.write "procs: warning: more colors than kinds\n"; w=true
       cf.kslotNm.setLen val.slot.int + 1
     cf.kslotNm[val.slot] = nm
 
