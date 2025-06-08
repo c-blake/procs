@@ -1,6 +1,14 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.9
+--------------
+  - Add more short alias possibilities (active only if ../bin/procs is ln -s'd),
+    namely verb-noun order equivalents for pd, pk, pf, pw: dp, kp, fp, wp & a
+    very short 1-char `k` for `procs find -akill` since in the context of nixing
+    a rogue process ASAP, getting keystrokes through an X server/terminal/shell
+    is often slower than run-time of `procs find` (i.e. the bottleneck).
+
 Version: 0.8.8
 --------------
   - Default parc/$j to -1 & update help strings a bit

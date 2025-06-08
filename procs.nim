@@ -2296,11 +2296,11 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
     if cmdNames.len > 0:
       if cmdNames[0] == "multi":
         let bn = paramStr(0).lastPathPart
-        if   bn == "pd": result.add "display"
+        if   bn in ["pd", "dp"]: result.add "display"
         elif bn in ["sc", "scroll", "scrollsy"]: result.add "scrollsy"
-        elif bn == "pf": result.add "find"
-        elif bn == "pk": result.add [ "find", "-akill" ]
-        elif bn == "pw": result.add [ "find", "-await" ]
+        elif bn in ["pf", "fp"]: result.add "find"
+        elif bn in ["pk", "kp", "k"]: result.add [ "find", "-akill" ]
+        elif bn in ["pw", "wp"]: result.add [ "find", "-await" ]
         return result & cmdLine
       let underJoin = strutils.toUpperAscii(cmdNames.join("_"))
       var cfPath = getEnv(cmdNames[0].toUpperAscii&"_CONFIG") #cf redirect,ifAny
