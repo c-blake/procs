@@ -7,6 +7,8 @@ import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
 export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
+template orEq(v: var bool, expr) = v = expr or v  # Beware: bool SHORT CIRCUIT!
+proc `+=`[T](v: var set[T], e: T|set[T]) = v.incl e
 
 #------------ SAVE-LOAD SYS: Avoid FS calls;Can Be Stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")     # Alt Root; Repro runs @other times/machines
@@ -1071,7 +1073,7 @@ type
   DpCf* = object  #User set/cfg fields early; Computed/intern fields after pids.
     kind*, colors*, color*, ageFmt*: seq[string]            ##usrDefd kind/colrs
     incl*, excl*, merge*, hdrs*: seq[string]                ##usrDefd filt,aggr
-    order*, diffCmp*, format*, maxUnm*, maxGnm*, na*:string ##see help string
+    order*, diffCmp*, format*, maxUnm*, maxGnm*, na*, glyph*: string ## see help
     indent*, width*: int                                    ##termWidth override
     delay*: Timespec
     eqLeaf*, blanks*, wide*, binary*, plain*, header*, realIds*, schedSt*: bool
@@ -1082,6 +1084,7 @@ type
     sin, sex: set[uint8]                                    #compiled filters
     nin, nex: int                                           #fast cardinality
     cmps, diffCmps: seq[Cmp]                                #compares for sort
+    glyphs, diffHdrs: seq[string]                           #parsed `glyph`
     fields: seq[Field]                                      #fields to format
     mergeKDs: HashSet[KindDim]                              #kinds to merge
     need, diff: ProcFields                                  #fieldNeeds(above 6)
@@ -1357,7 +1360,14 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
     try:
       let cmpE = cmpOf[c]
       cmps.add (sgn, cmpE.cmp)
-      need = need + cmpE.pfs
+      need += cmpE.pfs
+      if cg.glyphs.len >= 2 and c != 'D':
+        for i, f in cg.fields:
+          if f.c == c:
+            let j = (1 - sgn)div 2      #0 for +, 1 for -
+            if cmps.addr == cg.cmps.addr: cg.fields[i].hdr.add cg.glyphs[j]
+            elif cg.diffHdrs.len > 0:   #Use same as main sort UNLESS given more
+              cg.diffHdrs[i].add cg.glyphs[if cg.glyphs.len >= 4: 2 + j else: j]
     except Ce: Value !! "unknown sort key code " & c.repr
     if c == 'b': result = true
     sgn = +1
@@ -1648,6 +1658,7 @@ const ts0 = Timespec(tv_sec: 0.Time, tv_nsec: 0.int)
 proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   ##Finalize cf ob post-user sets/updates, pre-``display`` calls.  Proc ages are
   ##times relative to ``entry``.  Non-default => time of ``fin`` call.
+  cg = cf.addr                                    #Init global ptr
   cf.setRealIDs(cf.realIds)     #important to do this before any compilers run
   cf.setLabels
   cf.a0 = if cf.plain: "" else: textAttrOff
@@ -1659,13 +1670,16 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
   cf.colors.textAttrRegisterAliases               #.colors => registered aliases
   cf.parseColor                                   #.color => .attr
   cf.parseFilters                                 #(in|ex)cl => sets s(in|ex)
-  cf.needUptm = cf.order.parseOrder(cf.cmps, cf.need)   #.order => .cmps
-  cf.needUptm = cf.needUptm or cf.diffCmp.parseOrder(cf.diffCmps, cf.diff)
-  cf.need = cf.need + cf.diff
   cf.parseAge                                     #.ageFmt => .tmFmt
   cf.parseFormat                                  #.format => .fields
+  cf.glyphs = cf.glyph.split ':'                  #.glyph => .glyphs
   cf.parseMerge                                   #.merge => .mergeKDs
   cf.parseHdrs                                    #.hdrs => fixed up .fields.hdr
+  if cf.delay >= ts0:
+    cf.diffHdrs.setLen cf.fields.len; for i,f in cf.fields: cf.diffHdrs[i]=f.hdr
+  cf.needUptm.orEq cf.order.parseOrder(cf.cmps, cf.need)      #order->cmps
+  cf.needUptm.orEq cf.diffCmp.parseOrder(cf.diffCmps,cf.diff) #diffCmp->diffCmps
+  cf.need += cf.diff
   if cf.merge.len>0: cf.need = cf.need + {pf_t0}  #Merges pre-sorted by startTm
   if cf.forest: cf.need = cf.need + {pf_pid0, pf_ppid0}
   if cf.schedSt and len({pf_utime, pf_stime}*cf.need) > 0:
@@ -1678,7 +1692,6 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
     cf.uptm = procUptime()          #uptime in seconds
     if cf.uptm == 0: quit "procs: need /proc/uptime which seems to be missing",1
   if cf.needTotRAM: cf.totRAM = procMemInfo().MemTotal
-  cg = cf.addr                                    #Init global ptr
   cmpsG = cf.cmps.addr                            #Init global ptr
 
 let emptK = initCountTable[Pid](2)                # Empty take of nKids
@@ -1712,6 +1725,7 @@ proc displayASAP*(cf: var DpCf) =
       if cf.delay >= ts0: last[p.pid] = p.move
 #XXX Sort NEEDS all procs@once; COULD print non-merged/min depth ASAP; rest@end.
   if cf.delay < ts0: return
+  for i, f in mpairs cf.fields: f.hdr = cf.diffHdrs[i]
   let dJiffies = cf.delay.tv_sec.int*100 + (cf.delay.tv_nsec.int div 10_000_000)
   cmpsG = cf.diffCmps.addr
   var zero: Proc
@@ -1796,6 +1810,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
   else:
     for p in procs: cf.fmtWrite p.unsafeAddr[], 0
   if cf.delay < ts0: return
+  for i, f in mpairs cf.fields: f.hdr = cf.diffHdrs[i]
   let dJiffies = cf.delay.tv_sec.int*100 + (cf.delay.tv_nsec.int div 10_000_000)
   var zero: Proc
   var next = initTable[Pid, Proc](4)
@@ -2371,6 +2386,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                            parseAbbrevHelp,
                "maxGnm" : "like maxUnm for group names",
                "na"     : "not available/missing values",
+               "glyph"  : "Increasing:Decreasing[:dInc:dDec] {' +: -'}",
                "excl"   : "kinds to exclude",
                "incl"   : "kinds to include",
                "merge"  : "merge rows within these kind:dim",

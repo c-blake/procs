@@ -9,6 +9,11 @@ Version: 0.8.9
     a rogue process ASAP, getting keystrokes through an X server/terminal/shell
     is often slower than run-time of `procs find` (i.e. the bottleneck).
 
+  - Add ability to visually indicate sort order via `-g,--glyph` in both initial
+    display and follow-on differential display (which has an independent sort).
+    `--glyph` is `:`-separated.  If given 4 not 2 fields, last 2 are only for
+    delay-differential mode and can be "", e.g. `-g+:-::` will suppress them.
+
 Version: 0.8.8
 --------------
   - Default parc/$j to -1 & update help strings a bit
