@@ -8,7 +8,7 @@ export signum                   # from puSig; For backward compatibility
 when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
 template orEq(v: var bool, expr) = v = expr or v  # Beware: bool SHORT CIRCUIT!
-proc `+=`[T](v: var set[T], e: T|set[T]) = v.incl e
+proc `|=`[T](v: var set[T], e: T|set[T]) = v.incl e # impl'd as bit sets anyway
 
 #------------ SAVE-LOAD SYS: Avoid FS calls;Can Be Stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")     # Alt Root; Repro runs @other times/machines
@@ -1181,7 +1181,7 @@ proc addCombo(cf: var DpCf; tester: auto; nm, s: string) =
   var pfs: ProcFields
   for t in s.splitWhitespace:
     try:
-      let tt = cf.tests[t]; tsts.add tt; pfs += tt.pfs
+      let tt = cf.tests[t]; tsts.add tt; pfs |= tt.pfs
     except Ce: Value !! "bad kind: \"" & t & "\""
   cf.tests[nm] = (pfs, proc(p: var Proc): bool = tester(tsts, p))
 
@@ -1218,7 +1218,7 @@ proc parseColor(cf: var DpCf) =
       add(cf.kinds, (attr: attrs, kord: ko, test: test.test))
       if dim + 1 > cf.ukind.len: cf.ukind.setLen(dim + 1)
       cf.ukind[dim].add kno
-      cf.need += test.pfs
+      cf.need |= test.pfs
       if nm == "unknown": unknown = kno
     except KeyError:
       if nm.len == 5:
@@ -1248,7 +1248,7 @@ proc compileFilter(cf: var DpCf, spec: seq[string], msg: string): set[uint8] =
   for nm in spec:
     try:
       let k = cf.kslot.match(nm, "colored kind").val
-      result.incl k.slot; cf.need += k.pfs
+      result.incl k.slot; cf.need |= k.pfs
       cf.needKin = true   #must fully classify if any kind is used as a filter
     except Ce: Value !! msg & " name \"" & nm & "\""
 
@@ -1359,7 +1359,7 @@ proc parseOrder(order: string, cmps: var seq[Cmp], need: var ProcFields): bool =
     try:
       let cmpE = cmpOf[c]
       cmps.add (sgn, cmpE.cmp)
-      need += cmpE.pfs
+      need |= cmpE.pfs
       if cg.glyphs.len >= 2 and c != 'D':
         for i, f in cg.fields:
           if f.c == c:
@@ -1551,7 +1551,7 @@ proc parseFormat(cf: var DpCf) =
         let lA = if algn != '\0': algn=='-'   # User spec always wins else frst
                  else: (if frst: true else: fmtE.left) #..left else field dflt
         cf.fields.add (prefix[0..^1], lA, fmtE.wid, c, fmtE.hdr[0..^1],fmtE.fmt)
-        cf.need += fmtE.pfs
+        cf.need |= fmtE.pfs
         frst = false; algn = '\0'; prefix.setLen 0
       except Ce: Value !! "unknown format code " & c.repr
       if   c == 'U': cf.need.incl pffs_usr
@@ -1571,7 +1571,7 @@ proc parseMerge(cf: var DpCf) =
     try:
       let k = cf.kslot.match(nm, "color/merge kind").val
       cf.mergeKDs.incl (k.slot, k.dim.uint8)
-      cf.need += k.pfs
+      cf.need |= k.pfs
       cf.needKin = true   #classify all if any kind is used as a merge
     except Ce: Value !! " name \"" & nm & "\""
 
@@ -1678,10 +1678,10 @@ proc fin*(cf: var DpCf, entry=Timespec(tv_sec: 0.Time, tv_nsec: 9.clong)) =
     cf.diffHdrs.setLen cf.fields.len; for i,f in cf.fields: cf.diffHdrs[i]=f.hdr
   cf.needUptm.orEq cf.order.parseOrder(cf.cmps, cf.need)      #order->cmps
   cf.needUptm.orEq cf.diffCmp.parseOrder(cf.diffCmps,cf.diff) #diffCmp->diffCmps
-  cf.need += cf.diff
-  if cf.merge.len>0: cf.need += pf_t0             #Merges pre-sorted by startTm
-  if cf.forest: cf.need += {pf_pid0, pf_ppid0}
-  if cf.schedSt and len({pf_utime, pf_stime}*cf.need) > 0: cf.need += pfss_sched
+  cf.need |= cf.diff
+  if cf.merge.len>0: cf.need |= pf_t0             #Merges pre-sorted by startTm
+  if cf.forest: cf.need |= {pf_pid0, pf_ppid0}
+  if cf.schedSt and len({pf_utime, pf_stime}*cf.need) > 0: cf.need |= pfss_sched
   cf.sneed = needs(cf.need)                       #inits usrs&grps if necessary
   cf.uAbb = parseAbbrev(cf.maxUnm); cf.uAbb.realize(usrs)
   cf.gAbb = parseAbbrev(cf.maxGnm); cf.gAbb.realize(grps)
@@ -2229,7 +2229,7 @@ proc parseFormat(cf: var ScCf) =
       cf.fields[^1].wid = max(cf.fields[^1].wid, hdr.len)
       if i != 0: cf.headers.add ' '
       cf.headers.add align(hdr, cf.fields[^1].wid)
-      cf.need += cf.fields[^1].ss
+      cf.need |= cf.fields[^1].ss
     except Ce: Value !! "unknown format code \""&f&"\""
   cf.headers.add '\n'
 
