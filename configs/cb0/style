@@ -7,10 +7,12 @@ Style = "nkern  = -mkern"
 Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcuS -mXiod -mkdmflush -miprtVBox -mnvidia -merofs -midle -mcrtc -mbch -mjbd"
 Style = "Bmerge = -mfirefox -mchrome -mvbox"
 
-color = "delta   underline" # embellishment for column hdrs used in delta-mode
+color = "order   inverse"   # embellishment for hdrs of columns used to sort
+color = "delta   underline" # embellishment for hdrs of columns used to delta
 indent  = 2     # For below %D's
 na      = "."   # Missing values: ? -> . to be less obtrusive
 eqLeaf  = true  # Equalize leaves so -oDT / -oDJ / -oDM sort Last-Lvl kidless
+glyph  = "+:-::" # increasing, decreasing, δincreasing, δdecreasing
 # schedSt = true  # For below %e/%b; Just use -t locally
 # First define unfiltered styles; -DJ><R is for differential -d1 top-esque mode
 # -U4 shortens usernames to be 4-wide
