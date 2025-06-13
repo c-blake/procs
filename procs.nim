@@ -9,6 +9,7 @@ when not declared(stdout): import std/syncio
 const ess: seq[string] = @[]
 template orEq(v: var bool, expr) = v = expr or v  # Beware: bool SHORT CIRCUIT!
 proc `|=`[T](v: var set[T], e: T|set[T]) = v.incl e # impl'd as bit sets anyway
+proc o(a: varargs[string, `$`]) = stdout.write(a) # We do this A LOT
 
 #------------ SAVE-LOAD SYS: Avoid FS calls;Can Be Stale BUT SOMETIMES WANT THAT
 let PFS = getEnv("PFS","/proc")     # Alt Root; Repro runs @other times/machines
@@ -1586,19 +1587,19 @@ proc parseHdrs(cf: var DpCf) =
 proc hdrWrite(cf: var DpCf, diff=false) =
   proc sgn(x: int): int = (if x < 0: -1 else: +1)   #export or re-locate?
   for i, f in cf.fields:
-    if f.prefix.len > 0: stdout.write f.prefix  #.wid += f.prefix.printedLen?
+    if f.prefix.len > 0: o f.prefix  #.wid += f.prefix.printedLen?
     var w = false
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0:stdout.write cf.attrDiff; w=true
-    if not diff and f.c in cf.order and cf.attrSort.len>0:stdout.writeo cf.attrSort; w=true
+    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0: o cf.attrDiff; w=true
+    if not diff and f.c in cf.order and cf.attrSort.len>0: o cf.attrSort; w=true
     let nH = f.hdr.printedLen
     cf.fields[i].wid = f.wid.sgn*max(f.wid.abs, nH)
     let pad = if f.hdr.len > 0: ' '.repeat(cf.fields[i].wid.abs - nH) else: ""
-    if i == 0                : stdout.write f.hdr, pad
-    elif not f.left          : stdout.write pad, f.hdr
-    elif cf.fields[i].wid > 0: stdout.write f.hdr, pad
-    elif cf.fields[i].wid < 0: stdout.write f.hdr
-    if w: stdout.write cf.a0
-  stdout.write '\n'
+    if i == 0                : o f.hdr, pad
+    elif not f.left          : o pad, f.hdr
+    elif cf.fields[i].wid > 0: o f.hdr, pad
+    elif cf.fields[i].wid < 0: o f.hdr
+    if w: o cf.a0
+  o '\n'
 
 # Tricky/slow to avoid zero visible width columns under common-case space split.
 proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
@@ -1627,10 +1628,10 @@ proc fmtWrite(cf: var DpCf, p: var Proc, delta=0) =
         let pad = repeat(' ', f.wid - nfp)
         fld = if f.left: pfx & fpr & pad
               else     : pfx & pad & fpr
-    stdout.write fld
+    o fld
     if i != cf.fields.len - 1:
       used += printedLen(fld)
-  stdout.write cf.a0, '\n'
+  o cf.a0, '\n'
 
 proc setRealIDs*(cf: var DpCf; realIds=false) =
   ##Change DpCf&global data (cmpOf,fmtOf) to use /proc/PID/status real uid/gid.
@@ -1734,7 +1735,7 @@ proc displayASAP*(cf: var DpCf) =
     nanosleep(cf.delay)                     # getTime is surely faster, but this
     if cf.needUptm: cf.uptm = procUptime()  #..is but 1 of many dozen /proc/PIDs
     next.clear                              #..which we are about to process.
-    if cf.blanks: stdout.write '\n'         # Clear, delimit, & maybe write hdr
+    if cf.blanks: o '\n'         # Clear, delimit, & maybe write hdr
     if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
@@ -1819,7 +1820,7 @@ proc display*(cf: var DpCf) = # free letters: N W Y k
     nanosleep(cf.delay)
     if cf.needUptm: cf.uptm = procUptime() # getTime faster; Only 1 file of many
     next.clear; procs.setLen 0; parent.clear
-    if cf.blanks: stdout.write '\n'
+    if cf.blanks: o '\n'
     if cf.tmFmtS.len > 0: echo strftime(cf.tmFmtS[0][1], getTime())
     if cf.header: cf.hdrWrite true
     if cf.needNow: cf.nowNs = $getTime()
@@ -1882,8 +1883,8 @@ proc act(acts:set[PfAct], lab:string, pid:Pid,pfd:cint, delim:string,sigs:seq[ci
   for a in acts:
     case a
     of acEcho :
-      if lab.len > 0: stdout.write lab, ":", pid, delim; wrote = true
-      else          : stdout.write pid, delim; wrote = true
+      if lab.len > 0: o lab, ":", pid, delim; wrote = true
+      else          : o pid, delim; wrote = true
     of acPath : discard         # Must handle after forPid
     of acAid  : discard         # Must handle after forPid
     of acCount: cnt.inc
@@ -2022,24 +2023,24 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
   if exist: return 1
   for j, c in used:                                     # Be explicit about miss
     if c == 0 and j < Labels.len and Labels[j].len > 0: #..if given a label.
-      stdout.write Labels[j],":None",delim; wrote = true
+      o Labels[j],":None",delim; wrote = true
   if acAid in acts:
-    if wrote and pList.len > 0: stdout.write otrTerm
-    for pid in pList:stdout.write ppids.pidPath(pid).ancestorId,delim;wrote=true
+    if wrote and pList.len > 0: o otrTerm
+    for pid in pList:o ppids.pidPath(pid).ancestorId,delim;wrote=true
   if acPath in acts:
-    if wrote and pList.len > 0: stdout.write otrTerm
+    if wrote and pList.len > 0: o otrTerm
     for leaf in pList:
       for pid in ppids.pidPath(leaf, rev=false):
-        if pid notin @[0.Pid, 1.Pid, 2.Pid]: stdout.write pid, delim
-      stdout.write otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
+        if pid notin @[0.Pid, 1.Pid, 2.Pid]: o pid, delim
+      o otrTerm; wrote = false     # Opt-out of wrote/need-otrTerm
   if newest or oldest and pList.len > 0:
     acts.act "",pList[0],fList[0], delim, sigs,p.sigCgt, nice, cnt, wrote,result
   if acCount in acts:                         # PIDs end in delim & otrTerm,
-    if wrote: stdout.write otrTerm            #..but cnt ends ONLY in otrTerm.
-    stdout.write cnt, delim; wrote = true
+    if wrote: o otrTerm            #..but cnt ends ONLY in otrTerm.
+    o cnt, delim; wrote = true
     if cnt == 0 and result == 0: inc result   # Exit false on no match
   if wrote and acts.any(acEcho, acAid, acCount):
-    stdout.write otrTerm                      #^acPath already does otrTerm
+    o otrTerm                      #^acPath already does otrTerm
   if acKill in acts and sigs.len > 1:         # Send any remaining signals
     var dt = delay - (getTime() - t0)         # AFTER the delay
     if dt < delay: dt.nanosleep
@@ -2281,18 +2282,18 @@ proc scrollSys*(cf: var ScCf) =
   var dtI: float
   for it in 0 ..< cf.numIt:
     if cf.frqHdr > 0 and it mod cf.frqHdr == 0:
-      stdout.write cf.headers
+      o cf.headers
     if not curr.read(cf.need):
-      stdout.write "COULD NOT UPDATE; NEXT ITERATION COVERS >1 INTERVAL\n"
+      o "COULD NOT UPDATE; NEXT ITERATION COVERS >1 INTERVAL\n"
       nanosleep(cf.delay)
       continue
     t   = getMonoTime()                 #update time & dtI
     dtI = if it == 0: 1.0 else: 1e9 / (t.ticks - t0.ticks).float
     t0  = t
     for i, f in cf.fields:
-      if i != 0: stdout.write ' '
-      stdout.write f.fmt(dtI, f.wid, last, curr)
-    stdout.write '\n'
+      if i != 0: o ' '
+      o f.fmt(dtI, f.wid, last, curr)
+    o '\n'
     stdout.flushFile
     if it + 1 < cf.numIt:
       last = curr
