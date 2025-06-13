@@ -17,6 +17,9 @@ Version: 0.8.9
   - Add ability to visually indicate a column is used for sorting `color order`
     just like `color delta` before it.
 
+  - Old color = delta mode could (if header narrower than data, like RSS) add
+    whitespace inside the header.  Fixed for both that & new color=order mode.
+
 Version: 0.8.8
 --------------
   - Default parc/$j to -1 & update help strings a bit
