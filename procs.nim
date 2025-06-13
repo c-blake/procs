@@ -1588,17 +1588,16 @@ proc hdrWrite(cf: var DpCf, diff=false) =
   proc sgn(x: int): int = (if x < 0: -1 else: +1)   #export or re-locate?
   for i, f in cf.fields:
     if f.prefix.len > 0: o f.prefix  #.wid += f.prefix.printedLen?
-    var w = false
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0: o cf.attrDiff; w=true
-    if not diff and f.c in cf.order and cf.attrSort.len>0: o cf.attrSort; w=true
+    var a, a0 = ""; let c = f.c
+    if   diff and c in cf.diffCmp and cf.attrDiff.len>0: a=cf.attrDiff; a0=cf.a0
+    if not diff and c in cf.order and cf.attrSort.len>0: a=cf.attrSort; a0=cf.a0
     let nH = f.hdr.printedLen
     cf.fields[i].wid = f.wid.sgn*max(f.wid.abs, nH)
     let pad = if f.hdr.len > 0: ' '.repeat(cf.fields[i].wid.abs - nH) else: ""
-    if i == 0                : o f.hdr, pad
-    elif not f.left          : o pad, f.hdr
-    elif cf.fields[i].wid > 0: o f.hdr, pad
-    elif cf.fields[i].wid < 0: o f.hdr
-    if w: o cf.a0
+    if i == 0                : o a,f.hdr,a0, pad
+    elif not f.left          : o pad, a,f.hdr,a0
+    elif cf.fields[i].wid > 0: o a,f.hdr,a0, pad
+    elif cf.fields[i].wid < 0: o a,f.hdr,a0
   o '\n'
 
 # Tricky/slow to avoid zero visible width columns under common-case space split.
