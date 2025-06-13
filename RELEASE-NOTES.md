@@ -14,6 +14,9 @@ Version: 0.8.9
     `--glyph` is `:`-separated.  If given 4 not 2 fields, last 2 are only for
     delay-differential mode and can be "", e.g. `-g+:-::` will suppress them.
 
+  - Add ability to visually indicate a column is used for sorting `color order`
+    just like `color delta` before it.
+
 Version: 0.8.8
 --------------
   - Default parc/$j to -1 & update help strings a bit

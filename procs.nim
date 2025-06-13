@@ -1096,7 +1096,7 @@ type
     nowNs: string
     tmFmtL, tmFmtU, tmFmtP, tmFmtS: seq[tuple[age:int,fmt:string]] #lo/up/p/stmp
     uAbb, gAbb: Abbrev
-    a0, attrDiff: string                                    #if plain: ""
+    a0, attrSort, attrDiff: string                          #if plain: ""
     attrSize: array[0..25, string]  #CAP letter-indexed with ord(x) - ord('A')
     tests: CritBitTree[Test]
     kslot: CritBitTree[tuple[slot:uint8, pfs:ProcFields, dim:int]] #for filters
@@ -1210,8 +1210,8 @@ proc parseColor(cf: var DpCf) =
     let dim   = if nmKoD.len>2: parseInt(nmKoD[2].strip()) else: 0
     let attrs = textAttrOn(cols[1..^1], cf.plain)
     try:
-      let ok = (nm.len == 5 and (nm.startsWith("size") or nm == "delta")) or
-                 nm.startsWith("ratio")
+      let ok=(nm.len==5 and (nm.startsWith("size")or nm in ["delta","order"]))or
+               nm.startsWith("ratio")
       let (k, test) = cf.tests.match(nm, "kind", if ok: nil else: stderr)
       let kno  = cf.kinds.len.uint8               #Found test; add to used kinds
       cf.kslot[k] = (kno, test.pfs, dim)          #Record kind num, ProcFields
@@ -1224,8 +1224,8 @@ proc parseColor(cf: var DpCf) =
       if nm.len == 5:
         if nm[0..3]=="size" and nm[4] in {'B','K','M','G','T'}:
           cf.attrSize[ord(nm[4]) - ord('A')] = attrs
-        elif nm == "delta":
-          cf.attrDiff = attrs
+        elif nm == "delta": cf.attrDiff = attrs
+        elif nm == "order": cf.attrSort = attrs
       elif nm.startsWith("ratio") and nm.len > 5:
         var thr: float
         if parseFloat(nm, thr, start=5) > 0:
@@ -1587,7 +1587,9 @@ proc hdrWrite(cf: var DpCf, diff=false) =
   proc sgn(x: int): int = (if x < 0: -1 else: +1)   #export or re-locate?
   for i, f in cf.fields:
     if f.prefix.len > 0: stdout.write f.prefix  #.wid += f.prefix.printedLen?
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0:stdout.write cf.attrDiff
+    var w = false
+    if diff and f.c in cf.diffCmp and cf.attrDiff.len>0:stdout.write cf.attrDiff; w=true
+    if not diff and f.c in cf.order and cf.attrSort.len>0:stdout.writeo cf.attrSort; w=true
     let nH = f.hdr.printedLen
     cf.fields[i].wid = f.wid.sgn*max(f.wid.abs, nH)
     let pad = if f.hdr.len > 0: ' '.repeat(cf.fields[i].wid.abs - nH) else: ""
@@ -1595,7 +1597,7 @@ proc hdrWrite(cf: var DpCf, diff=false) =
     elif not f.left          : stdout.write pad, f.hdr
     elif cf.fields[i].wid > 0: stdout.write f.hdr, pad
     elif cf.fields[i].wid < 0: stdout.write f.hdr
-    if diff and f.c in cf.diffCmp and cf.attrDiff.len > 0: stdout.write cf.a0
+    if w: stdout.write cf.a0
   stdout.write '\n'
 
 # Tricky/slow to avoid zero visible width columns under common-case space split.
