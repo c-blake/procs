@@ -105,7 +105,9 @@ function _pd() {
         #start_time=$EPOCHREALTIME
 
         command pd -s user "${arglist[@]}" "${flags[@]}" "${pids[@]}" | \
-            sed -E -e "/^USER/ s/.*/\x1b[38:5:220;1;4m&\x1b[m/g"
+            sed -E \
+                -e "/^USER/ s/\x1b\[m/\x1b\[22;4m/g" \
+                -e "/^USER/ s/.*/\x1b[38:5:220;4;58:5:220m&\x1b[m/g"
 
         #echo $[EPOCHREALTIME-start_time]
 
@@ -143,12 +145,13 @@ function _pd() {
         fi
 
         #start_time=$EPOCHREALTIME
-        command pd -s user --format\^="@@%l@@" -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" | \
+        command pd -s user -W=$[COLUMNS+34] ${arglist[@]} "${flags[@]}" "${pids[@]}" --format\^="@@%l@@" | \
             sed -E \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/\x1b\[(..|039|38;2;[0-9]+;[0-9]+;0|)m//g" \
                 -e "/^@@.*explicit:.*@@|@@LABELS.*@@/I! s/.*/\x1b[38:5:242m&\x1b[m/g" \
-                -e "/^@@LABELS.*@@/ s/.*/\x1b[38:5:220;1;4m&\x1b[m/g" \
-                -e "s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
+                -e "/^@@LABELS.*@@/I! s/$process/\x1b[4:1;58:5:208m&\x1b[4:0m/gI" \
+                -e "/^@@LABELS.*@@/ s/\x1b\[m/\x1b\[22;4m/g" \
+                -e "/^@@LABELS.*@@/ s/.*/\x1b[38:5:220;4;58:5:220m&\x1b[m/g" \
                 -e "s/@@.+@@//"
         #echo $[EPOCHREALTIME-start_time]
     fi
