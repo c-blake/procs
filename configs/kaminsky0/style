@@ -7,13 +7,21 @@ Style = "nkern  = -mkern"
 Style = "Kmerge = -mkworker -mcpuhp -mirq -mksoftirqd -mmigration -mxfs -mkcryptd -mdmcrypt -mscsi_eh -mscsi_tmf -mwq -mrcuS -mXiod -mkdmflush -miprtVBox -mnvidia -merofs -midle -mcrtc -mbch -mjbd"
 Style = "Bmerge = "
 
-color = "delta   underline" # embellishment for column hdrs used in delta-mode
-indent  = 2     # For below %D's
-na      = ""   # Missing values: ? -> . to be less obtrusive
-eqLeaf  = true  # Equalize leaves so -oDT / -oDJ / -oDM sort Last-Lvl kidless
-# schedSt = true  # For below %e/%b; Just use -t locally
+color = "order  bold underdouble"        # embellishment for column hdrs used to sort
+color = "delta  underline"   # embellishment for column hdrs used to delta
+indent  = 2                  # For below %D's
+na      = ""                 # Missing values: ? -> . to be less obtrusive
+eqLeaf  = true               # Equalize leaves so -oDT / -oDJ / -oDM sort Last-Lvl kidless
+glyph  = "[38;5;207m▲[38;5;220m:[38;5;207m▼[38;5;220m::"           # increasing, decreasing, δincreasing, δdecreasing
+
+
+# schedSt = true             # For below %e/%b; Just use -t locally
+
+# For local adjustment, it might make sense to have a `[include__PD_LOCAL]`.
+hdrs    = "t:TTY"            # leave room for 2-digit ptys, common on shared servers
+
 # First define unfiltered styles; -DJ><R is for differential -d1 top-esque mode
-# -U4 shortens usernames to be 4-wide
+# -U4 shortens usernames to be 4-wide; May want -U8, etc.
 Style = "abasic = -DJ><R     -e -oDJ><R \"-f%p %R %< %> %a %J %t %D%C\""
 Style = "along  = -U4        -e -oDT    \"-f%L %U %p %P %y %v %R %w %t %J %D%C\""
 Style = "auser  = -U4 -tDbJ  -e -oDC    \"-f%U %p %t %m %R %v %a %e %j %J %D%C\""
