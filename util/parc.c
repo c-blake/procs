@@ -93,7 +93,8 @@ Buf buf;                                //Reused IO buffer GLOBAL
 Rec rec = {.magic= 070707};             //Reused CPIO record header GLOBAL
 char Pad0 = '\0', *pad0 = &Pad0;        //Just a 1 byte pad buffer of only \0
 #define wD(p, n) (fwrite((p),1,(n),stdout)) //w)rite D)ata to stdout
-int jobs=1,soProg=1,eoProg, thisUid, i; //GLOBALS for parallel work;Only i moves
+int jobs=1, soProg=1, eoProg, i;        //GLOBALS for parallel work;Only i moves
+uid_t thisUid;
 
 void wH(char *path, int datLen) {       //Write Header to stdout
   int pLen = strlen(path);              assert(pLen > 0);
