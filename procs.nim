@@ -761,6 +761,7 @@ proc merge*(p: var Proc; q: Proc, fill: ProcFields, overwriteSetValued=false) =
     if pffs_usr     in fill: p.usr       = q.usr
     if pffs_grp     in fill: p.grp       = q.grp
     if pfs_name     in fill: p.name      = q.name
+  if q.state in {'R','D','T','t'}: p.state = q.state #Propagate runnable|stopped
 
 proc minusEq*(p: var Proc, q: Proc, fill: ProcFields) =
   ## For temporal differences, set ``p.field -= q`` for all fields in ``fill``
