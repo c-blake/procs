@@ -1,6 +1,14 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.11
+--------------
+  - Propagate runnable|stopped trait to the whole group under merge.
+
+Version: 0.8.10
+--------------
+  - Just bump to get new cligen.
+
 Version: 0.8.9
 --------------
   - Add more short alias possibilities (active only if ../bin/procs is ln -s'd),
