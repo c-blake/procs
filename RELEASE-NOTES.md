@@ -6,6 +6,8 @@ Version: 0.8.12
   - Add a more precise load average "mvrn" with user-tunable decay to scrollsy.
     Use in default format (with what it averages, "prn").
 
+  - Add total interrupt jiffies (irj = hw + software) & use in default format.
+
 Version: 0.8.11
 ---------------
   - Propagate runnable|stopped trait to the whole group under merge.
