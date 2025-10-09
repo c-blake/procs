@@ -2169,7 +2169,7 @@ dAdd("idlj", {ssStat},    4, "IdlJ", fmtJ): cpuOrZero(s.cpu, 0, idle)
 dAdd("iowj", {ssStat},    4, "IOWJ", fmtJ): cpuOrZero(s.cpu, 0, iowait)
 dAdd("hirj", {ssStat},    4, "HIrJ", fmtJ): cpuOrZero(s.cpu, 0, irq)
 dAdd("sirj", {ssStat},    4, "SIrJ", fmtJ): cpuOrZero(s.cpu, 0, softirq)
-dAdd("irj" , {ssStat},    3, "IrJ" , fmtJ):
+dAdd("irj" , {ssStat},    4, "IrJ" , fmtJ):
   if s.cpu.len > 0: s.cpu[0].irq + s.cpu[0].softirq else: 0
 dAdd("stlj", {ssStat},    4, "StlJ", fmtJ): cpuOrZero(s.cpu, 0, steal)
 dAdd("gstj", {ssStat},    4, "GstJ", fmtJ): cpuOrZero(s.cpu, 0, guest)
