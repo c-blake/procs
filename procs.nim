@@ -2081,25 +2081,6 @@ proc fmtLoad(n: uint): string =
 proc fmtJ(n: uint; wid: int): string =
   fmtLoad(n) & align(humanReadable4(n.uint, cs.binary), wid) & cs.a0
 
-var lastReport = ""   # Waiting minutes for scrolling loads to adjust to
-var lastVal = ""      #.. long-term levels is often not desired (may even
-var dtSinceLast = 0.0 #.. be rare). LoadAvg0 backs out "instantaneous" load.
-proc la0(dt: float, currLA, lastLA: LoadAvg): string =
-  const o1 = 0.9200444146293233; const n1 = 1.0 - o1 # L1(t)=o1*L1(t-5)+n1*L(t)
-  # L1(t) = o1*L1(t-5) + n1*L(t) => L(t)=L1(t)/n1 - L1(t-5)*o1/n1.
-  if currLA.m1 == lastVal: dtSinceLast += dt; return lastReport
-  if lastVal.len == 0:
-    lastVal = currLA.m1
-    lastReport = lastVal
-    dtSinceLast = 0.0
-    return currLA.m1
-  let L1minDt = parseFloat(lastVal)
-  let L1now   = parseFloat(currLA.m1)
-  lastReport  = &"{(L1now/n1 - o1/n1*L1minDt + 0.5).int.float:.2f}"
-  lastVal     = currLA.m1
-  dtSinceLast = 0.0
-  return lastReport
-
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
   let jiffieEquivalent = (parseInt(join(s.split('.')).strip()).float *
@@ -2116,7 +2097,6 @@ template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
 sAdd("btm", {ssStat},  10,"bootTmSec"): align($curr.s.bootTime, w)
 sAdd("prn", {ssStat},   3,"PRn"   ): align($curr.s.procsRunnable, w)
 sAdd("pbl", {ssStat},   3,"PBl"   ): align($curr.s.procsBlocked, w)
-sAdd("la0", {ssLoadAvg},5,"LdAv0" ): fmtLoadAvg(la0(dtI, curr.l, last.l), w)
 sAdd("la1", {ssLoadAvg},5,"LdAv1" ): fmtLoadAvg(curr.l.m1, w)
 sAdd("la5", {ssLoadAvg},5,"LdAv5" ): fmtLoadAvg(curr.l.m5, w)
 sAdd("la15",{ssLoadAvg},5,"LdAv15"): fmtLoadAvg(curr.l.m15, w)
