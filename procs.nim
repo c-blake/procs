@@ -2168,6 +2168,8 @@ dAdd("idlj", {ssStat},    4, "IdlJ", fmtJ): cpuOrZero(s.cpu, 0, idle)
 dAdd("iowj", {ssStat},    4, "IOWJ", fmtJ): cpuOrZero(s.cpu, 0, iowait)
 dAdd("hirj", {ssStat},    4, "HIrJ", fmtJ): cpuOrZero(s.cpu, 0, irq)
 dAdd("sirj", {ssStat},    4, "SIrJ", fmtJ): cpuOrZero(s.cpu, 0, softirq)
+dAdd("irj" , {ssStat},    3, "IrJ" , fmtJ):
+  if s.cpu.len > 0: s.cpu[0].irq + s.cpu[0].softirq else: 0
 dAdd("stlj", {ssStat},    4, "StlJ", fmtJ): cpuOrZero(s.cpu, 0, steal)
 dAdd("gstj", {ssStat},    4, "GstJ", fmtJ): cpuOrZero(s.cpu, 0, guest)
 dAdd("gncj", {ssStat},    4, "GNcJ", fmtJ): cpuOrZero(s.cpu, 0, guest_nice)
@@ -2217,7 +2219,7 @@ dAdd("npsn", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
 
 proc parseFormat(cf: var ScCf) =
   let format = if cf.format.len > 0: cf.format else:
-                 @[ "usrj","sysj","iowj","hirj","sirj", "pmad","la1", "mavl",
+                 @[ "usrj","sysj","iowj","irj", "pmad","prn","la1", "mavl",
                     "intr","ctsw", "dnrd","dnwr", "dbrd","dbwr", "nbrc","nbsn" ]
   var hdrMap: Table[string, string]
   for h in cf.hdrs:
