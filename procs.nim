@@ -2359,7 +2359,7 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin(); cf.display(); quit(0)
   let sd = ScCf(frqHdr: 15, numIt: -1, plain: noColor,      # s)croll d)efaults
-                window: 9, delay: Timespec(tv_sec: (+1).Time))
+                window: 15, delay: Timespec(tv_sec: (+1).Time))
   initDispatchGen(scrollC, cf, sd, positional="format", @["ALL AFTER format"]):
     cf.fin(); cf.scrollSys(); quit(0)
   # procs.find is a more classic cligen subcommand without a config object
