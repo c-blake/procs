@@ -2095,7 +2095,8 @@ template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
                   proc(dtI: float; w: int; last,curr: Sys): string {.closure.} =
                     toStr)
 sAdd("btm", {ssStat},  10,"bootTmSec"): align($curr.s.bootTime, w)
-sAdd("prn", {ssStat},   3,"PRn"   ): align($curr.s.procsRunnable, w)
+#`procs` itself always 1 runnable when calling read; -1 Adjusting is debatable.
+sAdd("prn", {ssStat},   3,"PRn"   ): align($(curr.s.procsRunnable - 1), w)
 sAdd("pbl", {ssStat},   3,"PBl"   ): align($curr.s.procsBlocked, w)
 sAdd("la1", {ssLoadAvg},5,"LdAv1" ): fmtLoadAvg(curr.l.m1, w)
 sAdd("la5", {ssLoadAvg},5,"LdAv5" ): fmtLoadAvg(curr.l.m5, w)
