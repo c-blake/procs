@@ -1,12 +1,17 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.12
+---------------
+  - Add a more precise load average "mvrn" with user-tunable decay to scrollsy.
+    Use in default format (with what it averages, "prn").
+
 Version: 0.8.11
---------------
+---------------
   - Propagate runnable|stopped trait to the whole group under merge.
 
 Version: 0.8.10
---------------
+---------------
   - Just bump to get new cligen.
 
 Version: 0.8.9
