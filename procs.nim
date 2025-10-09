@@ -1,7 +1,7 @@
 ## Linux /proc data/display/query interfaces - both cmdline & library
 # This program goes to some effort to save time by collecting only needed data.
 
-import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre,
+import std/[os, posix, strutils, sets, tables, terminal, algorithm, nre, deques,
             critbits, parseutils, monotimes, macros, exitprocs, strformat],
      cligen/[posixUt,mfile,mslice,sysUt,textUt,humanUt,strUt,abbrev,macUt,puSig]
 export signum                   # from puSig; For backward compatibility
@@ -2058,7 +2058,7 @@ type
   ScCf* = object
     colors*, color*: seq[string]                            ##usrDefd colors
     hdrs*: seq[string]                                      ##usrDefd headers
-    frqHdr*, numIt*: int                                    ##header frq, itrs
+    frqHdr*, numIt*, window*: int        ##header frq, itrs, data window in pnts
     delay*: Timespec                                        ##delay between itrs
     binary*, plain*, unnorm*: bool                          ##flags; see help
     disks*, ifaces*, format*: seq[string]                   ##fmts to display
@@ -2087,6 +2087,15 @@ proc fmtLoadAvg(s: string; wid: int): string =
                           cs.cpuNorm).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
+type MvRn = tuple[w,n,num,tot: int; norm: float; recent: Deque[uint16]]
+var mvRn: MvRn
+proc add(r: var MvRn, x: uint16) =
+  if r.recent.len == r.w: r.num -= r.tot; r.tot -= r.recent.popFirst.int
+  r.recent.addLast x; r.num += r.recent.len*x.int; r.tot += x.int; r.n += 1
+proc lma(r: MvRn): float = (let n = r.recent.len;
+  r.num.float*(if n >= r.w: r.norm else: 2.0/(n.float*(n.float + 1))))
+proc fmtLma(r: MvRn): string = &"{r.lma:.2f}"
+
 proc fmtZ(b: uint, wid: int): string = fmtSz(cs.attrSize,cs.a0,cs.binary,b,wid)
 
 var sysFmt: Table[string, ScField]
@@ -2101,6 +2110,8 @@ sAdd("pbl", {ssStat},   3,"PBl"   ): align($curr.s.procsBlocked, w)
 sAdd("la1", {ssLoadAvg},5,"LdAv1" ): fmtLoadAvg(curr.l.m1, w)
 sAdd("la5", {ssLoadAvg},5,"LdAv5" ): fmtLoadAvg(curr.l.m5, w)
 sAdd("la15",{ssLoadAvg},5,"LdAv15"): fmtLoadAvg(curr.l.m15, w)
+sAdd("mvrn",{ssLoadAvg},5,"MvRn"  ): (mvRn.add uint16(curr.s.procsRunnable - 1);
+                                      fmtLoadAvg mvRn.fmtLma, w)
 sAdd("mtot",{ssMemInfo},4,"mTot"): fmtZ(curr.m.MemTotal      , w)
 sAdd("mfre",{ssMemInfo},4,"mFre"): fmtZ(curr.m.MemFree       , w)
 sAdd("mavl",{ssMemInfo},4,"mAvl"): fmtZ(curr.m.MemAvailable  , w)
@@ -2220,7 +2231,7 @@ dAdd("npsn", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
 
 proc parseFormat(cf: var ScCf) =
   let format = if cf.format.len > 0: cf.format else:
-                 @[ "usrj","sysj","iowj","irj", "pmad","prn","la1", "mavl",
+                 @[ "usrj","sysj","iowj","irj", "pmad","prn","mvrn", "mavl",
                     "intr","ctsw", "dnrd","dnwr", "dbrd","dbwr", "nbrc","nbsn" ]
   var hdrMap: Table[string, string]
   for h in cf.hdrs:
@@ -2265,6 +2276,7 @@ proc fin*(cf: var ScCf) =
   cf.cpuNorm = if cf.unnorm: 1.0 else: 1.0 / (procSysStat().cpu.len.float - 1.0)
   cf.parseColor                                   #.color => .attr
   cf.parseFormat                                  #.format => .fields
+  mvRn.w = cf.window; mvRn.norm = 2.0/(cf.window.float*(cf.window.float + 1))
   cs = cf.addr                                    #Init global ptr
 
 proc read*(p: var Sys, need: SysSrcs): bool =
@@ -2347,7 +2359,7 @@ when isMainModule:                      #-- DRIVE COMMAND-LINE INTERFACE
   initDispatchGen(displayCmd, cf, dd, positional="pids", @["ALL AFTER pids"]):
     cf.fin(); cf.display(); quit(0)
   let sd = ScCf(frqHdr: 15, numIt: -1, plain: noColor,      # s)croll d)efaults
-                delay: Timespec(tv_sec: (+1).Time))
+                window: 9, delay: Timespec(tv_sec: (+1).Time))
   initDispatchGen(scrollC, cf, sd, positional="format", @["ALL AFTER format"]):
     cf.fin(); cf.scrollSys(); quit(0)
   # procs.find is a more classic cligen subcommand without a config object
@@ -2450,6 +2462,7 @@ NAME = size{BKMGT}|load{NNN}
 ATTR = as in `lc` colors""",
                "frqHdr": "frequency of header repeats",
                "numIt" : "number of reports",
+               "window": "window for smoothers(in data points); Lag~w/3",
                "delay" : "delay between reports",
                "binary": "K=size/1024,M=size/1024/1024 (vs/1000..)",
                "unnorm": "do not normalize jiffy times/loads by #CPUs",
