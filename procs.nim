@@ -2185,6 +2185,8 @@ dAdd("irj" , {ssStat},    4, "IrJ" , fmtJ):
 dAdd("stlj", {ssStat},    4, "StlJ", fmtJ): cpuOrZero(s.cpu, 0, steal)
 dAdd("gstj", {ssStat},    4, "GstJ", fmtJ): cpuOrZero(s.cpu, 0, guest)
 dAdd("gncj", {ssStat},    4, "GNcJ", fmtJ): cpuOrZero(s.cpu, 0, guest_nice)
+dAdd("othj", {ssStat},    4, "OthJ", fmtJ): (if s.cpu.len == 0: 0 else:
+  (let c = s.cpu[0]; c.nice + c.irq + c.softirq + c.steal)) #All-Usr-Sys-IO-Idle
 #XXX Some uses (iostat) want local rather than global name sets; Eg "drb:sda".
 #XXX Also, above specified CPUs e.g. usr:<N>.  With params, we need >= 1 more
 #XXX hdr rows containing used parameter.  May also want filter by maj/min devNo.
@@ -2231,7 +2233,7 @@ dAdd("npsn", {ssNetDev},   4, "N#S", fmtZ): n.tot(cs.ifs, sent.packets)
 
 proc parseFormat(cf: var ScCf) =
   let format = if cf.format.len > 0: cf.format else:
-                 @[ "usrj","sysj","iowj","irj", "pmad","prn","mvrn", "mavl",
+                 @[ "usrj","sysj","iowj","othj", "pmad","prn","mvrn", "mavl",
                     "intr","ctsw", "dnrd","dnwr", "dbrd","dbwr", "nbrc","nbsn" ]
   var hdrMap: Table[string, string]
   for h in cf.hdrs:
