@@ -8,6 +8,9 @@ Version: 0.8.12
 
   - Add total interrupt jiffies (irj = hw + software) & use in default format.
 
+  - Add "other jiffies" totalling the above with nice + steal to have a 4-field
+    accounting of non-idle time.
+
 Version: 0.8.11
 ---------------
   - Propagate runnable|stopped trait to the whole group under merge.
