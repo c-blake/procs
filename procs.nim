@@ -2083,8 +2083,7 @@ proc fmtJ(n: uint; wid: int): string =
 
 proc fmtLoadAvg(s: string; wid: int): string =
   let s = align(s, wid) #take '.' out of load, parse into int, feed to fmtLoad.
-  let jiffieEquivalent = (parseInt(join(s.split('.')).strip()).float *
-                          cs.cpuNorm).uint
+  let jiffieEquivalent = (parseFloat(s.strip).float*cs.cpuNorm*100).uint
   if cs.plain: s else: fmtLoad(jiffieEquivalent) & s & cs.a0
 
 type MvRn = tuple[w,n,num,tot: int; norm: float; recent: Deque[uint16]]
@@ -2105,7 +2104,7 @@ template sAdd(code, sfs, wid, hdr, toStr: untyped) {.dirty.} =
                     toStr)
 sAdd("btm", {ssStat},  10,"bootTmSec"): align($curr.s.bootTime, w)
 #`procs` itself always 1 runnable when calling read; -1 Adjusting is debatable.
-sAdd("prn", {ssStat},   3,"PRn"   ): align($(curr.s.procsRunnable - 1), w)
+sAdd("prn", {ssStat},   3,"PRn"   ): fmtLoadAvg($(curr.s.procsRunnable - 1), w)
 sAdd("pbl", {ssStat},   3,"PBl"   ): align($curr.s.procsBlocked, w)
 sAdd("la1", {ssLoadAvg},5,"LdAv1" ): fmtLoadAvg(curr.l.m1, w)
 sAdd("la5", {ssLoadAvg},5,"LdAv5" ): fmtLoadAvg(curr.l.m5, w)
