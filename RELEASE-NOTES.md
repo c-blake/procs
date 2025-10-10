@@ -4,7 +4,8 @@ RELEASE NOTES
 Version: 0.8.12
 ---------------
   - Add a more precise load average "mvrn" with user-tunable decay to scrollsy.
-    Use in default format (with what it averages, "prn").
+    Use in default format (with what it averages, "prn").  Also colorize "prn"
+    the same way as various load averages.
 
   - Add total interrupt jiffies (irj = hw + software) & use in default format.
 
