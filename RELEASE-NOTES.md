@@ -12,6 +12,9 @@ Version: 0.8.12
   - Add "other jiffies" totalling the above with nice + steal to have a 4-field
     accounting of non-idle time.
 
+  - Mention `bsdtar` in `parc` help since it is the "narrow waist" any-to-any
+    converter for archive formats, emitting .tar's, .zip, .7z, other cpio's/etc.
+
 Version: 0.8.11
 ---------------
   - Propagate runnable|stopped trait to the whole group under merge.

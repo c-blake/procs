@@ -12,7 +12,8 @@ char *Use="Programmed ARChiver; Like cpio -oHbin, but works on odd /proc files."
 "\nsnapshots what `procs display` needs for most formats/sorts/merges.\n\n`PFA=Y"
 " pd -sX; cpio -tv<Y|less` shows needs for your specific case of style X,\n"
 "but NOTE parc drops unreadable entries (eg. kthread /exe, otherUser /io) from\n"
-"written cpio archives, which are then treated as empty files by `pd`.";
+"written cpio archives, which are then treated as empty files by `pd`. IF YOU\n"
+"HATE cpios, just `| bsdtar --format=X -cf /tmp/new @-` to get tarballs/etc.";
 #include <string.h>   // strlen memcpy memset strerror strdup
 #include <stdlib.h>   // malloc realloc atoi exit getenv
 #include <stdio.h>    // stdout stderr fprintf fwrite

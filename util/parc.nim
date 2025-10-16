@@ -17,7 +17,8 @@ snapshots what `procs display` needs for most formats/sorts/merges.
 
 `PFA=Y pd -sX; cpio -tv<Y|less` shows needs for your specific case of style X,
 but NOTE parc drops unreadable entries (eg. kthread /exe, otherUser /io) from
-written cpio archives, which are then treated as empty files by `pd`."""
+written cpio archives, which are then treated as empty files by `pd`. IF YOU
+HATE cpios, just `| bsdtar --format=X -cf /tmp/new @-` to get tarballs/etc."""
 
 when not declared stderr: import std/syncio
 import std/[posix, os, strutils], cligen/[posixUt, osUt]
