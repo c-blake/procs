@@ -1041,9 +1041,8 @@ iterator waitLoop(delay, limit: Timespec): int =
     yield j; inc j
     nanosleep(delay)
 
-proc pidfd_open(pid: Pid; flags: cuint): cint {.header: "sys/pidfd.h".}
-proc pidfd_send_signal(fd,sig: cint; info: ptr SigInfo, # LinuxK 5.4+,glibc2.36+
-                       flags: cuint): cint {.header: "sys/pidfd.h".}
+proc pidfd_open(pid:Pid; flags:cuint): cint {.importc.} #LinuxK 5.4+,glibc2.36+
+proc pidfd_send_signal(fd,sig:cint; info:pointer, flags:cuint):cint {.importc.}
 
 proc waitAny*(pList: seq[cint]; delay, limit: Timespec): int =
   ## Wait for ANY PID fds in `pList` to not exist; Timeout after `limit`.
