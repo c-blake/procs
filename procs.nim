@@ -816,6 +816,10 @@ proc procPidMax*(): int = ## Parse & return len("/proc/sys/kernel/pid_max").
 proc procUptime*(): culong =
   ## System uptime in jiffies (there are 100 jiffies per second)
   "uptime".readFile buf
+  if buf.len == 0:              # Newer Android stupidly blocks /proc/uptime
+    var ts: Timespec            # So, fall back to clock_gettime.  parc sees ""
+    if clock_gettime(7.ClockId, ts) == 0: # 7 == BOOTTIME
+      return ts.tv_sec.culong*100 + ts.tv_nsec.culong div 10_000_000
   let decimal = buf.find('.')
   if decimal == -1: return
   buf[decimal..decimal+1] = buf[decimal+1..decimal+2]
