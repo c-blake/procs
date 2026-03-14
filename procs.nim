@@ -124,7 +124,8 @@ proc writeTrailer() =
   rec.nlink = 1                 # At least GNU cpio does this
   writeRecHdr cstring("TRAILER!!!"), 10, 0
   let sz = outp.getFilePos      # Traditionally, cpio pads to 512B block size
-  if sz mod 512!=0:discard outp.writeBuffer(pad0.addr,(sz div 512 + 1)*512 - sz)
+  if sz mod 512 != 0:
+    discard outp.writeBuffer(pad0.addr, Natural((sz div 512 + 1)*512 - sz))
 addExitProc writeTrailer
 
 type    #------------ TYPES FOR PER-PROCESS DATA
