@@ -1887,8 +1887,9 @@ proc act(acts:set[PfAct], lab:string, pid:Pid,pfd:cint, delim:string,sigs:seq[ci
   for a in acts:
     case a
     of acEcho :
-      if lab.len > 0: o lab, ":", pid, delim; wrote = true
-      else          : o pid, delim; wrote = true
+      if wrote: o delim
+      if lab.len > 0: o lab, ":", pid else: o pid
+      wrote = true
     of acPath : discard         # Must handle after forPid
     of acAid  : discard         # Must handle after forPid
     of acCount: cnt.inc
@@ -2441,7 +2442,7 @@ ATTR=attr specs as in --version output""", # Uglier: ATTR=""" & textAttrHelp,
                "age":       ">0 older than age jiff; <0 =>newer than",
                "exclude":   "omit these PIDs {PPID=>par&pgrp(this)}",
                "inVert":    "inVert/negate the matching (~ grep -v)",
-               "delim":     "terminates each output PID",
+               "delim":     "delimits each output PID",
                "otrTerm":   "terminates internal boundaries(PID paths)",
                "Labels":    "seq of counted labels for each pattern",
                "delay":     "seconds between signals/existence chks",
