@@ -2007,12 +2007,14 @@ proc find*(pids="", full=false, ignoreCase=false, RunState="", parent: seq[Pid]=
     if (newest or oldest) and pList.len == 0: #first passing always new min|max
         tM = p.t0; pList.add p.pid; fList.add pidfd_open(p.pid, 0); continue
     if newest:                                #t0 < tM has already been skipped
-      if p.t0>tM or p.t0==tM and p.pid>pList[0]: #PIDwraparound=>iffy tie-break
-        tM = p.t0; pList[0] = p.pid; fList[0] = pidfd_open(p.pid, 0) #update max
+      if p.t0>tM or p.t0==tM and p.pid>pList[0]: #PIDwrap=>iffy same-sec tie-brk
+        tM = p.t0; pList[0] = p.pid           # Update max;Above old|new ensures
+        discard close(fList[0]); fList[0] = pidfd_open(p.pid, 0) #..[0] slots.
       continue
     elif oldest:                              #t0 > tM has already been skipped
-      if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwraparound=>iffy tie-break
-        tM = p.t0; pList[0] = p.pid; fList[0] = pidfd_open(p.pid, 0) #update min
+      if p.t0<tM or p.t0==tM and p.pid<pList[0]: #PIDwrap=>iffy same-sec tie-brk
+        tM = p.t0; pList[0] = p.pid           # Update min;Above old|new ensures
+        discard close(fList[0]); fList[0] = pidfd_open(p.pid, 0) #..[0] slots.
       continue
     if not exist:                 # Do any "immediate"/ASAP actions as we go
       if rxes.len > 0:                           # j<L.len should suffice for..

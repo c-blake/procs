@@ -1,6 +1,26 @@
 RELEASE NOTES
 =============
 
+Version: 0.8.14
+---------------
+  - Android bionic libc provides pidfd_*, but there are not usually headers
+  around which were never required anyway. So, drop that build fragility.
+
+  - Google has locked down `/proc/uptime` (likely as a collateral victim of
+  general `/proc` namespacing &| weaker than ideal Linux kernel support).
+  We only need it to age processes. So, just use CLOCK_BOOTTIME (7) instead.
+
+  - Make `pf --delim` live up to its name by being inactive until needed to
+  delimit > 1 thing.  This makes one not have to remember --newest/etc. for a
+  construct like `ls -l /proc/$(pf unique)/fd` & the like.
+
+  - Also in `pf`, fix a file descriptor leak although (only a problem with
+  more matches for pf --newest or pf --oldest than free fd slots).
+
+Version: 0.8.13
+---------------
+  - Track need to compile w/thread support induced by using `cligen/abbrev`.
+
 Version: 0.8.12
 ---------------
   - Add a more precise load average "mvrn" with user-tunable decay to scrollsy.
