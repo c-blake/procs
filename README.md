@@ -56,7 +56,11 @@ Like `lc`, `procs display` is more of a "ps construction toolkit" than a pool of
 pre-packaged formats.  Fancy configs can create more work/slow things down.
 Such is true with almost any featureful program.  I have timed a basic process
 listing as taking about 57% the run-time of the C-based procps `ps`, though
-there are surely environments/configurations where `ps` can be faster.
+there are surely environments/configurations where `ps` can be faster.  Another
+performance-related thing this module can do which is rare-to-unique is to
+leverage snapshots of `/proc` that are acquired with as much parallelism as you
+want either just before a report or from a long time ago via the stand-alone
+tool [`parc`](util/parc.c) or its [Nim cousin](util/parc.nim).
 
 ASAP mode
 ---------
