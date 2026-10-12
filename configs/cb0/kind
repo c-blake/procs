@@ -35,5 +35,8 @@ kind = "Xiod      all kern kiod"
 # Some user space bundles
 # kind = "firefox pcr firefox|WebExtensions|socketcontrol|Web.Content|RDD.Process|Privileged.Cont|Socket.Process|Utility.Process|Isolated Web"
 kind = "firefox pcr_@ /firefox/|/mozilla/" # exe.readlink needs owner perm! +5%
+kind = "postfix pcr master|qmgr|tlsmgr|anvil|bounce|cleanup|discard|pickup|smtp|trivial-rewrite|local"
+
+# NOTE exe.readlink (_@) does not work on zombie processes
 kind = "chrome  pcr chrome|nacl_helper|crashpad_handle"
 kind = "vbox    pcr VBox"
