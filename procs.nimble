@@ -3,7 +3,7 @@ version     = "0.8.14"
 author      = "Charles Blake"
 description = "Unix process&system query&format lib&multi-command CLI in Nim"
 license     = "MIT/ISC"
-bin         = @["procs"]
+bin         = @["procs", "util/parc"]
 installDirs = @["configs"]
 
 # Dependencies
